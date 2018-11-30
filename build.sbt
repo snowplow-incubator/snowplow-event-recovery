@@ -35,7 +35,6 @@ lazy val snowplowEventRecovery = (project.in(file(".")))
   .dependsOn(core)
 
 lazy val thriftSchemaVersion = "0.0.0"
-lazy val circeVersion = "0.10.0"
 lazy val catsVersion = "1.4.0"
 lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
@@ -55,13 +54,14 @@ lazy val core = project
       "com.snowplowanalytics" %% "scalacheck-schema" % scalacheckSchemaVersion % "test",
       // needed for thrift ser/de
       "org.slf4j" % "slf4j-log4j12" % slf4jVersion % " test"
-    ) ++ Seq(
-      "io.circe" %% "circe-core",
-      "io.circe" %% "circe-generic",
-      "io.circe" %% "circe-generic-extras",
-      "io.circe" %% "circe-parser"
-    ).map(_ % circeVersion)
+    )
   )
+
+lazy val circeVersion = "0.10.1"
+lazy val circeDependencies = Seq(
+  "io.circe" %% "circe-generic-extras",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
 
 lazy val sparkVersion = "2.3.1"
 lazy val framelessVersion = "0.6.1"
@@ -84,7 +84,7 @@ lazy val spark = project
       "com.hadoop.gplcompression" % "hadoop-lzo" % hadoopLzoVersion,
       "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion,
       "org.scalatest" %% "scalatest" % scalatestVersion % "test"
-    )
+    ) ++ circeDependencies
   ).settings(
     initialCommands in console :=
       """
@@ -118,7 +118,7 @@ lazy val spark = project
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
     }
-  )
+  ).dependsOn(core)
 
 def makeColorConsole() = {
   val ansi = System.getProperty("sbt.log.noformat", "false") != "true"
