@@ -70,10 +70,4 @@ object gens {
     errors <- Gen.listOf(errorGen)
     failureTstamp <- Gen.alphaStr
   } yield BadRow(line, errors, failureTstamp)
-
-  private val thriftSer: CollectorPayload => String = { cp =>
-    val thriftSerializer = new TSerializer
-    val bytes = thriftSerializer.serialize(cp)
-    Base64.getEncoder.encodeToString(bytes)
-  }
 }
