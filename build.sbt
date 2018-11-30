@@ -37,6 +37,7 @@ lazy val snowplowEventRecovery = (project.in(file(".")))
 lazy val thriftSchemaVersion = "0.0.0"
 lazy val circeVersion = "0.10.0"
 lazy val catsVersion = "1.4.0"
+lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
 lazy val scalacheckSchemaVersion = "0.1.0"
@@ -51,7 +52,9 @@ lazy val core = project
       "org.typelevel" %% "cats-core" % catsVersion,
       "org.scalatest" %% "scalatest" % scalatestVersion % "test",
       "org.scalacheck" %% "scalacheck" % scalacheckVersion % "test",
-      "com.snowplowanalytics" %% "scalacheck-schema" % scalacheckSchemaVersion % "test"
+      "com.snowplowanalytics" %% "scalacheck-schema" % scalacheckSchemaVersion % "test",
+      // needed for thrift ser/de
+      "org.slf4j" % "slf4j-log4j12" % slf4jVersion % " test"
     ) ++ Seq(
       "io.circe" %% "circe-core",
       "io.circe" %% "circe-generic",
