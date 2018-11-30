@@ -10,7 +10,7 @@ import gens._
 import utils._
 
 class UtilsSpec extends FreeSpec with PropertyChecks {
-  "thriftDeser" - {
+  "thriftSerDe" - {
     "should deserialize any collector payload" in {
       forAll { (cp: CollectorPayload) =>
         val oldCp = new CollectorPayload(cp)
