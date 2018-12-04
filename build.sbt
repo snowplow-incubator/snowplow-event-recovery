@@ -59,9 +59,11 @@ lazy val core = project
 
 lazy val circeVersion = "0.10.1"
 lazy val circeDependencies = Seq(
-  "io.circe" %% "circe-generic-extras",
-  "io.circe" %% "circe-parser"
-).map(_ % circeVersion)
+  "circe-generic-extras",
+  "circe-parser",
+).map("io.circe" %% _ % circeVersion) ++ Seq(
+  "circe-literal"
+).map("io.circe" %% _ % circeVersion % "test")
 
 lazy val sparkVersion = "2.3.1"
 lazy val framelessVersion = "0.6.1"
@@ -69,6 +71,7 @@ lazy val structTypeEncoderVersion = "0.3.0"
 lazy val declineVersion = "0.5.0"
 lazy val hadoopLzoVersion = "0.4.20"
 lazy val elephantBirdVersion = "4.17"
+lazy val sceVersion = "0.35.0"
 
 lazy val spark = project
   .settings(moduleName := "snowplow-event-recovery-spark")
@@ -83,7 +86,9 @@ lazy val spark = project
       "com.monovore" %% "decline" % declineVersion,
       "com.hadoop.gplcompression" % "hadoop-lzo" % hadoopLzoVersion,
       "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion,
-      "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+      "org.scalatest" %% "scalatest" % scalatestVersion % "test",
+      ("com.snowplowanalytics" %% "snowplow-common-enrich" % sceVersion % "test")
+        .exclude("com.maxmind.geoip2", "geoip2")
     ) ++ circeDependencies
   ).settings(
     initialCommands in console :=
