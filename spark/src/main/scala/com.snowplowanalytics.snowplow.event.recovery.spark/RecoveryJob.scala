@@ -1,5 +1,4 @@
 package com.snowplowanalytics.snowplow.event.recovery
-package spark
 
 import java.util.Base64
 
@@ -18,6 +17,7 @@ import io.circe.generic.extras.Configuration
 import io.circe.parser._
 import org.apache.hadoop.io.LongWritable
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import ste.StructTypeEncoder
 import ste.StructTypeEncoder._
@@ -77,25 +77,13 @@ object RecoveryJob {
       .as[BadRow]
       .typed
 
-    val filterUdf = badRows.makeUDF { errors: List[Error] =>
-      recoveryScenarios
-        .map(_.filter(errors))
-        .reduce(_ || _)
-    }
-    val filteredBadRows = badRows.filter(filterUdf(badRows('errors)))
+    val filteredBadRows = filter(badRows, recoveryScenarios)
+
+    val mutated = mutate(filteredBadRows.rdd, recoveryScenarios)
 
     LzoThriftBlockOutputFormat
       .setClassConf(classOf[CollectorPayload], spark.sparkContext.hadoopConfiguration)
-    filteredBadRows
-      .rdd
-      .map { br =>
-        (utils.thriftDeser andThen
-          recoveryScenarios
-            .filter(_.filter(br.errors))
-            .map(_.mutate _)
-            .reduce(_ andThen _)
-        )(br.line)
-      }
+    mutated
       .map { cp =>
         val thriftWritable = ThriftWritable.newInstance(classOf[CollectorPayload])
         thriftWritable.set(cp)
@@ -111,4 +99,29 @@ object RecoveryJob {
 
     spark.stop()
   }
+
+  def filter(
+    badRows: TypedDataset[BadRow],
+    recoveryScenarios: List[RecoveryScenario]
+  ): TypedDataset[BadRow] = {
+    val filterUdf = badRows.makeUDF { errors: List[Error] =>
+      recoveryScenarios
+        .map(_.filter(errors))
+        .fold(false)(_ || _)
+    }
+    badRows.filter(filterUdf(badRows('errors)))
+  }
+
+  def mutate(
+    badRows: RDD[BadRow],
+    recoveryScenarios: List[RecoveryScenario]
+  ): RDD[CollectorPayload] = badRows
+    .map { br =>
+      (utils.thriftDeser andThen
+        recoveryScenarios
+          .filter(_.filter(br.errors))
+          .map(_.mutate _)
+          .fold(identity[CollectorPayload] _)(_ andThen _)
+      )(br.line)
+    }
 }
