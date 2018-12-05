@@ -65,7 +65,7 @@ lazy val circeDependencies = Seq(
   "circe-literal"
 ).map("io.circe" %% _ % circeVersion % "test")
 
-lazy val sparkVersion = "2.3.1"
+lazy val sparkVersion = "2.3.2"
 lazy val framelessVersion = "0.6.1"
 lazy val structTypeEncoderVersion = "0.3.0"
 lazy val declineVersion = "0.5.0"
@@ -112,7 +112,7 @@ lazy val spark = project
         |spark.stop()
       """.stripMargin
   ).settings(
-    assemblyJarName in assembly := { name.value + "-" + version.value + ".jar" },
+    assemblyJarName in assembly := { moduleName.value + "-" + version.value + ".jar" },
     assemblyMergeStrategy in assembly := {
       case x if x.startsWith("META-INF") => MergeStrategy.discard
       case x if x.endsWith(".html") => MergeStrategy.discard
