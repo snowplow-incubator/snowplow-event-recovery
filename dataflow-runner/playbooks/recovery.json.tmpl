@@ -1,0 +1,83 @@
+{
+  "schema": "iglu:com.snowplowanalytics.dataflowrunner/PlaybookConfig/avro/1-0-1",
+  "data": {
+    "region": "eu-west-1",
+    "credentials": {
+      "accessKeyId": "{{secret "aws-access-key-id"}}",
+      "secretAccessKey": "{{secret "aws-secret-access-key"}}"
+    },
+    "steps": [
+      {
+        "type": "CUSTOM_JAR",
+        "name": "Staging of bad rows",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "/usr/share/aws/emr/s3-dist-cp/lib/s3-dist-cp.jar",
+        "arguments": [
+          "--src",
+          "s3n://bad/main/",
+          "--dest",
+          "s3n://bad/recovery/",
+          "--deleteOnSuccess"
+        ]
+      },
+      {
+        "type": "CUSTOM_JAR",
+        "name": "Move to HDFS",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "/usr/share/aws/emr/s3-dist-cp/lib/s3-dist-cp.jar",
+        "arguments": [
+          "--src",
+          "s3n://bad/recovery/",
+          "--dest",
+          "hdfs:///local/to-recover/",
+          "--outputCodec",
+          "none"
+        ]
+      },
+      {
+        "type": "CUSTOM_JAR",
+        "name": "snowplow-event-recovery",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "command-runner.jar",
+        "arguments": [
+          "spark-submit",
+          "--class",
+          "com.snowplowanalytics.snowplow.event.recovery.RecoveryJob",
+          "--master",
+          "yarn",
+          "--deploy-mode",
+          "cluster",
+          "s3a://assets/snowplow-event-recovery-spark-0.1.0.jar",
+          "--input",
+          "hdfs:///local/to-recover/",
+          "--output",
+          "hdfs:///local/recovered/",
+          "--config",
+          "base64-encoded"
+        ]
+      },
+      {
+        "type": "CUSTOM_JAR",
+        "name": "Back to S3",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "/usr/share/aws/emr/s3-dist-cp/lib/s3-dist-cp.jar",
+        "arguments": [
+          "--src",
+          "hdfs:///local/recovered/",
+          "--dest",
+          "s3n://raw/recovery/"
+        ]
+      }
+    ],
+    "tags": [
+      {
+        "key": "client",
+        "value": "com.snowplowanalytics"
+      },
+      {
+        "key": "job",
+        "value": "recovery"
+      }
+    ]
+  }
+}

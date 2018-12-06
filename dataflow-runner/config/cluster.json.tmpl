@@ -1,0 +1,93 @@
+{
+  "schema": "iglu:com.snowplowanalytics.dataflowrunner/ClusterConfig/avro/1-1-0",
+  "data": {
+    "name": "snowplow-event-recovery",
+    "logUri": "s3n:///xx/logs",
+    "region": "eu-west-1",
+    "credentials": {
+      "accessKeyId": "{{secret "aws-access-key-id"}}",
+      "secretAccessKey": "{{secret "aws-secret-access-key"}}"
+    },
+    "roles": {
+      "jobflow": "EMR_EC2_DefaultRole",
+      "service": "EMR_DefaultRole"
+    },
+    "ec2": {
+      "amiVersion": "5.19.0",
+      "keyName": "snowplow-key",
+      "location": {
+        "vpc": {
+          "subnetId": "subnet-"
+        }
+      },
+      "instances": {
+        "master": {
+          "type": "m1.large"
+        },
+        "core": {
+          "type": "m5.xlarge",
+          "count": 2,
+          "ebsConfiguration": {
+            "ebsOptimized": true,
+            "ebsBlockDeviceConfigs": [
+              {
+                "volumesPerInstance": 1,
+                "volumeSpecification": {
+                  "iops": 500,
+                  "sizeInGB": 50,
+                  "volumeType": "io1"
+                }
+              }
+            ]
+          }
+        },
+        "task": {
+          "type": "c4.8xlarge",
+          "count": 0,
+          "bid": "0.25"
+        }
+      }
+    },
+    "tags": [
+      {
+        "key": "client",
+        "value": "com.snowplowanalytics"
+      },
+      {
+        "key": "job",
+        "value": "recovery"
+      }
+    ],
+    "configurations": [
+      {
+        "classification": "yarn-site",
+        "properties": {
+          "yarn.nodemanager.vmem-check-enabled": "false",
+          "yarn.nodemanager.resource.memory-mb": "15360",
+          "yarn.scheduler.maximum-allocation-mb": "15360"
+        }
+      },
+      {
+        "classification": "spark",
+        "properties": {
+          "maximizeResourceAllocation": "false"
+        }
+      },
+      {
+        "classification": "spark-defaults",
+        "properties": {
+          "spark.dynamicAllocationEnabled": "false",
+          "spark.executor.instances": "5",
+          "spark.yarn.executor.memoryOverhead": "1024",
+          "spark.executor.memory": "4G",
+          "spark.executor.cores": "1",
+          "spark.yarn.driver.memoryOverhead": "1024",
+          "spark.driver.memory": "4G",
+          "spark.driver.cores": "1",
+          "spark.default.parallelism": "15"
+        }
+      }
+    ],
+    "applications": [ "Spark", "Hadoop" ]
+  }
+}
