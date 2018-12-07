@@ -16,6 +16,7 @@ import iglu.core.{SchemaKey, SchemaVer}
 import iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
 
 import model._
+import utils._
 
 object gens {
   val qs = (json: JValue) => {
