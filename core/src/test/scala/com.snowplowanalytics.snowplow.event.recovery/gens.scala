@@ -21,12 +21,15 @@ import utils._
 object gens {
   val qs = (json: JValue) => {
     val str = compact(render(json))
-    val encoded = URLEncoder.encode(str, "UTF-8")
-    s"e=pv&page=Title&refr=Referrer&url=Url&co=%7B%22schema%22%3A%22iglu%3Acom.snowplowanalytics.snowplow%5C%2Fcontexts%5C%2Fjsonschema%5C%2F1-0-1%22%2C%22data%22%3A%5B$encoded%5D%7D"
+    val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
+    val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
+    s"e=ue&tv=js&ue_px=$encoded"
   }
   val body = (json: JValue) => {
     val str = compact(render(json))
-    s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"pv","page":"Title","refr":"Referrer","url":"Url","co":{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[$str]}}]}"""
+    val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
+    val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
+    s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","p":"web","tv":"js","ue_px":"$encoded"}]}"""
   }
 
   private val schemaKey =

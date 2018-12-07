@@ -30,24 +30,13 @@ object Main extends CommandApp(
   name = "snowplow-event-recovery-job",
   header = "Snowplow event recovery job",
   main = {
-    val input = Opts.option[String]("input", help = "Input path")
-    val output = Opts.option[String]("output", help = "Output path")
+    val input = Opts.option[String]("input", help = "Input S3 path")
+    val output = Opts.option[String]("output", help = "Output S3 path")
     val recoveryScenarios = Opts.option[String](
       "config",
       help = "Base64 config with schema com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0"
-    ).mapValidated { encoded =>
-      Either.catchNonFatal(new String(Base64.getDecoder.decode(encoded))).toValidated.leftMap(e =>
-        NonEmptyList.one(s"Configuration is not properly base64-encoded: ${e.getMessage}"))
-    }.mapValidated { decoded =>
-      implicit val genConfig: Configuration =
-        Configuration.default.withDiscriminator("name")
-      val result = for {
-        json <- parse(decoded)
-        scenarios <- json.hcursor.get[List[RecoveryScenario]]("data")
-      } yield scenarios
-      result.toValidated.leftMap(e =>
-        NonEmptyList.one(s"Configuration is not properly formatted: ${e.getMessage}"))
-    }
+    ).mapValidated(utils.decodeBase64(_).toValidatedNel)
+      .mapValidated(utils.parseRecoveryScenarios(_).toValidatedNel)
     (input, output, recoveryScenarios).mapN { (i, o, rss) => RecoveryJob.run(i, o, rss) }
   }
 )
@@ -79,7 +68,7 @@ object RecoveryJob {
 
     val filteredBadRows = filter(badRows, recoveryScenarios)
 
-    val mutated = mutate(filteredBadRows.rdd, recoveryScenarios)
+    val mutated = filteredBadRows.rdd.map(_.mutateCollectorPayload(recoveryScenarios))
 
     LzoThriftBlockOutputFormat
       .setClassConf(classOf[CollectorPayload], spark.sparkContext.hadoopConfiguration)
@@ -111,17 +100,4 @@ object RecoveryJob {
     }
     badRows.filter(filterUdf(badRows('errors)))
   }
-
-  def mutate(
-    badRows: RDD[BadRow],
-    recoveryScenarios: List[RecoveryScenario]
-  ): RDD[CollectorPayload] = badRows
-    .map { br =>
-      (utils.thriftDeser andThen
-        recoveryScenarios
-          .filter(_.filter(br.errors))
-          .map(_.mutate _)
-          .fold(identity[CollectorPayload] _)(_ andThen _)
-      )(br.line)
-    }
 }
