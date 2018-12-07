@@ -32,40 +32,5 @@ class RecoveryJobSpec extends SparkSpec {
         filtered.count().run() shouldEqual 2
       }
     }
-    "mutate" - {
-      "should mutated based on the criteria passed as arguments" in {
-        val badRows = List(
-          BadRow(thriftSer {
-            val cp = new CollectorPayload()
-            cp.querystring = "abc"
-            cp
-          }, List(Error("", "qs")), "tstamp"),
-          BadRow( thriftSer {
-            val cp = new CollectorPayload()
-            cp.body = "abc"
-            cp
-          }, List(Error("", "body")), "tstamp")
-        )
-        val rdd = session.sparkContext.makeRDD(badRows)
-        val recoveryScenarios = List(
-          RemoveFromQueryString("qs", "abc"),
-          RemoveFromBody("body", "abc")
-        )
-        val mutated = RecoveryJob.mutate(rdd, recoveryScenarios)
-        mutated.count() shouldEqual 2
-        mutated.collect() shouldEqual List(
-          {
-            val cp = new CollectorPayload()
-            cp.querystring = ""
-            cp
-          },
-          {
-            val cp = new CollectorPayload()
-            cp.body = ""
-            cp
-          }
-        )
-      }
-    }
   }
 }

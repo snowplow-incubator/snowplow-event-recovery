@@ -1,0 +1,17 @@
+[
+  {
+    "name": "QueryString",
+    "path": "/i",
+    "queryString": "e=pv&page="
+  },
+  {
+    "name": "Body",
+    "path": "/com.snowplowanalytics.snowplow/tp2",
+    "body": {
+      "schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4",
+      "data": [
+        {"e":"pv","p":"web","tv":"js","page":"DemoPageTitle"}
+      ]
+    }
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "line": "CgDIAAAAAAAAAAALANIAAAAFVVRGLTgLANwAAAABYwsBQAAAAAIvaQsBSgAAABllPXB2JnBhZ2U9e0RlbW9QYWdlVGl0bGV9C3ppAAAAQWlnbHU6Y29tLnNub3dwbG93YW5hbHl0aWNzLnNub3dwbG93L0NvbGxlY3RvclBheWxvYWQvdGhyaWZ0LzEtMC0wAA==",
+    "errors": [
+      {
+        "level": "error",
+        "message": "Exception extracting name-value pairs from querystring"
+      }
+    ],
+    "failure_tstamp": "1544614464"
+  },
+  {
+    "line": "CgDIAAAAAAAAAAALANIAAAAFVVRGLTgLANwAAAABYwsBQAAAACMvY29tLnNub3dwbG93YW5hbHl0aWNzLnNub3dwbG93L3RwMgsBVAAAAI17InNjaGVtYSI6ImlnbHU6Y29tLnNub3dwbG93YW5hbHl0aWNzLnNub3dwbG93L3BheWxvYWRfZGF0YS9qc29uc2NoZW1hLzEtMC00IiwiZGF0YSI6W3siZSI6InB2IiwicCI6IndlYiIsInR2IjoianMiLCJwYWdlIjoiRGVtb1BhZ2VUaXRsZSJ9XX0LAWgAAAAfYXBwbGljYXRpb24vanNvbjsgY2hhcnNldD1VVEYtOAt6aQAAAEFpZ2x1OmNvbS5zbm93cGxvd2FuYWx5dGljcy5zbm93cGxvdy9Db2xsZWN0b3JQYXlsb2FkL3RocmlmdC8xLTAtMAA=",
+    "errors": [
+      {
+        "level": "error",
+        "message": "error: instance type (null) does not match any allowed primitive type"
+      }
+    ],
+    "failure_tstamp": "1544614466"
+  }
+]
