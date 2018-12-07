@@ -37,10 +37,19 @@ lazy val snowplowEventRecovery = (project.in(file(".")))
 
 lazy val thriftSchemaVersion = "0.0.0"
 lazy val catsVersion = "1.4.0"
+lazy val scalaUriVersion = "1.4.0"
 lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
 lazy val scalacheckSchemaVersion = "0.1.0"
+
+lazy val circeVersion = "0.10.1"
+lazy val circeDependencies = Seq(
+  "circe-generic-extras",
+  "circe-parser",
+).map("io.circe" %% _ % circeVersion) ++ Seq(
+  "circe-literal"
+).map("io.circe" %% _ % circeVersion % "test")
 
 lazy val core = project
   .settings(moduleName := "snowplow-event-recovery")
@@ -50,21 +59,14 @@ lazy val core = project
     libraryDependencies ++= Seq(
       "com.snowplowanalytics" % "collector-payload-1" % thriftSchemaVersion,
       "org.typelevel" %% "cats-core" % catsVersion,
+      "io.lemonlabs" %% "scala-uri" % scalaUriVersion,
       "org.scalatest" %% "scalatest" % scalatestVersion % "test",
       "org.scalacheck" %% "scalacheck" % scalacheckVersion % "test",
       "com.snowplowanalytics" %% "scalacheck-schema" % scalacheckSchemaVersion % "test",
       // needed for thrift ser/de
       "org.slf4j" % "slf4j-log4j12" % slf4jVersion % " test"
-    )
+    ) ++ circeDependencies
   )
-
-lazy val circeVersion = "0.10.1"
-lazy val circeDependencies = Seq(
-  "circe-generic-extras",
-  "circe-parser",
-).map("io.circe" %% _ % circeVersion) ++ Seq(
-  "circe-literal"
-).map("io.circe" %% _ % circeVersion % "test")
 
 lazy val sparkVersion = "2.3.2"
 lazy val framelessVersion = "0.6.1"
@@ -90,7 +92,7 @@ lazy val spark = project
       "org.scalatest" %% "scalatest" % scalatestVersion % "test",
       ("com.snowplowanalytics" %% "snowplow-common-enrich" % sceVersion % "test")
         .exclude("com.maxmind.geoip2", "geoip2")
-    ) ++ circeDependencies
+    )
   ).settings(
     initialCommands in console :=
       """

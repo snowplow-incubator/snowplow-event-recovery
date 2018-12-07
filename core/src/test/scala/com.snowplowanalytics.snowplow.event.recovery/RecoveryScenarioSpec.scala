@@ -2,7 +2,7 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 
 import java.net.URI
-import java.util.UUID
+import java.util.{Base64, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -36,7 +36,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
   "ReplaceInQueryString" - {
     "should replace part of the query string" in {
       forAll { (cp: CollectorPayload) =>
-        val riqs = ReplaceInQueryString("placeholder", "page=Title", "page=Title2")
+        val riqs = ReplaceInQueryString("placeholder", "tv=js", "tv=js2")
         val oldCp = new CollectorPayload(cp)
         val newCp = riqs.mutate(cp)
         if (cp.querystring == null) oldCp shouldEqual newCp
@@ -48,23 +48,27 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
         }
       }
     }
-    "should replace part of the query string using a regex" in {
+  }
+
+  "ReplaceInBase64FieldInQueryString" - {
+    "should replace part of ue_px in the query string using a regex" in {
       forAll { (cp: CollectorPayload, uuid: UUID) =>
-        val riqs = ReplaceInQueryString(
+        val ribfiqs = ReplaceInBase64FieldInQueryString(
           "placeholder",
-          s"%22sessionId%22%3A%22$uuidRegex%22",
-          s"%22sessionId%22%3a%22${uuid.toString}%22"
+          "ue_px",
+          s""""sessionId":"$uuidRegex"""",
+          s""""sessionId":"${uuid.toString}""""
         )
         val oldCp = new CollectorPayload(cp)
-        val newCp = riqs.mutate(cp)
+        val newCp = ribfiqs.mutate(cp)
         if (cp.querystring == null) oldCp shouldEqual newCp
         else {
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.body shouldEqual newCp.body
-          val oldCo = parse(parseQuerystring(oldCp.querystring)("co"))
-          val newCo = parse(parseQuerystring(newCp.querystring)("co"))
-          val Diff(changed, JNothing, JNothing) = oldCo diff newCo
+          val oldUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(oldCp.querystring)("ue_px"))))
+          val newUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(newCp.querystring)("ue_px"))))
+          val Diff(changed, JNothing, JNothing) = oldUe diff newUe
           changed shouldEqual
             JObject(List(("data", JObject(List(("sessionId", JString(uuid.toString)))))))
         }
@@ -75,7 +79,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
   "RemoveFromQueryString" - {
     "should remove part of the query string" in {
       forAll { (cp: CollectorPayload) =>
-        val toRemove = "page=Title&"
+        val toRemove = "tv=js&"
         val rfqs = RemoveFromQueryString("placeholder", toRemove)
         val oldCp = new CollectorPayload(cp)
         val newCp = rfqs.mutate(cp)
@@ -88,30 +92,12 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
         }
       }
     }
-    "should remove part of the query string using a regex" in {
-      forAll { (cp: CollectorPayload) =>
-        val rfqs = RemoveFromQueryString("placeholder", s"%22sessionId%22%3A%22$uuidRegex%22%2C")
-        val oldCp = new CollectorPayload(cp)
-        val newCp = rfqs.mutate(cp)
-        if (cp.querystring == null) oldCp shouldEqual newCp
-        else {
-          oldCp.timestamp shouldEqual newCp.timestamp
-          oldCp.path shouldEqual newCp.path
-          oldCp.body shouldEqual newCp.body
-          val oldCo = parse(parseQuerystring(oldCp.querystring)("co"))
-          val newCo = parse(parseQuerystring(newCp.querystring)("co"))
-          val Diff(JNothing, JNothing, deleted) = oldCo diff newCo
-          val JObject(List(("data", JObject(List(("sessionId", JString(uuid))))))) = deleted
-          uuid should fullyMatch regex(uuidRegex)
-        }
-      }
-    }
   }
 
   "ReplaceInBody" - {
     "should replace part of the body" in {
       forAll { (cp: CollectorPayload) =>
-        val rib = ReplaceInBody("placeholder", """"page":"Title"""", """"page":"Title2"""")
+        val rib = ReplaceInBody("placeholder", """"tv":"js"""", """"tv":"js2"""")
         val oldCp = new CollectorPayload(cp)
         val newCp = rib.mutate(cp)
         if (cp.body == null) oldCp shouldEqual newCp
@@ -123,34 +109,12 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
         }
       }
     }
-    "should replace part of the body using a regex" in {
-      forAll { (cp: CollectorPayload, uuid: UUID) =>
-        val rib = ReplaceInBody(
-          "placeholder",
-          s""""sessionId":"$uuidRegex"""",
-          s""""sessionId":"${uuid.toString}""""
-        )
-        val oldCp = new CollectorPayload(cp)
-        val newCp = rib.mutate(cp)
-        if (cp.body == null) oldCp shouldEqual newCp
-        else {
-          oldCp.timestamp shouldEqual newCp.timestamp
-          oldCp.path shouldEqual newCp.path
-          oldCp.querystring shouldEqual newCp.querystring
-          val oldBody = parse(oldCp.body)
-          val newBody = parse(newCp.body)
-          val Diff(changed, JNothing, JNothing) = oldBody diff newBody
-          changed shouldEqual JObject(List(("data", JObject(List(("co",
-            JObject(List(("data", JObject(List(("sessionId", JString(uuid.toString)))))))))))))
-        }
-      }
-    }
   }
 
   "RemoveFromBody" - {
     "should remove part of the body" in {
       forAll { (cp: CollectorPayload) =>
-        val toRemove = """"page":"Title","""
+        val toRemove = """"tv":"js","""
         val rfb = RemoveFromBody("placeholder", toRemove)
         val oldCp = new CollectorPayload(cp)
         val newCp = rfb.mutate(cp)
@@ -160,25 +124,6 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
           oldCp.path shouldEqual newCp.path
           oldCp.querystring shouldEqual newCp.querystring
           oldCp.body.diff(newCp.body) should contain theSameElementsAs (toRemove)
-        }
-      }
-    }
-    "should remove part of the body using a regex" in {
-      forAll { (cp: CollectorPayload) =>
-        val rfb = RemoveFromBody("placeholder", s""""sessionId":"$uuidRegex",""")
-        val oldCp = new CollectorPayload(cp)
-        val newCp = rfb.mutate(cp)
-        if (cp.body == null) oldCp shouldEqual newCp
-        else {
-          oldCp.timestamp shouldEqual newCp.timestamp
-          oldCp.path shouldEqual newCp.path
-          oldCp.querystring shouldEqual newCp.querystring
-          val oldCo = parse(oldCp.body)
-          val newCo = parse(newCp.body)
-          val Diff(JNothing, JNothing, deleted) = oldCo diff newCo
-          val JObject(List(("data", JObject(List(("co",
-            JObject(List(("data", JObject(List(("sessionId", JString(uuid))))))))))))) = deleted
-          uuid should fullyMatch regex(uuidRegex)
         }
       }
     }
