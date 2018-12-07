@@ -26,7 +26,8 @@ lazy val buildSettings = Seq(
   version := "0.1.0",
   scalacOptions := compilerOptions,
   javacOptions := javaCompilerOptions,
-  initialize ~= { _ => makeColorConsole() }
+  initialize ~= { _ => makeColorConsole() },
+  resolvers ++= Seq("Snowplow Analytics Maven repo" at "http://maven.snplow.com/releases/")
 )
 
 lazy val snowplowEventRecovery = (project.in(file(".")))
