@@ -29,7 +29,7 @@ object gens {
     val str = compact(render(json))
     val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":$str}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
-    s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","tv":"js",ue_px":"$encoded"}]}"""
+    s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","tv":"js","ue_px":"$encoded"}]}"""
   }
 
   private val schemaKey =

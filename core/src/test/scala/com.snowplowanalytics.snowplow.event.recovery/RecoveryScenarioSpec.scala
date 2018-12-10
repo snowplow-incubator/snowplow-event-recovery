@@ -111,6 +111,32 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
     }
   }
 
+  "ReplaceInBase64FieldInBody" - {
+    "should replace part of ue_px in the body using a regex" in {
+      forAll { (cp: CollectorPayload, uuid: UUID) =>
+        val rib = ReplaceInBase64FieldInBody(
+          "placeholder",
+          "ue_px",
+          s""""sessionId":"$uuidRegex"""",
+          s""""sessionId":"${uuid.toString}""""
+        )
+        val oldCp = new CollectorPayload(cp)
+        val newCp = rib.mutate(cp)
+        if (cp.body == null) oldCp shouldEqual newCp
+        else {
+          oldCp.timestamp shouldEqual newCp.timestamp
+          oldCp.path shouldEqual newCp.path
+          oldCp.querystring shouldEqual newCp.querystring
+          val oldUe = parse(new String(Base64.getDecoder.decode(((parse(oldCp.body) \ "data")(0) \ "ue_px").values.toString)))
+          val newUe = parse(new String(Base64.getDecoder.decode(((parse(newCp.body) \ "data")(0) \ "ue_px").values.toString)))
+          val Diff(changed, JNothing, JNothing) = oldUe diff newUe
+          changed shouldEqual
+            JObject(List(("data", JObject(List(("sessionId", JString(uuid.toString)))))))
+        }
+      }
+    }
+  }
+
   "RemoveFromBody" - {
     "should remove part of the body" in {
       forAll { (cp: CollectorPayload) =>
