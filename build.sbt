@@ -23,7 +23,7 @@ lazy val javaCompilerOptions = Seq(
 lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
   scalaVersion := "2.11.12",
-  version := "0.1.0",
+  version := "0.1.0-rc1",
   scalacOptions := compilerOptions,
   javacOptions := javaCompilerOptions,
   initialize ~= { _ => makeColorConsole() },
