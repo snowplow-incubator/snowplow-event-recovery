@@ -1,38 +1,30 @@
-
-lazy val compilerOptions = Seq(
-  "-deprecation",
-  "-encoding", "UTF-8",
-  "-feature",
-  "-language:existentials",
-  "-language:higherKinds",
-  "-language:implicitConversions",
-  "-unchecked",
-  "-Ypartial-unification",
-  "-Yno-adapted-args",
-  "-Ywarn-dead-code",
-  "-Ywarn-numeric-widen",
-  "-Xfuture",
-  "-Xlint"
-)
-
-lazy val javaCompilerOptions = Seq(
-  "-source", "1.8",
-  "-target", "1.8"
-)
-
 lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
   scalaVersion := "2.11.12",
   version := "0.1.0",
-  scalacOptions := compilerOptions,
-  javacOptions := javaCompilerOptions,
+  scalacOptions := Seq(
+    "-deprecation",
+    "-encoding", "UTF-8",
+    "-feature",
+    "-language:existentials",
+    "-language:higherKinds",
+    "-language:implicitConversions",
+    "-unchecked",
+    "-Ypartial-unification",
+    "-Yno-adapted-args",
+    "-Ywarn-dead-code",
+    "-Ywarn-numeric-widen",
+    "-Xfuture",
+    "-Xlint"
+  ),
+  javacOptions := Seq("-source", "1.8", "-target", "1.8"),
   initialize ~= { _ => makeColorConsole() },
   resolvers ++= Seq("Snowplow Analytics Maven repo" at "http://maven.snplow.com/releases/")
 )
 
 lazy val snowplowEventRecovery = (project.in(file(".")))
   .settings(buildSettings)
-  .aggregate(core, spark)
+  .aggregate(core, spark, beam)
   .dependsOn(core)
 
 lazy val thriftSchemaVersion = "0.0.0"
@@ -45,7 +37,7 @@ lazy val scalacheckVersion = "1.14.0"
 lazy val scalacheckSchemaVersion = "0.1.0"
 lazy val sceVersion = "0.35.0"
 
-lazy val circeVersion = "0.10.1"
+lazy val circeVersion = "0.11.0"
 lazy val circeDependencies = Seq(
   "circe-generic-extras",
   "circe-parser"
@@ -82,6 +74,7 @@ lazy val spark = project
   .settings(moduleName := "snowplow-event-recovery-spark")
   .settings(buildSettings)
   .settings(
+    description := "Snowplow event recovery job for AWS",
     resolvers += "Twitter Maven Repo" at "http://maven.twttr.com/",
     libraryDependencies ++= Seq(
       "org.typelevel" %% "frameless-dataset" % framelessVersion,
@@ -91,24 +84,16 @@ lazy val spark = project
       "com.monovore" %% "decline" % declineVersion,
       "com.hadoop.gplcompression" % "hadoop-lzo" % hadoopLzoVersion,
       "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion,
-      "org.scalatest" %% "scalatest" % scalatestVersion % "test",
     )
   ).settings(
     initialCommands in console :=
       """
-        |import org.apache.spark.{SparkConf, SparkContext}
-        |import org.apache.spark.sql.SparkSession
-        |import frameless.functions.aggregate._
-        |import frameless.syntax._
-        |
+        |import org.apache.spark.{SparkConf, SparkContext}, org.apache.spark.sql.SparkSession
+        |import frameless.functions.aggregate._, frameless.syntax._, frameless.TypedDataset
         |val conf = new SparkConf().setMaster("local[*]").setAppName("frameless-repl").set("spark.ui.enabled", "false")
         |implicit val spark = SparkSession.builder().config(conf).appName("recovery").getOrCreate()
-        |
         |import spark.implicits._
-        |
         |spark.sparkContext.setLogLevel("WARN")
-        |
-        |import frameless.TypedDataset
       """.stripMargin,
     cleanupCommands in console :=
       """
@@ -127,6 +112,42 @@ lazy val spark = project
         oldStrategy(x)
     }
   ).dependsOn(core % "compile->compile;test->test")
+
+lazy val scioVersion = "0.6.1"
+lazy val beamVersion = "2.5.0"
+lazy val scalaMacrosVersion = "2.1.0"
+
+lazy val paradiseDependency =
+  "org.scalamacros" % "paradise" % scalaMacrosVersion cross CrossVersion.full
+lazy val macroSettings = Seq(
+  libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  addCompilerPlugin(paradiseDependency)
+)
+
+lazy val beam = project
+  .settings(moduleName := "snowplow-event-recovery-beam")
+  .settings(buildSettings ++ macroSettings)
+  .settings(
+    description := "Snowplow event recovery job for GCP",
+    libraryDependencies ++= Seq(
+      "com.spotify" %% "scio-core" % scioVersion,
+      "org.apache.beam" % "beam-runners-google-cloud-dataflow-java" % beamVersion,
+      "org.slf4j" % "slf4j-simple" % slf4jVersion,
+      "com.spotify" %% "scio-test" % scioVersion % "test",
+    )
+  ).dependsOn(core % "compile->compile;test->test")
+
+lazy val repl: Project = Project(
+  "repl",
+  file(".repl")
+).settings(
+  buildSettings ++ macroSettings,
+  description := "Scio REPL for snowplow-event-recovery",
+  libraryDependencies ++= Seq(
+    "com.spotify" %% "scio-repl" % scioVersion
+  ),
+  mainClass in Compile := Some("com.spotify.scio.repl.ScioShell")
+).dependsOn(beam)
 
 def makeColorConsole() = {
   val ansi = System.getProperty("sbt.log.noformat", "false") != "true"
