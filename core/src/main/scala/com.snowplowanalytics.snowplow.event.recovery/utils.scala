@@ -1,4 +1,5 @@
-package com.snowplowanalytics.snowplow
+package com.snowplowanalytics
+package snowplow
 package event.recovery
 
 import java.util.Base64
@@ -9,6 +10,9 @@ import io.circe.generic.extras.Configuration
 import org.apache.thrift.{TDeserializer, TSerializer}
 
 import CollectorPayload.thrift.model1.CollectorPayload
+import iglu.client.Resolver
+import iglu.client.repositories.{HttpRepositoryRef, RepositoryRefConfig}
+import iglu.client.validation.ValidatableJValue.validateAndIdentifySchema
 import model._
 
 object utils {
@@ -38,6 +42,20 @@ object utils {
       scenarios <- parsed.hcursor.get[List[RecoveryScenario]]("data")
     } yield scenarios
     result.leftMap(e => s"Configuration is not properly formatted: ${e.getMessage}")
+  }
+
+  private val registryUri = "http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/recovery"
+  def validateConfiguration(json: String): Either[String, Unit] = {
+    val resolver = Resolver(repos = List(HttpRepositoryRef(
+      config = RepositoryRefConfig(name = "Iglu central", 0, List("com.snowplowanalytics")),
+      uri = registryUri
+    )))
+    for {
+      jvalue <- Either.catchNonFatal(org.json4s.jackson.JsonMethods.parse(json))
+        .leftMap(_.getMessage)
+      _ <- validateAndIdentifySchema(jvalue, dataOnly = true)(resolver)
+        .fold(errors => errors.list.mkString("\n").asLeft, _.asRight)
+    } yield ()
   }
 
 }
