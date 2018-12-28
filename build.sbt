@@ -31,6 +31,7 @@ lazy val thriftSchemaVersion = "0.0.0"
 lazy val catsVersion = "1.4.0"
 lazy val scalaUriVersion = "1.4.0"
 lazy val circeOpticsVersion = "0.10.0"
+lazy val igluClientVersion = "0.5.0"
 lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
@@ -53,6 +54,7 @@ lazy val core = project
       "org.typelevel" %% "cats-core" % catsVersion,
       "io.lemonlabs" %% "scala-uri" % scalaUriVersion,
       "io.circe" %% "circe-optics" % circeOpticsVersion,
+      "com.snowplowanalytics" %% "iglu-scala-client" % igluClientVersion,
       "org.scalatest" %% "scalatest" % scalatestVersion % "test",
       "org.scalacheck" %% "scalacheck" % scalacheckVersion % "test",
       "com.snowplowanalytics" %% "scalacheck-schema" % scalacheckSchemaVersion % "test",

@@ -36,6 +36,7 @@ object Main extends CommandApp(
       "config",
       help = "Base64 config with schema com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0"
     ).mapValidated(utils.decodeBase64(_).toValidatedNel)
+      .mapValidated(json => utils.validateConfiguration(json).toValidatedNel.map(_ => json))
       .mapValidated(utils.parseRecoveryScenarios(_).toValidatedNel)
     (input, output, recoveryScenarios).mapN { (i, o, rss) => RecoveryJob.run(i, o, rss) }
   }

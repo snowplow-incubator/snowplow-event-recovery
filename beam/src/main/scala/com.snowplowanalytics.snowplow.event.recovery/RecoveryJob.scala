@@ -21,6 +21,7 @@ object Main {
       config <- args.optional("config").toRight(
         "Base64 config with schema com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0 is mandatory")
       decoded <- utils.decodeBase64(config)
+      _ <- utils.validateConfiguration(decoded)
       rss <- utils.parseRecoveryScenarios(decoded)
     } yield rss).toValidatedNel
     (input, output, recoveryScenarios).tupled match {
