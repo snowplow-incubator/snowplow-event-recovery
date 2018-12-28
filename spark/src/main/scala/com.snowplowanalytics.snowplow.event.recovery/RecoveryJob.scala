@@ -40,6 +40,7 @@ import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPa
 
 import model._
 
+/** Entry point for the Spark recovery job */
 object Main extends CommandApp(
   name = "snowplow-event-recovery-job",
   header = "Snowplow event recovery job",
@@ -57,6 +58,19 @@ object Main extends CommandApp(
 )
 
 object RecoveryJob {
+  /**
+   * Spark job running the event recovery process on AWS.
+   * It will:
+   * - read the input data from an S3 location
+   * - decode the bad row jsons
+   * - filter out those that are not covered by the specified recovery scenarios
+   * - mutate the collector payloads contained in the concerned bad rows according to the specified
+   * recovery scenarios
+   * - write out the fixed payloads to PubSub
+   * @param input S3 location to read the bad rows from
+   * @param output S3 location to write the fixed collector payloads to
+   * @param recoveryScenarios list of recovery scenarios to apply on the bad rows
+   */
   def run(input: String, output: String, recoveryScenarios: List[RecoveryScenario]): Unit = {
     implicit val spark = {
       val conf = new SparkConf()
@@ -104,6 +118,12 @@ object RecoveryJob {
     spark.stop()
   }
 
+  /**
+   * Filter a [[TypedDataset]] of [[BadRow]]s according to the specified [[RecoveryScenario]]s.
+   * @param badRows incoming [[TypedDataset]] of [[BadRow]]s to filter
+   * @param recoveryScenarios to filter with
+   * @return a filtered [[TypedDataset]] of [[BadRow]]s
+   */
   def filter(
     badRows: TypedDataset[BadRow],
     recoveryScenarios: List[RecoveryScenario]
