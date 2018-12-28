@@ -27,13 +27,14 @@ import org.apache.thrift.TSerializer
 import model._
 
 object Main {
+  /** Entry point for the Beam recovery job */
   def main(cmdlineArgs: Array[String]): Unit = {
     val (sc, args) = ContextAndArgs(cmdlineArgs)
     val input = args.optional("input").toValidNel("Input GCS path is mandatory")
     val output = args.optional("output").toValidNel("Output PubSub topic is mandatory")
     val recoveryScenarios = (for {
-      config <- args.optional("config").toRight(
-        "Base64 config with schema com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0 is mandatory")
+      config <- args.optional("config").toRight("Base64-encoded configuration with schema " +
+        "com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0 is mandatory")
       decoded <- utils.decodeBase64(config)
       _ <- utils.validateConfiguration(decoded)
       rss <- utils.parseRecoveryScenarios(decoded)
@@ -50,6 +51,21 @@ object Main {
 }
 
 object RecoveryJob {
+  /**
+   * Beam job running the event recovery process on GCP.
+   * It will:
+   * - read the input data from a GCS location
+   * - decode the bad row jsons
+   * - filter out those that are not covered by the specified recovery scenarios
+   * - mutate the collector payloads contained in the concerned bad rows according to the specified
+   * recovery scenarios
+   * - write out the fixed payloads to PubSub
+   * Additionally, it will emit metrics on the number of bad rows recovered per recovery scenario.
+   * @param sc ScioContext necessary to interact with the SCIO/Beam API
+   * @param input GCS location to read the bad rows from
+   * @param output PubSub topic in the form projects/project/topics/topic
+   * @param recoveryScenarios list of recovery scenarios to apply on the bad rows
+   */
   def run(
     sc: ScioContext,
     input: String,
