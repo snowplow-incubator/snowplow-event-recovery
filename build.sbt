@@ -73,7 +73,7 @@ lazy val hadoopLzoVersion = "0.4.20"
 lazy val elephantBirdVersion = "4.17"
 
 lazy val spark = project
-  .settings(moduleName := "snowplow-event-recovery-spark")
+  .settings(packageName := "snowplow-event-recovery-spark")
   .settings(buildSettings)
   .settings(
     description := "Snowplow event recovery job for AWS",
@@ -102,7 +102,7 @@ lazy val spark = project
         |spark.stop()
       """.stripMargin
   ).settings(
-    assemblyJarName in assembly := { moduleName.value + "-" + version.value + ".jar" },
+    assemblyJarName in assembly := { packageName.value + "-" + version.value + ".jar" },
     assemblyMergeStrategy in assembly := {
       case x if x.startsWith("META-INF") => MergeStrategy.discard
       case x if x.endsWith(".html") => MergeStrategy.discard
@@ -126,8 +126,15 @@ lazy val macroSettings = Seq(
   addCompilerPlugin(paradiseDependency)
 )
 
+import com.typesafe.sbt.packager.docker._
+dockerRepository := Some("snowplow-docker-registry.bintray.io")
+dockerUsername := Some("snowplow")
+dockerBaseImage := "snowplow-docker-registry.bintray.io/snowplow/base-debian:0.1.0"
+maintainer in Docker := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>"
+daemonUser in Docker := "snowplow"
+
 lazy val beam = project
-  .settings(moduleName := "snowplow-event-recovery-beam")
+  .settings(packageName := "snowplow-event-recovery-beam")
   .settings(buildSettings ++ macroSettings)
   .settings(
     description := "Snowplow event recovery job for GCP",
@@ -138,6 +145,7 @@ lazy val beam = project
       "com.spotify" %% "scio-test" % scioVersion % "test",
     )
   ).dependsOn(core % "compile->compile;test->test")
+  .enablePlugins(JavaAppPackaging)
 
 lazy val repl: Project = Project(
   "repl",
