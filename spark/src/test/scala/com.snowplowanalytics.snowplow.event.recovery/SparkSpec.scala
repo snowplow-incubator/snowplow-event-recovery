@@ -38,11 +38,12 @@ trait SparkSpec extends FreeSpec with BeforeAndAfterAll {
     conf
   }
 
-  override def beforeAll(): Unit =
-    SparkSession
+  override def beforeAll(): Unit = {
+    spark = SparkSession
       .builder()
       .config(conf)
       .getOrCreate()
+  }
 
   override def afterAll(): Unit = {
     if (spark != null) spark.stop()

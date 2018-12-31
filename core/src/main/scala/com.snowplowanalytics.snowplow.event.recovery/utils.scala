@@ -27,10 +27,9 @@ import CollectorPayload.thrift.model1.CollectorPayload
 import iglu.client.Resolver
 import iglu.client.repositories.{HttpRepositoryRef, RepositoryRefConfig}
 import iglu.client.validation.ValidatableJValue.validateAndIdentifySchema
-import model._
 
 object utils {
-  /** Deserialize a String into a [[CollectorPayload]] after having base64-decoded it. */
+  /** Deserialize a String into a CollectorPayload after having base64-decoded it. */
   val thriftDeser: String => CollectorPayload = { s =>
     val decoded = Base64.getDecoder.decode(s)
     val thriftDeserializer = new TDeserializer
@@ -39,7 +38,7 @@ object utils {
     payload
   }
 
-  /** Serialize a [[CollectorPayload]] into a byte array and base64-encode it. */
+  /** Serialize a CollectorPayload into a byte array and base64-encode it. */
   val thriftSer: CollectorPayload => String = { cp =>
     val thriftSerializer = new TSerializer
     val bytes = thriftSerializer.serialize(cp)

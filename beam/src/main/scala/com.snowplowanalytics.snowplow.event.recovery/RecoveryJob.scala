@@ -14,7 +14,6 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import cats.data.ValidatedNel
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.either._
@@ -42,7 +41,8 @@ object Main {
     (input, output, recoveryScenarios).tupled match {
       case Valid((i, o, rss)) =>
         RecoveryJob.run(sc, i, o, rss)
-        sc.close()
+        val _ = sc.close()
+        ()
       case Invalid(l) =>
         System.err.println(l.toList.mkString("\n"))
         System.exit(1)
@@ -71,8 +71,8 @@ object RecoveryJob {
     input: String,
     output: String,
     recoveryScenarios: List[RecoveryScenario]
-  ): Unit =
-    sc.withName(s"read-input-bad-rows")
+  ): Unit = {
+    val _ = sc.withName(s"read-input-bad-rows")
       .textFile(input)
       .withName("parse-bad-rows")
       .map(decode[BadRow])
@@ -95,4 +95,6 @@ object RecoveryJob {
       }
       .withName(s"save-to-pubsub-topic")
       .saveAsPubsub(output)
+    ()
+  }
 }
