@@ -5,6 +5,7 @@ jdk:
 - oraclejdk8
 script:
 - sbt test
+- sbt "project core" coverage test coverageReport
 services:
 - docker
 before_deploy:
@@ -15,6 +16,8 @@ deploy:
   script: "./.travis/deploy.sh $TRAVIS_TAG && ./.travis/deploy_docker.sh $TRAVIS_TAG"
   on:
     tags: true
+after_success:
+- bash <(curl -s https://codecov.io/bash)
 env:
   global:
   # AWS_DEPLOY_ACCESS_KEY_ID
