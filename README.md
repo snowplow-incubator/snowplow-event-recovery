@@ -167,11 +167,75 @@ showcase.
 
 ### Spark for AWS real-time
 
-instructions for running and building
+#### Building
+
+To build the fat jar, run: `sbt "project spark" assembly`.
+
+#### Running
+
+Using the JAR directly (which is hosted at `s3://snowplow-hosted-assets/3-enrich/snowplow-event-recovery/`):
+
+```bash
+spark-submit \
+  --class com.snowplowanalytcs.snowplow.event.recovery.Main \
+  --master master-url \
+  --deploy-mode deploy-mode \
+  snowplow-event-recovery-spark-0.1.0.jar
+  --input s3://bad-rows-location/
+  --output s3://recovered-data-location/
+  --config base64-encoded-configuration
+```
+
+Or through an EMR step:
+
+```bash
+aws emr add-steps --cluster-id j-XXXXXXXX --steps \
+  Name=snowplow-event-recovery,\
+  Type=CUSTOM_JAR,\
+  Jar=s3://snowplow-hosted-assets/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-0.1.0.jar,\
+  MainClass=com.snowplowanalytics.snowplow.event.recovery.Main,\
+  Args=[--input,s3://bad-rows-location/,--output,s3://recovered-data-location,--config,base64-encoded-configuration],\
+  ActionOnFailure=CONTINUE
+```
 
 ### Beam for GCP real-time
 
-instructions for running and building
+#### Building
+
+To build the zip archive, run: `sbt "project beam" universal:packageBin`.
+
+To build the docker image, run: `sbt "project beam" docker:publishLocal`.
+
+#### Running
+
+Using the zip archive (which can be downloaded from Bintray [here](https://bintray.com/snowplow/snowplow-generic/snowplow-event-recovery/)):
+
+```bash
+./bin/snowplow-event-recovery-beam \
+  --runner=DataFlowRunner \
+  --project=project-id \
+  --zone=europe-west2-a \
+  --gcpTempLocation=gs://location/ \
+  --input=gs://bad-rows-location/ \
+  --output=projects/project/topics/topic \
+  --config=base64-encoded-configuration
+```
+
+Using a Docker container (for which the image is available in our registry on Bintray [here](https://bintray.com/snowplow/registry/snowplow%3Asnowplow-event-recovery-beam)):
+
+```bash
+docker run \
+  -v $PWD/config:/snowplow/config \ # if running outside GCP
+  -e GOOGLE_APPLICATION_CREDENTIALS=/snowplow/config/credentials.json \ # if running outside GCP
+  snowplow-docker-registry.bintray.io/snowplow/snowplow-event-recovery:0.1.0 \
+  --runner=DataFlowRunner \
+  --project=project-id \
+  --zone=europe-west2-a \
+  --gcpTempLocation=gs://location/ \
+  --input=gs://bad-rows-location/ \
+  --output=projects/project/topics/topic \
+  --config=base64-encoded-configuration
+```
 
 ## Testing
 
@@ -207,7 +271,8 @@ repositories and enrichments
 ### A custom recovery scenario
 
 If you've written an additional recovery scenario you'll need to add the corresponding unit tests to
-[`RecoverScenarioSpec.scala`](core/src/test/scala/com.snowplowanalytics.snowplow.event.recovery/RecoveryScenarioSpec.scala).
+[`RecoverScenarioSpec.scala`](core/src/test/scala/com.snowplowanalytics.snowplow.event.recovery/RecoveryScenarioSpec.scala)
+and then run `sbt test`.
 
 ## Find out more
 
