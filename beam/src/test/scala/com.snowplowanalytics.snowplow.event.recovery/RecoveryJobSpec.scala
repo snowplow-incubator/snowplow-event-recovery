@@ -68,14 +68,16 @@ class RecoveryJobSpec extends PipelineSpec {
       .input(TextIO("in"), badRows)
       .output(PubsubIO[Array[Byte]]("out")) { s =>
         s should haveSize(1)
-        s should forAll { cp: Array[Byte] =>
+        val _ = s should forAll { cp: Array[Byte] =>
           val thriftDeserializer = new TDeserializer
           val payload = new CollectorPayload
           thriftDeserializer.deserialize(payload, cp)
           fixedCollectorPayloads.contains(payload)
         }
       }
-      .counter(ScioMetrics.counter("snowplow", "bad_rows_recovered_PassThrough"))(_ shouldBe 1)
+      .counter(ScioMetrics.counter("snowplow", "bad_rows_recovered_PassThrough")){ m =>
+        val _ = m shouldBe 1
+      }
       .run()
   }
 }

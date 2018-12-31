@@ -16,10 +16,7 @@ package com.snowplowanalytics
 package snowplow
 package event.recovery
 
-import java.net.URLEncoder
 import java.util.{Base64, UUID}
-
-import org.apache.thrift.TSerializer
 
 import org.json4s.JValue
 import org.json4s.jackson.JsonMethods._
