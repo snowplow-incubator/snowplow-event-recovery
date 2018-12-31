@@ -1,5 +1,13 @@
 # Snowplow Event Recovery
 
+[![Build Status](https://travis-ci.org/snowplow-incubator/snowplow-event-recovery.svg?branch=master)](https://travis-ci.org/snowplow-incubator/snowplow-event-recovery)
+[![Release](https://img.shields.io/badge/release-0.1.0-orange.svg?style=flat)](https://github.com/snowplow-incubator/snowplow-event-recovery/releases)
+[![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
+[![Join the chat at https://gitter.im/snowplow/snowplow](https://badges.gitter.im/snowplow/snowplow.svg)](https://gitter.im/snowplow/snowplow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![codecov](https://codecov.io/gh/snowplow-incubator/snowplow-event-recovery/branch/master/graph/badge.svg)](https://codecov.io/gh/snowplow-incubator/snowplow-event-recovery)
+
+## Overview
+
 This repository contains the codebases used for recovering bad rows emitted by a Snowplow pipeline.
 
 The different Snowplow pipelines being all non-lossy, if something goes wrong during, for example,
