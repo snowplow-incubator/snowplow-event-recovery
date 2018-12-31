@@ -14,22 +14,15 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import java.nio.file.Files
-
 import frameless.syntax._
 import frameless.TypedDataset
-import org.scalatest.FreeSpec
 import org.scalatest.Matchers._
-
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 
 import model._
 import RecoveryScenario._
-import utils._
 
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
-  import session.implicits._
   "RecoveryJob" - {
     "filter" - {
       "should filter based on the criteria passed as arguments" in {

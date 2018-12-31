@@ -19,7 +19,6 @@ import java.util.Base64
 
 import scala.util.Try
 
-import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.either._
 import io.circe._
 import io.circe.optics.JsonPath._
@@ -27,7 +26,6 @@ import io.circe.parser._
 import io.lemonlabs.uri.QueryString
 
 import CollectorPayload.thrift.model1.CollectorPayload
-import model._
 
 /**
  * Trait common to all recovery scenarios which, in essence, contains two things:
@@ -40,7 +38,7 @@ sealed trait RecoveryScenario {
 
   /**
    * Function used to check if a recovery scenario should be applied to a bad row given its errors.
-   * @param errors list of errors contained in a [[BadRow]]
+   * @param errors list of errors contained in a BadRow
    * @return true if there exists at least one error in the provided bad row errors which contains
    * this [[RecoveryScenario]]'s error
    */
@@ -48,9 +46,9 @@ sealed trait RecoveryScenario {
     errors.map(_.message).exists(_.contains(error))
 
   /**
-   * Function mutating a [[CollectorPayload]].
-   * @param originalPayload [[CollectorPayload]] before mutation
-   * @return a fixed [[CollectorPayload]]
+   * Function mutating a CollectorPayload.
+   * @param originalPayload CollectorPayload before mutation
+   * @return a fixed CollectorPayload
    */
   def mutate(originalPayload: CollectorPayload): CollectorPayload
 }

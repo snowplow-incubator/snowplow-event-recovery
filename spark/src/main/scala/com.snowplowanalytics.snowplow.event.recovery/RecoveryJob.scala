@@ -14,9 +14,6 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import java.util.Base64
-
-import cats.data.{NonEmptyList, Validated}
 import cats.syntax.apply._
 import cats.syntax.either._
 import com.hadoop.compression.lzo.{LzoCodec, LzopCodec}
@@ -24,14 +21,9 @@ import com.monovore.decline._
 import com.twitter.elephantbird.mapreduce.output.LzoThriftBlockOutputFormat
 import com.twitter.elephantbird.mapreduce.io.ThriftWritable
 import frameless.TypedDataset
-import frameless.functions.lit
 import frameless.syntax._
-import io.circe.generic.extras.auto._
-import io.circe.generic.extras.Configuration
-import io.circe.parser._
 import org.apache.hadoop.io.LongWritable
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import ste.StructTypeEncoder
 import ste.StructTypeEncoder._
