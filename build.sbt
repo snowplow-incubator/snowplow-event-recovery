@@ -17,21 +17,6 @@ lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
   scalaVersion := "2.11.12",
   version := "0.1.0",
-  scalacOptions := Seq(
-    "-deprecation",
-    "-encoding", "UTF-8",
-    "-feature",
-    "-language:existentials",
-    "-language:higherKinds",
-    "-language:implicitConversions",
-    "-unchecked",
-    "-Ypartial-unification",
-    "-Yno-adapted-args",
-    "-Ywarn-dead-code",
-    "-Ywarn-numeric-widen",
-    "-Xfuture",
-    "-Xlint"
-  ),
   javacOptions := Seq("-source", "1.8", "-target", "1.8"),
   initialize ~= { _ => makeColorConsole() },
   resolvers ++= Seq("Snowplow Analytics Maven repo" at "http://maven.snplow.com/releases/")
