@@ -12,21 +12,25 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics
-package snowplow
-package event.recovery
+package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 
+import cats.Id
+import cats.effect.Clock
 import cats.syntax.either._
+import com.snowplowanalytics.iglu.client.Client
+import com.snowplowanalytics.iglu.client.resolver.Resolver
+import com.snowplowanalytics.iglu.client.resolver.registries.Registry
+import com.snowplowanalytics.iglu.client.validator.CirceValidator
+import com.snowplowanalytics.iglu.core.SelfDescribingData
+import com.snowplowanalytics.iglu.core.circe.instances._
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import io.circe.generic.extras.auto._
 import io.circe.generic.extras.Configuration
+import io.circe.parser._
 import org.apache.thrift.{TDeserializer, TSerializer}
-
-import CollectorPayload.thrift.model1.CollectorPayload
-import iglu.client.Resolver
-import iglu.client.repositories.{HttpRepositoryRef, RepositoryRefConfig}
-import iglu.client.validation.ValidatableJValue.validateAndIdentifySchema
 
 object utils {
   /** Deserialize a String into a CollectorPayload after having base64-decoded it. */
@@ -75,16 +79,19 @@ object utils {
    * @return a failure if the json didn't validate against its schema or a success
    */
   def validateConfiguration(json: String): Either[String, Unit] = {
-    val resolver = Resolver(repos = List(HttpRepositoryRef(
-      config = RepositoryRefConfig(name = "Iglu central", 0, List("com.snowplowanalytics")),
-      uri = "http://iglucentral.com"
-    )))
+    val client = Client(Resolver.init[Id](500, Registry.IgluCentral), CirceValidator)
     for {
-      jvalue <- Either.catchNonFatal(org.json4s.jackson.JsonMethods.parse(json))
-        .leftMap(_.getMessage)
-      _ <- validateAndIdentifySchema(jvalue, dataOnly = true)(resolver)
-        .fold(errors => errors.list.mkString("\n").asLeft, _.asRight)
+      js <- parse(json).leftMap(_.message)
+      sd <- SelfDescribingData.parse(js).leftMap(_.code)
+      _ <- client.check(sd).leftMap(_.getMessage).value
     } yield ()
   }
 
+
+  implicit val idClock: Clock[Id] = new Clock[Id] {
+    final def realTime(unit: TimeUnit): Id[Long] =
+      unit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+    final def monotonic(unit: TimeUnit): Id[Long] =
+      unit.convert(System.nanoTime(), TimeUnit.NANOSECONDS)
+  }
 }

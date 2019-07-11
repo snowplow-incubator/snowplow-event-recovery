@@ -16,6 +16,7 @@ package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.Base64
 
+import cats.Id
 import cats.syntax.either._
 import io.circe.{Decoder, Json}
 import io.circe.generic.extras.auto._
@@ -36,6 +37,7 @@ import com.snowplowanalytics.iglu.client.Resolver
 
 import model._
 import utils._
+import com.snowplowanalytics.iglu.client.Client
 
 sealed trait ExpectedPayload {
   def path: String
@@ -79,7 +81,9 @@ class IntegrationSpec extends FreeSpec with Inspectors {
       cp
     }
 
-  val resolver = Resolver.parse(parse(getResourceContent("/resolver.json")))
+  val client = io.circe.parser.parse(getResourceContent("/resolver.json"))
+    .leftMap(_.message)
+    .flatMap(json => Client.parseDefault[Id](json).value)
     .fold(l => throw new Exception(s"invalid resolver: $l"), identity)
   val registry = EnrichmentRegistry
     .parse(parse(getResourceContent("/enrichments.json")), true)(resolver)

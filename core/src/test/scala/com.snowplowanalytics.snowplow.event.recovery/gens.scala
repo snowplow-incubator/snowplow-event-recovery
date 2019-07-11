@@ -44,7 +44,8 @@ object gens {
   }
 
   private val schemaKey =
-    SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema", SchemaVer(1, 0, 1))
+    SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema",
+      SchemaVer.Full(1, 0, 1))
   private val schemaJson = IgluSchemas.lookup(None)(schemaKey)
     .right
     .toOption
