@@ -48,7 +48,10 @@ lazy val core = project
   .settings(moduleName := "snowplow-event-recovery")
   .settings(buildSettings)
   .settings(
-    resolvers += "Snowplow Analytics Maven repo" at "http://maven.snplow.com/releases/",
+    resolvers ++= Seq(
+      "Snowplow Analytics Maven repo" at "http://maven.snplow.com/releases/",
+      "Twitter Maven repo" at "https://maven.twttr.com/"
+    ),
     libraryDependencies ++= Seq(
       "com.snowplowanalytics" % "collector-payload-1" % thriftSchemaVersion,
       "org.typelevel" %% "cats-core" % catsVersion,
