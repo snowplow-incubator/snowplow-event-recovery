@@ -36,7 +36,7 @@ lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
 lazy val scalacheckSchemaVersion = "0.1.0"
-lazy val sceVersion = "0.35.0"
+lazy val sceVersion = "1.0.0-M2"
 
 lazy val circeVersion = "0.11.0"
 lazy val circeDependencies = Seq(
