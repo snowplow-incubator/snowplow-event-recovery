@@ -68,7 +68,7 @@ lazy val core = project
     ) ++ circeDependencies
   )
 
-lazy val sparkVersion = "2.3.2"
+lazy val sparkVersion = "2.4.3"
 lazy val framelessVersion = "0.8.0"
 lazy val structTypeEncoderVersion = "0.5.0"
 lazy val declineVersion = "0.5.0"
