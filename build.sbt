@@ -35,7 +35,7 @@ lazy val igluClientVersion = "0.6.0-M6"
 lazy val slf4jVersion = "1.7.25"
 lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
-lazy val scalacheckSchemaVersion = "0.1.0"
+lazy val scalacheckSchemaVersion = "0.2.0-M1"
 lazy val sceVersion = "1.0.0-M2"
 
 lazy val circeVersion = "0.11.0"
