@@ -70,7 +70,7 @@ lazy val core = project
 
 lazy val sparkVersion = "2.3.2"
 lazy val framelessVersion = "0.8.0"
-lazy val structTypeEncoderVersion = "0.3.0"
+lazy val structTypeEncoderVersion = "0.5.0"
 lazy val declineVersion = "0.5.0"
 lazy val hadoopLzoVersion = "0.4.20"
 lazy val elephantBirdVersion = "4.17"
