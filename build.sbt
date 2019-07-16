@@ -15,7 +15,7 @@
 
 lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
-  scalaVersion := "2.11.12",
+  scalaVersion := "2.12.8",
   version := "0.1.1",
   javacOptions := Seq("-source", "1.8", "-target", "1.8"),
   initialize ~= { _ => makeColorConsole() },
