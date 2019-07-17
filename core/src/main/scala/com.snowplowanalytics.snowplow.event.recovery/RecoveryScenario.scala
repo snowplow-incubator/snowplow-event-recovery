@@ -241,6 +241,26 @@ object RecoveryScenario {
     def mutate(originalPayload: CollectorPayload): CollectorPayload = originalPayload
   }
 
+  /**
+   * Recovery scenario modifying the collector payload's path
+   * @param error discriminant used to check if a recovery scenario should be applied to a bad row
+   * @param toReplace part of the path that needs replacing
+   * @param replacement for the part of the path that needs to be replaced
+   */
+  final case class ReplaceInPath(
+    error: String,
+    toReplace: String,
+    replacement: String
+  ) extends RecoveryScenario {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+      path <- Option(originalPayload.path)
+      replaced <- replaceAll(path, toReplace, replacement)
+    } yield {
+      originalPayload.path = replaced
+      originalPayload
+    }).getOrElse(originalPayload)
+  }
+
   // Helpers
 
   private val replaceInB64: (String, String, String) => Option[String] =
