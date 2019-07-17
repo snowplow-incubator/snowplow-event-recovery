@@ -1,7 +1,7 @@
 # Snowplow Event Recovery
 
 [![Build Status](https://travis-ci.org/snowplow-incubator/snowplow-event-recovery.svg?branch=master)](https://travis-ci.org/snowplow-incubator/snowplow-event-recovery)
-[![Release](https://img.shields.io/badge/release-0.1.0-orange.svg?style=flat)](https://github.com/snowplow-incubator/snowplow-event-recovery/releases)
+[![Release](https://img.shields.io/badge/release-0.1.1-orange.svg?style=flat)](https://github.com/snowplow-incubator/snowplow-event-recovery/releases)
 [![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Join the chat at https://gitter.im/snowplow/snowplow](https://badges.gitter.im/snowplow/snowplow.svg)](https://gitter.im/snowplow/snowplow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![codecov](https://codecov.io/gh/snowplow-incubator/snowplow-event-recovery/branch/master/graph/badge.svg)](https://codecov.io/gh/snowplow-incubator/snowplow-event-recovery)
@@ -186,7 +186,7 @@ spark-submit \
   --class com.snowplowanalytcs.snowplow.event.recovery.Main \
   --master master-url \
   --deploy-mode deploy-mode \
-  snowplow-event-recovery-spark-0.1.0.jar
+  snowplow-event-recovery-spark-0.1.1.jar
   --input s3://bad-rows-location/
   --output s3://recovered-collector-payloads-location/
   --config base64-encoded-configuration
@@ -198,7 +198,7 @@ Or through an EMR step:
 aws emr add-steps --cluster-id j-XXXXXXXX --steps \
   Name=snowplow-event-recovery,\
   Type=CUSTOM_JAR,\
-  Jar=s3://snowplow-hosted-assets/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-0.1.0.jar,\
+  Jar=s3://snowplow-hosted-assets/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-0.1.1.jar,\
   MainClass=com.snowplowanalytics.snowplow.event.recovery.Main,\
   Args=[--input,s3://bad-rows-location/,--output,s3://recovered-collector-payloads-location/,--config,base64-encoded-configuration],\
   ActionOnFailure=CONTINUE
@@ -236,7 +236,7 @@ Using a Docker container (for which the image is available in our registry on Bi
 docker run \
   -v $PWD/config:/snowplow/config \ # if running outside GCP
   -e GOOGLE_APPLICATION_CREDENTIALS=/snowplow/config/credentials.json \ # if running outside GCP
-  snowplow-docker-registry.bintray.io/snowplow/snowplow-event-recovery:0.1.0 \
+  snowplow-docker-registry.bintray.io/snowplow/snowplow-event-recovery:0.1.1 \
   --runner=DataFlowRunner \
   --project=project-id \
   --zone=europe-west2-a \

@@ -1,3 +1,7 @@
+Version 0.1.1 (2019-07-17)
+--------------------------
+Add ReplaceInPath recovery scenario (#38)
+
 Version 0.1.0 (2019-01-14)
 --------------------------
 Add basic recovery scenarios (#6)
