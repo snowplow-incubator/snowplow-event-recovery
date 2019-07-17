@@ -180,6 +180,23 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
     }
   }
 
+  "ReplaceInPath" - {
+    "should replace part of the path" in {
+      forAll { (cp: CollectorPayload) =>
+        val rib = ReplaceInPath("placeholder", "v1", "v2")
+        val oldCp = new CollectorPayload(cp)
+        val newCp = rib.mutate(cp)
+        if (cp.path == null) oldCp shouldEqual newCp
+        else {
+          oldCp.timestamp shouldEqual newCp.timestamp
+          newCp.path.diff(oldCp.path) shouldEqual "2"
+          oldCp.querystring shouldEqual newCp.querystring
+          oldCp.body shouldEqual newCp.body
+        }
+      }
+    }
+  }
+
   def parseQuerystring(s: String): Map[String, String] =
     URLEncodedUtils.parse(new URI("?" + s), "UTF-8")
       .asScala
