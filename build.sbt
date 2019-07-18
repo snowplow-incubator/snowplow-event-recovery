@@ -37,6 +37,7 @@ lazy val scalatestVersion = "3.0.5"
 lazy val scalacheckVersion = "1.14.0"
 lazy val scalacheckSchemaVersion = "0.2.0-M1"
 lazy val sceVersion = "1.0.0-M2"
+lazy val httpClientVersion = "4.5.9"
 
 lazy val circeVersion = "0.11.0"
 lazy val circeDependencies = Seq(
@@ -64,7 +65,9 @@ lazy val core = project
       ("com.snowplowanalytics" %% "snowplow-common-enrich" % sceVersion % "test")
         .exclude("com.maxmind.geoip2", "geoip2"),
       // needed for thrift ser/de
-      "org.slf4j" % "slf4j-log4j12" % slf4jVersion % " test"
+      "org.slf4j" % "slf4j-log4j12" % slf4jVersion % "test",
+      // overrides libthrift's version
+      "org.apache.httpcomponents" % "httpclient" % httpClientVersion % "test"
     ) ++ circeDependencies
   )
 
@@ -88,7 +91,7 @@ lazy val spark = project
       "com.github.benfradet" %% "struct-type-encoder" % structTypeEncoderVersion,
       "com.monovore" %% "decline" % declineVersion,
       "com.hadoop.gplcompression" % "hadoop-lzo" % hadoopLzoVersion,
-      "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion,
+      "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion
     )
   ).settings(
     initialCommands in console :=

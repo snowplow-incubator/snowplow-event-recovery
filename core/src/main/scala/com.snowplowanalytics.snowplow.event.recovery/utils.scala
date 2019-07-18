@@ -64,8 +64,7 @@ object utils {
    * @return either a successfully parsed list of [[RecoveryScenario]] or a failure
    */
   def parseRecoveryScenarios(json: String): Either[String, List[RecoveryScenario]] = {
-    implicit val genConfig: Configuration =
-      Configuration.default.withDiscriminator("name")
+    implicit val _: Configuration = Configuration.default.withDiscriminator("name")
     val result = for {
       parsed <- io.circe.parser.parse(json)
       scenarios <- parsed.hcursor.get[List[RecoveryScenario]]("data")
@@ -79,7 +78,7 @@ object utils {
    * @return a failure if the json didn't validate against its schema or a success
    */
   def validateConfiguration(json: String): Either[String, Unit] = {
-    val client = Client(Resolver.init[Id](500, Registry.IgluCentral), CirceValidator)
+    val client = Client(Resolver.init[Id](500, None, Registry.IgluCentral), CirceValidator)
     for {
       js <- parse(json).leftMap(_.message)
       sd <- SelfDescribingData.parse(js).leftMap(_.code)

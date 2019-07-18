@@ -12,32 +12,31 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics
-package snowplow
-package event.recovery
+package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.{Base64, UUID}
 
-import org.json4s.JValue
-import org.json4s.jackson.JsonMethods._
+import cats.Id
+import com.snowplowanalytics.iglu.client.resolver.Resolver
+import com.snowplowanalytics.iglu.client.resolver.registries.Registry
+import com.snowplowanalytics.iglu.core.{SchemaKey, SchemaVer}
+import com.snowplowanalytics.iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+import io.circe.Json
 import org.scalacheck.{Arbitrary, Gen}
-
-import CollectorPayload.thrift.model1.CollectorPayload
-import iglu.core.{SchemaKey, SchemaVer}
-import iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
 
 import model._
 import utils._
 
 object gens {
-  val qs = (json: JValue) => {
-    val str = compact(render(json))
+  val qs = (json: Json) => {
+    val str = json.noSpaces
     val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
     s"e=ue&tv=js&ue_px=$encoded"
   }
-  val body = (json: JValue) => {
-    val str = compact(render(json))
+  val body = (json: Json) => {
+    val str = json.noSpaces
     val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
     s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","p":"web","tv":"js","ue_px":"$encoded"}]}"""
@@ -46,12 +45,11 @@ object gens {
   private val schemaKey =
     SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema",
       SchemaVer.Full(1, 0, 1))
-  private val schemaJson = IgluSchemas.lookup(None)(schemaKey)
-    .right
+  private val resolver = Resolver.init[Id](0, None, Registry.IgluCentral)
+  private val schemaJson = IgluSchemas.lookup[Id](resolver, schemaKey)
     .toOption
     .getOrElse(throw new RuntimeException("invalid schema coordinates"))
   private val schemaObject = IgluSchemas.parseSchema(schemaJson)
-    .right
     .toOption
     .getOrElse(throw new RuntimeException("invalid schema"))
 

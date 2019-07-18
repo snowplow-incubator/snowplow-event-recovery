@@ -12,14 +12,13 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics.snowplow
-package event.recovery
+package com.snowplowanalytics.snowplow.event.recovery
 
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import org.scalatest.{FreeSpec, EitherValues}
 import org.scalatest.Matchers._
 import org.scalatest.prop.PropertyChecks
 
-import CollectorPayload.thrift.model1.CollectorPayload
 import gens._
 import RecoveryScenario._
 import utils._
@@ -67,11 +66,11 @@ class UtilsSpec extends FreeSpec with PropertyChecks with EitherValues {
       validateConfiguration(json) shouldEqual Right(())
     }
     "should fail when validating something that is not json" in {
-      validateConfiguration("abc").left.value should include("Unexpected character ('a'")
+      validateConfiguration("abc").left.value should include("expected json value got 'abc' (line 1, column 1)")
     }
     "should fail when validating something that is not according to schema" in {
       val json = """{"schema":"iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0","data":[{"abc":12}]}"""
-      validateConfiguration(json).left.value should include("error: instance failed to match at least one required schema among 5")
+      validateConfiguration(json).left.value should include("""{"error":"ValidationError","dataReports":[{"message":"$[0].abc: is not defined in the schema and the schema does not allow additional properties","path":"$[0]","keyword":"additionalProperties","targets":["abc"]},{"message":"$[0].name: is missing but it is required","path":"$[0]","keyword":"required","targets":["name"]},{"message":"$[0].error: is missing but it is required","path":"$[0]","keyword":"required","targets":["error"]},{"message":"$[0].toRemove: is missing but it is required","path":"$[0]","keyword":"required","targets":["toRemove"]},{"message":"$[0].toReplace: is missing but it is required","path":"$[0]","keyword":"required","targets":["toReplace"]},{"message":"$[0].replacement: is missing but it is required","path":"$[0]","keyword":"required","targets":["replacement"]}]}""")
     }
   }
 }

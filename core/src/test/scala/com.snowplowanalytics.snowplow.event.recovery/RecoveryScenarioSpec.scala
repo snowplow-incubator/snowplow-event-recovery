@@ -12,23 +12,23 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics.snowplow
-package event.recovery
+package com.snowplowanalytics.snowplow.event.recovery
 
 import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.util.{Base64, UUID}
 
 import scala.collection.JavaConverters._
 
+import cats.syntax.either._
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+import io.circe.parser._
 import org.apache.http.client.utils.URLEncodedUtils
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
 import org.scalacheck.Gen
 import org.scalatest.FreeSpec
 import org.scalatest.Matchers._
 import org.scalatest.prop.PropertyChecks
 
-import CollectorPayload.thrift.model1.CollectorPayload
 import model._
 import RecoveryScenario._
 import gens._
@@ -80,11 +80,12 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.body shouldEqual newCp.body
-          val oldUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(oldCp.querystring)("ue_px"))))
-          val newUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(newCp.querystring)("ue_px"))))
-          val Diff(changed, JNothing, JNothing) = oldUe diff newUe
-          changed shouldEqual JObject(List(("data",
-            JObject(List(("data", JObject(List(("sessionId", JString(uuid.toString))))))))))
+          val newUe = new String(Base64.getDecoder.decode(parseQuerystring(newCp.querystring)("ue_px")))
+          (for {
+            json <- parse(newUe).leftMap(_.message)
+            sessionId <- json.hcursor.downField("data").downField("data").downField("sessionId").as[String]
+              .leftMap(_.message)
+          } yield sessionId).getOrElse("") shouldEqual uuid.toString()
         }
       }
     }
@@ -127,6 +128,12 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
 
   "ReplaceInBase64FieldInBody" - {
     "should replace part of ue_px in the body using a regex" in {
+      def getUe(s: String): Either[String, String] = for {
+        json <- parse(s).leftMap(_.message)
+        uePx <- json.hcursor.downField("data").downArray.first.downField("ue_px").as[String]
+          .leftMap(_.message)
+      } yield uePx
+
       forAll { (cp: CollectorPayload, uuid: UUID) =>
         val rib = ReplaceInBase64FieldInBody(
           "placeholder",
@@ -141,11 +148,13 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.querystring shouldEqual newCp.querystring
-          val oldUe = parse(new String(Base64.getDecoder.decode(((parse(oldCp.body) \ "data")(0) \ "ue_px").values.toString)))
-          val newUe = parse(new String(Base64.getDecoder.decode(((parse(newCp.body) \ "data")(0) \ "ue_px").values.toString)))
-          val Diff(changed, JNothing, JNothing) = oldUe diff newUe
-          changed shouldEqual JObject(List(("data",
-            JObject(List(("data", JObject(List(("sessionId", JString(uuid.toString))))))))))
+          val newUe = getUe(newCp.body).getOrElse(throw new Exception("invalid json"))
+          val newUeDecoded = new String(Base64.getDecoder().decode(newUe))
+          (for {
+            json <- parse(newUeDecoded).leftMap(_.message)
+            sessionId <- json.hcursor.downField("data").downField("data").downField("sessionId").as[String]
+              .leftMap(_.message)
+          } yield sessionId).getOrElse("") shouldEqual uuid.toString()
         }
       }
     }
@@ -198,7 +207,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
   }
 
   def parseQuerystring(s: String): Map[String, String] =
-    URLEncodedUtils.parse(new URI("?" + s), "UTF-8")
+    URLEncodedUtils.parse(new URI("?" + s), StandardCharsets.UTF_8)
       .asScala
       .map(pair => pair.getName -> pair.getValue)
       .toMap

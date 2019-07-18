@@ -19,7 +19,6 @@ import java.util.Base64
 
 import scala.util.Try
 
-import cats.syntax.either._
 import io.circe._
 import io.circe.optics.JsonPath._
 import io.circe.parser._

@@ -14,30 +14,26 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import java.util.Base64
-
 import cats.Id
 import cats.syntax.either._
+import com.snowplowanalytics.iglu.client.Client
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+import com.snowplowanalytics.snowplow.badrows.Processor
+import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
+import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
+import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
+import com.snowplowanalytics.snowplow.enrich.common.loaders.ThriftLoader
 import io.circe.{Decoder, Json}
 import io.circe.generic.extras.auto._
 import io.circe.generic.extras.Configuration
+import io.circe.parser._
 import io.circe.syntax._
 import org.apache.thrift.TSerializer
-import scalaz._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
 import org.scalatest.{FreeSpec, Inspectors}
 import org.scalatest.Matchers._
 
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
-import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
-import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
-import com.snowplowanalytics.snowplow.enrich.common.loaders.ThriftLoader
-import com.snowplowanalytics.iglu.client.Resolver
-
 import model._
 import utils._
-import com.snowplowanalytics.iglu.client.Client
 
 sealed trait ExpectedPayload {
   def path: String
@@ -81,13 +77,17 @@ class IntegrationSpec extends FreeSpec with Inspectors {
       cp
     }
 
-  val client = io.circe.parser.parse(getResourceContent("/resolver.json"))
+  val client = parse(getResourceContent("/resolver.json"))
     .leftMap(_.message)
     .flatMap(json => Client.parseDefault[Id](json).value)
     .fold(l => throw new Exception(s"invalid resolver: $l"), identity)
-  val registry = EnrichmentRegistry
-    .parse(parse(getResourceContent("/enrichments.json")), true)(resolver)
+  val confs = parse(getResourceContent("/enrichments.json"))
+    .leftMap(_.message)
+    .flatMap(json => EnrichmentRegistry.parse[Id](json, client, true).toEither.leftMap(_.toString))
     .fold(l => throw new Exception(s"invalid registry: $l"), identity)
+  val registry = EnrichmentRegistry
+    .build(confs)
+    .fold(e => throw new Exception(e.toList.mkString("\n")), identity)
 
   "IntegrationSpec" in {
 
@@ -107,23 +107,20 @@ class IntegrationSpec extends FreeSpec with Inspectors {
       .map { payload =>
         val thriftSerializer = new TSerializer
         val bytes = thriftSerializer.serialize(payload)
-        val res = Base64.getEncoder.encode(bytes)
-        val r = ThriftLoader.toCollectorPayload(bytes)
+        val r = ThriftLoader.toCollectorPayload(bytes, Processor("test", "0.1.0"))
         r
       }
       .map(payload => EtlPipeline.processEvents(
+        new AdapterRegistry(),
         registry,
-        "etlVersion",
+        client,
+        Processor("test", "0.1.0"),
         org.joda.time.DateTime.now,
-        payload)(resolver)
-      )
+        payload
+      ))
       .flatten
     forAll (enriched) { r =>
-      val e = r match {
-        case Success(e) => Right(e)
-        case Failure(e) => Left(e)
-      }
-      e should be ('right)
+      r.toEither should be ('right)
     }
   }
 

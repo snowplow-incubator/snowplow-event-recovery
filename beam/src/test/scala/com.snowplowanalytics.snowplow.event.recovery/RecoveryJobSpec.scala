@@ -24,7 +24,7 @@ import org.apache.thrift.TDeserializer
 import CollectorPayload.thrift.model1.CollectorPayload
 import utils._
 
-class RecoveryJobSpec extends PipelineSpec {
+object RecoveryJobSpec {
   val recoveryScenarios = Base64.getEncoder.encodeToString("""
     {
       "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0",
@@ -61,7 +61,10 @@ class RecoveryJobSpec extends PipelineSpec {
     }
     """
   }
+}
 
+class RecoveryJobSpec extends PipelineSpec {
+  import RecoveryJobSpec._
   "Recovery" should "fix a set of bad rows according to a set of recovery scenarios" in {
     JobTest[Main.type]
       .args("--inputDirectory=in", "--outputTopic=out", s"--config=$recoveryScenarios")
