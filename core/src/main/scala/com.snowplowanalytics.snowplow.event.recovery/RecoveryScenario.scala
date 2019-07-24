@@ -12,19 +12,130 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics.snowplow
-package event.recovery
+package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.Base64
 
+import scala.collection.JavaConverters._
 import scala.util.Try
 
+import cats.syntax.either._
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.{CollectorPayload => CP}
+import com.snowplowanalytics.snowplow.badrows.{Failure, Payload}
+import com.snowplowanalytics.snowplow.badrows.AdapterFailure._
+import com.snowplowanalytics.snowplow.badrows.Failure._
+import com.snowplowanalytics.snowplow.badrows.Payload._
 import io.circe._
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.lemonlabs.uri.QueryString
 
-import CollectorPayload.thrift.model1.CollectorPayload
+sealed trait RecoveryScenario2[F <: Failure, P <: Payload] {
+  def discriminant(f: F): Boolean
+  def fix(p: P): CP
+}
+
+object RecoveryScenario2 {
+  sealed trait AdapterFailuresRecoveryScenario
+    extends RecoveryScenario2[AdapterFailures, CollectorPayload] {
+      def vendor: String
+      def version: String
+      def field: Option[String]
+      def error: Option[String]
+
+      override def discriminant(f: AdapterFailures): Boolean =
+        f.vendor == vendor && f.version == version && ((field.isEmpty && error.isEmpty) || f.messages.exists {
+          case _: IgluErrorAdapterFailure | _: SchemaCritAdapterFailure => false
+          case NotJsonAdapterFailure(f, _, e) =>
+            field.map(_ == f).getOrElse(false) || error.map(e.contains).getOrElse(false)
+          case NotSDAdapterFailure(_, e) => error.map(e.contains).getOrElse(false)
+          case InputDataAdapterFailure(f, _, e) =>
+            field.map(_ == f).getOrElse(false) || error.map(e.contains).getOrElse(false)
+          case SchemaMappingAdapterFailure(_, _, e) => error.map(e.contains).getOrElse(false)
+        })
+  }
+
+  final case class PassThroughAdapterFailuresRecoveryScenario(
+    vendor: String,
+    version: String,
+    field: Option[String],
+    error: Option[String]
+  ) extends AdapterFailuresRecoveryScenario {
+    override def fix(p: CollectorPayload): CP = toCollectorPayload(p)
+  }
+
+  final case class ModifyBodyAdapterFailuresRecoveryScenario(
+    vendor: String,
+    version: String,
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends AdapterFailuresRecoveryScenario {
+    override def fix(p: CollectorPayload): CP = {
+      val replaced = for {
+        body <- p.body
+        replaced <- replaceAll(body, toReplace, replacement)
+      } yield p.copy(body = Some(replaced))
+      toCollectorPayload(replaced.getOrElse(p))
+    }
+  }
+
+  final case class ModifyQuerystringAdapterFailuresRecoveryScenario(
+    vendor: String,
+    version: String,
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends AdapterFailuresRecoveryScenario {
+    override def fix(p: CollectorPayload): CP = {
+      val qs = p.querystring.map(nvp => nvp.name + nvp.value.map("=" + _).getOrElse("")).mkString("&")
+      val replacedQs = replaceAll(qs, toReplace, replacement)
+      val cp = toCollectorPayload(p)
+      cp.querystring = replacedQs.getOrElse(qs)
+      cp
+    }
+  }
+
+  final case class ModifyPathAdapterFailuresRecoveryScenario(
+    vendor: String,
+    version: String,
+    field: Option[String],
+    error: Option[String],
+    newVendor: String,
+    newVersion: String
+  ) extends AdapterFailuresRecoveryScenario {
+    override def fix(p: CollectorPayload): CP = {
+      val cp = toCollectorPayload(p)
+      cp.path = s"/$newVendor/$newVersion"
+      cp
+    }
+  }
+
+  def toCollectorPayload(cp: CollectorPayload): CP = {
+    val p = new CP(
+      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0",
+      cp.ipAddress.orNull,
+      cp.timestamp.flatMap(s => Either.catchNonFatal(s.toLong).toOption).getOrElse(0L),
+      cp.encoding,
+      cp.collector
+    )
+    p.userAgent = cp.useragent.orNull
+    p.refererUri = cp.refererUri.orNull
+    p.path = s"/${cp.vendor}/${cp.version}"
+    p.querystring = cp.querystring.map(nvp => nvp.name + nvp.value.map("=" + _).getOrElse("")).mkString("&")
+    p.body = cp.body.orNull
+    p.headers = cp.headers.asJava
+    p.contentType = cp.contentType.orNull
+    p.hostname = cp.hostname.orNull
+    p.networkUserId = cp.networkUserId.orNull
+    p
+  }
+
+  private def replaceAll(str: String, toReplace: String, replacement: String): Option[String] =
+    Try(str.replaceAll(toReplace, replacement)).toOption
+}
 
 /**
  * Trait common to all recovery scenarios which, in essence, contains two things:
@@ -45,11 +156,11 @@ sealed trait RecoveryScenario {
     errors.map(_.message).exists(_.contains(error))
 
   /**
-   * Function mutating a CollectorPayload.
-   * @param originalPayload CollectorPayload before mutation
-   * @return a fixed CollectorPayload
+   * Function mutating a CP.
+   * @param originalPayload CP before mutation
+   * @return a fixed CP
    */
-  def mutate(originalPayload: CollectorPayload): CollectorPayload
+  def mutate(originalPayload: CP): CP
 }
 
 object RecoveryScenario {
@@ -73,7 +184,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its query string replaced, the payload remains
      * unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       qs <- Option(originalPayload.querystring)
       replaced <- replaceAll(qs, toReplace, replacement)
     } yield {
@@ -103,7 +214,7 @@ object RecoveryScenario {
      * @return a collector payload with part of a base64-encoded field in its query string replaced,
      * the payload remains unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       rawQs <- Option(originalPayload.querystring)
       qs <- QueryString.parseOption(rawQs)
       b64Values <- qs.paramMap.get(base64Field)
@@ -128,7 +239,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its query string removed, the payload remains
      * unchanged if it doesn't have a query string
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       qs <- Option(originalPayload.querystring)
       removed <- replaceAll(qs, toRemove, "")
     } yield {
@@ -156,7 +267,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its body replaced, the payload remains
      * unchanged if the it doesn't have a body
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       body <- Option(originalPayload.body)
       replaced <- replaceAll(body, toReplace, replacement)
     } yield {
@@ -189,7 +300,7 @@ object RecoveryScenario {
      * @return a collector payload with part of a base64-encoded field in its body replaced, the
      * payload remains unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       rawBody <- Option(originalPayload.body)
       body <- parse(rawBody).toOption
       f = (b64: String) => replaceInB64(b64, toReplace, replacement).getOrElse(b64)
@@ -216,7 +327,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its body removed, the payload remains unchanged if
      * it doesn't have a body
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       body <- Option(originalPayload.body)
       removed <- replaceAll(body, toRemove, "")
     } yield {
@@ -237,7 +348,7 @@ object RecoveryScenario {
      * @param originalPayload the payload before applying the recovery scenario
      * @return the original payload unchanged
      */
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = originalPayload
+    def mutate(originalPayload: CP): CP = originalPayload
   }
 
   /**
@@ -251,7 +362,7 @@ object RecoveryScenario {
     toReplace: String,
     replacement: String
   ) extends RecoveryScenario {
-    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
+    def mutate(originalPayload: CP): CP = (for {
       path <- Option(originalPayload.path)
       replaced <- replaceAll(path, toReplace, replacement)
     } yield {

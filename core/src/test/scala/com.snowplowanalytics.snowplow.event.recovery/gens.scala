@@ -17,11 +17,14 @@ package com.snowplowanalytics.snowplow.event.recovery
 import java.util.{Base64, UUID}
 
 import cats.Id
+import cats.syntax.option._
 import com.snowplowanalytics.iglu.client.resolver.Resolver
 import com.snowplowanalytics.iglu.client.resolver.registries.Registry
 import com.snowplowanalytics.iglu.core.{SchemaKey, SchemaVer}
 import com.snowplowanalytics.iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.{CollectorPayload => CP}
+import com.snowplowanalytics.snowplow.badrows.NVP
+import com.snowplowanalytics.snowplow.badrows.Payload.CollectorPayload
 import io.circe.Json
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -34,6 +37,12 @@ object gens {
     val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
     s"e=ue&tv=js&ue_px=$encoded"
+  }
+  val qs2 = (json: Json) => {
+    val str = json.noSpaces
+    val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
+    val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
+    List(NVP("e", "ue".some), NVP("tv", "js".some), NVP("ue_px", encoded.some))
   }
   val body = (json: Json) => {
     val str = json.noSpaces
@@ -53,7 +62,7 @@ object gens {
     .toOption
     .getOrElse(throw new RuntimeException("invalid schema"))
 
-  implicit val collectorPayloadArb: Arbitrary[CollectorPayload] = Arbitrary {
+  implicit val cpArb: Arbitrary[CP] = Arbitrary {
     for {
       ts <- Gen.choose(1, Long.MaxValue)
       path = "/com.snowplowanalytics.snowplow/v1"
@@ -61,12 +70,39 @@ object gens {
       contentType = "application/json; charset=UTF-8"
       json <- JsonGenSchema.json(schemaObject)
     } yield {
-      val collectorPayload = new CollectorPayload()
+      val collectorPayload = new CP()
       collectorPayload.timestamp = ts
       collectorPayload.path = path
       if (post) collectorPayload.body = body(json)
       else collectorPayload.querystring = qs(json)
       collectorPayload
+    }
+  }
+
+  implicit val collectorPayloadArb: Arbitrary[CollectorPayload] = Arbitrary {
+    for {
+      ts <- Gen.choose(1, Long.MaxValue)
+      post <- Gen.oneOf(true, false)
+      json <- JsonGenSchema.json(schemaObject)
+    } yield {
+      val cp = CollectorPayload(
+        vendor = "com.snowplowanalytics.snowplow",
+        version = "v1",
+        querystring = Nil,
+        contentType = Some("application/json; charset=UTF-8"),
+        body = None,
+        collector = "",
+        encoding = "",
+        hostname = None,
+        timestamp = Some(ts.toString()),
+        ipAddress = None,
+        useragent = None,
+        refererUri = None,
+        headers = Nil,
+        networkUserId = None
+      )
+      if (post) cp.copy(body = Some(body(json)))
+      else cp.copy(querystring = qs2(json))
     }
   }
 
@@ -78,7 +114,7 @@ object gens {
   } yield Error(level, message)
 
   val badRowGen: Gen[BadRow] = for {
-    payload <- collectorPayloadArb.arbitrary
+    payload <- cpArb.arbitrary
     line = thriftSer(payload)
     errors <- Gen.listOf(errorGen)
     failureTstamp <- Gen.alphaStr
