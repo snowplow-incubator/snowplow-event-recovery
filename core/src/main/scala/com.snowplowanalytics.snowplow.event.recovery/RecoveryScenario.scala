@@ -20,11 +20,11 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 import cats.syntax.either._
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.{CollectorPayload => CP}
+import com.snowplowanalytics.iglu.core.SchemaCriterion
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import com.snowplowanalytics.snowplow.badrows.{Failure, Payload}
 import com.snowplowanalytics.snowplow.badrows.AdapterFailure._
-import com.snowplowanalytics.snowplow.badrows.Failure._
-import com.snowplowanalytics.snowplow.badrows.Payload._
+import com.snowplowanalytics.snowplow.badrows.SchemaViolation._
 import io.circe._
 import io.circe.optics.JsonPath._
 import io.circe.parser._
@@ -32,18 +32,20 @@ import io.lemonlabs.uri.QueryString
 
 sealed trait RecoveryScenario2[F <: Failure, P <: Payload] {
   def discriminant(f: F): Boolean
-  def fix(p: P): CP
+  def fix(p: P): CollectorPayload
 }
 
 object RecoveryScenario2 {
+  // ADAPTER FAILURES
+
   sealed trait AdapterFailuresRecoveryScenario
-    extends RecoveryScenario2[AdapterFailures, CollectorPayload] {
+    extends RecoveryScenario2[Failure.AdapterFailures, Payload.CollectorPayload] {
       def vendor: String
       def version: String
       def field: Option[String]
       def error: Option[String]
 
-      override def discriminant(f: AdapterFailures): Boolean =
+      override def discriminant(f: Failure.AdapterFailures): Boolean =
         f.vendor == vendor && f.version == version && ((field.isEmpty && error.isEmpty) || f.messages.exists {
           case _: IgluErrorAdapterFailure | _: SchemaCritAdapterFailure => false
           case NotJsonAdapterFailure(f, _, e) =>
@@ -61,7 +63,7 @@ object RecoveryScenario2 {
     field: Option[String],
     error: Option[String]
   ) extends AdapterFailuresRecoveryScenario {
-    override def fix(p: CollectorPayload): CP = toCollectorPayload(p)
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = toCollectorPayload(p)
   }
 
   final case class ModifyBodyAdapterFailuresRecoveryScenario(
@@ -72,7 +74,7 @@ object RecoveryScenario2 {
     toReplace: String,
     replacement: String
   ) extends AdapterFailuresRecoveryScenario {
-    override def fix(p: CollectorPayload): CP = {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = {
       val replaced = for {
         body <- p.body
         replaced <- replaceAll(body, toReplace, replacement)
@@ -89,7 +91,7 @@ object RecoveryScenario2 {
     toReplace: String,
     replacement: String
   ) extends AdapterFailuresRecoveryScenario {
-    override def fix(p: CollectorPayload): CP = {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = {
       val qs = p.querystring.map(nvp => nvp.name + nvp.value.map("=" + _).getOrElse("")).mkString("&")
       val replacedQs = replaceAll(qs, toReplace, replacement)
       val cp = toCollectorPayload(p)
@@ -106,15 +108,70 @@ object RecoveryScenario2 {
     newVendor: String,
     newVersion: String
   ) extends AdapterFailuresRecoveryScenario {
-    override def fix(p: CollectorPayload): CP = {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = {
       val cp = toCollectorPayload(p)
       cp.path = s"/$newVendor/$newVersion"
       cp
     }
   }
 
-  def toCollectorPayload(cp: CollectorPayload): CP = {
-    val p = new CP(
+  // SCHEMA VIOLATIONS
+
+  sealed trait SchemaViolationsRecoveryScenario
+    extends RecoveryScenario2[Failure.SchemaViolations, Payload.EnrichmentPayload] {
+      def schemaCriterion: Option[SchemaCriterion]
+      def field: Option[String]
+      def error: Option[String]
+
+      override def discriminant(f: Failure.SchemaViolations): Boolean = f.messages.exists {
+        case NotJsonSchemaViolation(f, _, e) =>
+          field.map(_ == f).getOrElse(false) || error.map(e.contains).getOrElse(false)
+        case NotSDSchemaViolation(_, e) => error.map(e.contains).getOrElse(false)
+        case IgluErrorSchemaViolation(k, e) =>
+          schemaCriterion.map(_.matches(k)).getOrElse(false) || error.map(e.getMessage.contains).getOrElse(false)
+        case SchemaCritSchemaViolation(k, _) =>
+          schemaCriterion.map(_.matches(k)).getOrElse(false)
+      }
+    }
+
+  final case class PassThroughSchemaViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String]
+  ) extends SchemaViolationsRecoveryScenario {
+    override def fix(p: Payload.EnrichmentPayload): CollectorPayload = toCollectorPayload(p)
+  }
+
+  final case class ModifyContextsSchemaViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends SchemaViolationsRecoveryScenario {
+    override def fix(p: Payload.EnrichmentPayload): CollectorPayload = {
+      val replacedContexts = p.partiallyEnrichedEvent.contexts.flatMap(replaceAll(_, toReplace, replacement))
+      toCollectorPayload(p.copy(partiallyEnrichedEvent = p.partiallyEnrichedEvent.copy(contexts = replacedContexts)))
+    }
+  }
+
+  final case class ModifyUnstructEventSchemaViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends SchemaViolationsRecoveryScenario {
+    override def fix(p: Payload.EnrichmentPayload): CollectorPayload = {
+      val replacedUe = p.partiallyEnrichedEvent.unstruct_event.flatMap(replaceAll(_, toReplace, replacement))
+      toCollectorPayload(p.copy(partiallyEnrichedEvent = p.partiallyEnrichedEvent.copy(unstruct_event = replacedUe)))
+    }
+  }
+
+  def toCollectorPayload(pee: Payload.EnrichmentPayload): CollectorPayload = ???
+
+  def toCollectorPayload(cp: Payload.CollectorPayload): CollectorPayload = {
+    val p = new CollectorPayload(
       "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0",
       cp.ipAddress.orNull,
       cp.timestamp.flatMap(s => Either.catchNonFatal(s.toLong).toOption).getOrElse(0L),
@@ -156,11 +213,11 @@ sealed trait RecoveryScenario {
     errors.map(_.message).exists(_.contains(error))
 
   /**
-   * Function mutating a CP.
-   * @param originalPayload CP before mutation
-   * @return a fixed CP
+   * Function mutating a CollectorPayload.
+   * @param originalPayload CollectorPayload before mutation
+   * @return a fixed CollectorPayload
    */
-  def mutate(originalPayload: CP): CP
+  def mutate(originalPayload: CollectorPayload): CollectorPayload
 }
 
 object RecoveryScenario {
@@ -184,7 +241,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its query string replaced, the payload remains
      * unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       qs <- Option(originalPayload.querystring)
       replaced <- replaceAll(qs, toReplace, replacement)
     } yield {
@@ -214,7 +271,7 @@ object RecoveryScenario {
      * @return a collector payload with part of a base64-encoded field in its query string replaced,
      * the payload remains unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       rawQs <- Option(originalPayload.querystring)
       qs <- QueryString.parseOption(rawQs)
       b64Values <- qs.paramMap.get(base64Field)
@@ -239,7 +296,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its query string removed, the payload remains
      * unchanged if it doesn't have a query string
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       qs <- Option(originalPayload.querystring)
       removed <- replaceAll(qs, toRemove, "")
     } yield {
@@ -267,7 +324,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its body replaced, the payload remains
      * unchanged if the it doesn't have a body
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       body <- Option(originalPayload.body)
       replaced <- replaceAll(body, toReplace, replacement)
     } yield {
@@ -300,7 +357,7 @@ object RecoveryScenario {
      * @return a collector payload with part of a base64-encoded field in its body replaced, the
      * payload remains unchanged if the it doesn't have a query string
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       rawBody <- Option(originalPayload.body)
       body <- parse(rawBody).toOption
       f = (b64: String) => replaceInB64(b64, toReplace, replacement).getOrElse(b64)
@@ -327,7 +384,7 @@ object RecoveryScenario {
      * @return a collector payload with part of its body removed, the payload remains unchanged if
      * it doesn't have a body
      */
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       body <- Option(originalPayload.body)
       removed <- replaceAll(body, toRemove, "")
     } yield {
@@ -348,7 +405,7 @@ object RecoveryScenario {
      * @param originalPayload the payload before applying the recovery scenario
      * @return the original payload unchanged
      */
-    def mutate(originalPayload: CP): CP = originalPayload
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = originalPayload
   }
 
   /**
@@ -362,7 +419,7 @@ object RecoveryScenario {
     toReplace: String,
     replacement: String
   ) extends RecoveryScenario {
-    def mutate(originalPayload: CP): CP = (for {
+    def mutate(originalPayload: CollectorPayload): CollectorPayload = (for {
       path <- Option(originalPayload.path)
       replaced <- replaceAll(path, toReplace, replacement)
     } yield {
