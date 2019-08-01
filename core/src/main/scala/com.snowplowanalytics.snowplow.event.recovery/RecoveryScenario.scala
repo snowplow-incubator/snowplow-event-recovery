@@ -190,6 +190,68 @@ object RecoveryScenario2 {
     p
   }
 
+  // TRACKER PROTOCOL VIOLATION
+  sealed trait TrackerProtocolViolationsRecoveryScenario
+    extends RecoveryScenario2[Failure.AdapterFailures, Payload.CollectorPayload] {
+      def schemaCriterion: Option[SchemaCriterion]
+      def field: Option[String]
+      def error: Option[String]
+
+      override def discriminant(f: Failure.AdapterFailures): Boolean =
+        f.vendor == "com.snowplowanalytics.snowplow" && f.version == "tp2" && 
+            ((schemaCriterion.isEmpty && field.isEmpty && error.isEmpty) || f.messages.exists {
+          case IgluErrorAdapterFailure(sk, e) =>
+            error.map(e.getMessage.contains).getOrElse(false) || schemaCriterion.map(_.matches(sk)).getOrElse(false)
+          case SchemaCritAdapterFailure(sk, _) => schemaCriterion.map(_.matches(sk)).getOrElse(false)
+          case NotJsonAdapterFailure(f, _, e) =>
+            field.map(_ == f).getOrElse(false) || error.map(e.contains).getOrElse(false)
+          case NotSDAdapterFailure(_, e) => error.map(e.contains).getOrElse(false)
+          case InputDataAdapterFailure(f, _, e) =>
+            field.map(_ == f).getOrElse(false) || error.map(e.contains).getOrElse(false)
+          case _: SchemaMappingAdapterFailure => false
+        })
+  }
+
+  final case class PassThroughTrackerProtocolViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String]
+  ) extends TrackerProtocolViolationsRecoveryScenario {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = toCollectorPayload(p)
+  }
+
+  final case class ModifyBodyTrackerProtocolViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends TrackerProtocolViolationsRecoveryScenario {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = {
+      val replaced = for {
+        body <- p.body
+        replaced <- replaceAll(body, toReplace, replacement)
+      } yield p.copy(body = Some(replaced))
+      toCollectorPayload(replaced.getOrElse(p))
+    }
+  }
+
+  final case class ModifyQuerystringTrackerProtocolViolationsRecoveryScenario(
+    schemaCriterion: Option[SchemaCriterion],
+    field: Option[String],
+    error: Option[String],
+    toReplace: String,
+    replacement: String
+  ) extends TrackerProtocolViolationsRecoveryScenario {
+    override def fix(p: Payload.CollectorPayload): CollectorPayload = {
+      val qs = p.querystring.map(nvp => nvp.name + nvp.value.map("=" + _).getOrElse("")).mkString("&")
+      val replacedQs = replaceAll(qs, toReplace, replacement)
+      val cp = toCollectorPayload(p)
+      cp.querystring = replacedQs.getOrElse(qs)
+      cp
+    }
+  }
+
   private def replaceAll(str: String, toReplace: String, replacement: String): Option[String] =
     Try(str.replaceAll(toReplace, replacement)).toOption
 }
