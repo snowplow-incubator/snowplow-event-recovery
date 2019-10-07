@@ -1,14 +1,109 @@
 {
-  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/1-0-0",
-  "data": [
-    {
-      "name": "RemoveFromQueryString",
-      "error": "Exception extracting name-value pairs from querystring",
-      "toRemove": "\\{.*\\}"
-    },
-    {
-      "name": "PassThrough",
-      "error": "error: instance type (null) does not match any allowed primitive type"
-    }
-  ]
+  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/3-0-0",
+  "data": {
+    "iglu:com.snowplowanalytics.snowplow.badrows/enrichment_failures/jsonschema/1-0-*": [
+      {
+        "name": "main flow making use of most of available features",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "processor.artifact",
+            "value": {
+              "value": "beam-enrich"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "payload.raw.vendor",
+            "value": {
+              "regex": "com.snowplow\\.*"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "processor.artifact",
+            "value": {
+              "size": {
+                "eq": 11
+              }
+            }
+          },
+          {
+            "op": "Test",
+            "path": "processor.artifact",
+            "value": {
+              "size": {
+                "gt": 3
+              }
+            }
+          },
+          {
+            "op": "Test",
+            "path": "processor.artifact",
+            "value": {
+              "size": {
+                "lt": 30
+              }
+            }
+          }
+        ],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "raw.refererUri",
+            "match": "(?U)^.*$",
+            "value": "https://console.snplow.com/"
+          },
+          {
+            "op": "Remove",
+            "path": "raw.parameters.aid",
+            "match": "(?U)^.*$"
+          },
+          {
+            "op": "Replace",
+            "path": "raw.headers",
+            "match": "X-Forwarded-Proto:.*",
+            "value": "X-Forwarded-Proto: http"
+          },
+          {
+            "op": "Replace",
+            "path": "raw.parameters.cx.data.1.data.loadEventEnd",
+            "match": "(?U)^.*$",
+            "value": "1"
+          },
+          {
+            "op": "Cast",
+            "path": "raw.parameters.cx.data.1.data.domComplete",
+            "from": "Numeric",
+            "to": "Boolean"
+          },
+          {
+            "op": "Replace",
+            "path": "raw.parameters.cx.data.1.data.domComplete",
+            "match": "false",
+            "value": "true"
+          },
+          {
+            "op": "Cast",
+            "path": "raw.parameters.cx.data.1.data.domComplete",
+            "from": "Boolean",
+            "to": "Numeric"
+          }
+        ]
+      },
+      {
+        "name": "impossible flow",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "processor.artifact",
+            "value": {
+              "value": "lorem-ipsum"
+            }
+          }
+        ],
+        "steps": []
+      }
+    ]
+  }
 }

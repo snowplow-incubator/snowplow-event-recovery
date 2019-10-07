@@ -1,0 +1,100 @@
+
+version: "3"
+services:
+  job:
+    image: flink:1.9.0-scala_2.12
+    command: "flink run -d -p 2 /opt/job.jar --input bad-rows/ --output recovered --config ewogICAgInNjaGVtYSI6ICJpZ2x1OmNvbS5zbm93cGxvd2FuYWx5dGljcy9yZWNvdmVyeV9jb25maWcvanNvbnNjaGVtYS8xLTAtMCIsCiAgICAiZGF0YSI6IHsKICAgICAgICAicmVzb2x2ZXIiOiB7CiAgICAgICAgICAgICJzY2hlbWEiOiAiaWdsdTpjb20uc25vd3Bsb3dhbmFseXRpY3MuaWdsdS9yZXNvbHZlci1jb25maWcvanNvbnNjaGVtYS8xLTAtMSIsCiAgICAgICAgICAgICJkYXRhIjogewogICAgICAgICAgICAgICAgImNhY2hlU2l6ZSI6IDUsCiAgICAgICAgICAgICAgICAicmVwb3NpdG9yaWVzIjogW3sKICAgICAgICAgICAgICAgICAgICAibmFtZSI6ICJJZ2x1IENlbnRyYWwiLAogICAgICAgICAgICAgICAgICAgICJwcmlvcml0eSI6IDAsCiAgICAgICAgICAgICAgICAgICAgInZlbmRvclByZWZpeGVzIjogWyAiY29tLnNub3dwbG93YW5hbHl0aWNzIiBdLAogICAgICAgICAgICAgICAgICAgICJjb25uZWN0aW9uIjogeyAiaHR0cCI6IHsgInVyaSI6ICJodHRwOi8vaWdsdWNlbnRyYWwuY29tIiB9IH0KICAgICAgICAgICAgICAgIH1dLAogICAgICAgICAgICB9LAogICAgICAgIH0sCiAgICAgICAgInJlY292ZXJ5IjogewogICAgICAgICAgICAiQWRhcHRlckZhaWx1cmVzIjogWwogICAgICAgICAgICB7CiAgICAgICAgICAgICAgICAiY29udGV4dCIgOiAiYm9keSIsCiAgICAgICAgICAgICAgICAibWF0Y2hlciIgOiAiYm9keSIsCiAgICAgICAgICAgICAgICAicmVwbGFjZW1lbnQiIDogIm5ldy1ib2R5IgogICAgICAgICAgICB9LAogICAgICAgICAgICB7CiAgICAgICAgICAgICAgICAiY29udGV4dCIgOiAicXVlcnkiLAogICAgICAgICAgICAgICAgIm1hdGNoZXIiIDogInF1ZXJ5IiwKICAgICAgICAgICAgICAgICJyZXBsYWNlbWVudCIgOiAibmV3LXF1ZXJ5IgogICAgICAgICAgICB9CiAgICAgICAgICAgIF0sCiAgICAgICAgfSwKICAgIH0sCn0K"
+    depends_on:
+      - jobmanager
+      - setup-resources
+    volumes:
+      - ./conf:/opt/flink/conf
+      - /Users/peel/wrk/sp/flink/flink-dist/target/flink-1.9.0-bin/flink-1.9.0/opt/flink-s3-fs-hadoop-1.9.0.jar:/opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-1.9.0.jar
+      - ../flink/target/scala-2.12/snowplow-event-recovery-flink-0.1.1.jar:/opt/job.jar
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+  jobmanager:
+    image: flink:1.9-scala_2.12
+    command: "jobmanager.sh start-foreground"
+    ports:
+      - 8081:8081
+    volumes:
+      - ./conf:/opt/flink/conf
+      - /Users/peel/wrk/sp/flink/flink-dist/target/flink-1.9.0-bin/flink-1.9.0/opt/flink-s3-fs-hadoop-1.9.0.jar:/opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-1.9.0.jar
+      - flink-checkpoint-directory:/tmp/flink-checkpoint-directory
+      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - AWS_SECRET_ACCESS_KEY=secret-access-key
+      - AWS_SECRET_KEY=secret-access-key
+      - AWS_ACCESS_KEY_ID=access-key
+      - AWS_ACCESS_KEY=access-key
+      - AWS_SECURITY_TOKEN=security-token
+      - AWS_SESSION_TOKEN=session-token
+      - AWS_ENDPOINT=http://localstack:4568
+
+  taskmanager:
+    image: flink:1.9-scala_2.12
+    depends_on:
+      - jobmanager
+    command: "taskmanager.sh start-foreground"
+    volumes:
+      - ./conf:/opt/flink/conf
+      - /Users/peel/wrk/sp/flink/flink-dist/target/flink-1.9.0-bin/flink-1.9.0/opt/flink-s3-fs-hadoop-1.9.0.jar:/opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-1.9.0.jar
+      - flink-checkpoint-directory:/tmp/flink-checkpoint-directory
+      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - AWS_SECRET_KEY=secret-key
+      - AWS_SECRET_ACCESS_KEY=secret-key
+      - AWS_ACCESS_KEY_ID=access-key
+      - AWS_ACCESS_KEY=access-key
+      - AWS_SECURITY_TOKEN=security-token
+      - AWS_SESSION_TOKEN=session-token
+      - AWS_ENDPOINT=http://localstack:4568
+
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4569-4584:4569-4584"
+      - "${PORT_WEB_UI-8888}:${PORT_WEB_UI-8888}"
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=eu-central-1
+      - DATA_DIR=/tmp/localstack/data
+      - PORT_WEB_UI=8888
+      - KINESIS_ERROR_PROBABILITY=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - USE_SSL=false
+    volumes:
+      - ./.localstack:/tmp/localstack
+
+  kinesis:
+    image: instructure/kinesalite
+    ports:
+      - "4568:4567"
+    command: "--ssl"
+
+  setup-resources:
+    image: mesosphere/aws-cli
+    environment:
+      - AWS_ACCESS_KEY_ID=access-key
+      - AWS_SECRET_ACCESS_KEY=secret-key
+      - AWS_DEFAULT_REGION=eu-central-1
+    entrypoint: /bin/sh -c
+    volumes:
+      - ./sample.json:/tmp/sample.json
+    command: >
+      "
+        sleep 10;
+        aws kinesis create-stream --endpoint-url=https://kinesis:4567 --no-verify-ssl --stream-name recovered --shard-count 1;
+        aws s3 mb --endpoint-url=http://localstack:4572 s3://bad-rows;
+        aws s3 --endpoint-url=http://localstack:4572 cp /tmp/sample.json s3://bad-rows/sample.json;
+      "
+    depends_on:
+      - kinesis
+      - localstack
+
+volumes:
+  flink-checkpoint-directory:
