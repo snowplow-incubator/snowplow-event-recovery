@@ -68,14 +68,14 @@ packages:
     build_version : <%= FUNC['sbt_version(.)'] %>
 
     build_commands:
-      - sbt "project spark" assembly
+      - sbt "project flink" assembly
 
     # Required: Artifact
     artifacts:
       - type   : "asis"
-        prefix : "snowplow-event-recovery-spark-"
+        prefix : "snowplow-event-recovery-flink-"
         suffix : ".jar"
 
         # The binaries to put in the zip
         binary_paths:
-          - spark/target/scala-2.12/snowplow-event-recovery-spark-<%= ENV['TRAVIS_TAG'] %>.jar
+          - flink/target/scala-2.12/snowplow-event-recovery-flink-<%= ENV['TRAVIS_TAG'] %>.jar

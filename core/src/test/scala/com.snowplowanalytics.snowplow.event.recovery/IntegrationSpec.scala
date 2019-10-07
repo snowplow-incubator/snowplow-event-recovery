@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2018-2019 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -14,120 +14,89 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import java.util.Base64
-
+import scala.io.Source
+import cats.Id
 import cats.syntax.either._
-import io.circe.{Decoder, Json}
-import io.circe.generic.extras.auto._
-import io.circe.generic.extras.Configuration
-import io.circe.syntax._
-import org.apache.thrift.TSerializer
-import scalaz._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
+import io.circe.parser._
+import com.snowplowanalytics.snowplow.event.recovery.{
+  execute => recoveryExecute
+}
 import org.scalatest.{FreeSpec, Inspectors}
 import org.scalatest.Matchers._
-
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
 import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
 import com.snowplowanalytics.snowplow.enrich.common.loaders.ThriftLoader
-import com.snowplowanalytics.iglu.client.Resolver
+import com.snowplowanalytics.iglu.client.Client
 
-import model._
-import utils._
-
-sealed trait ExpectedPayload {
-  def path: String
-}
-final case class Body(path: String, body: Json) extends ExpectedPayload
-final case class QueryString(path: String, queryString: String) extends ExpectedPayload
+import config._
+import json.confD
+import gens.idClock
+import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
+import com.snowplowanalytics.snowplow.badrows.Processor
+import org.joda.time.DateTime
+import org.apache.thrift.TSerializer
 
 class IntegrationSpec extends FreeSpec with Inspectors {
+  val resolverConfig =
+    """{"schema":"iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1","data":{"cacheSize":0,"repositories":[{"name": "Iglu Central","priority": 0,"vendorPrefixes": [ "com.snowplowanalytics" ],"connection": {"http":{"uri":"http://iglucentral.com"}}},{"name":"Priv","priority":0,"vendorPrefixes":["com.snowplowanalytics"],"connection":{"http":{"uri":"http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/release/r114"}}}]}}"""
 
-  implicit def eitherDecoder[L, R](implicit l: Decoder[L], r: Decoder[R]): Decoder[Either[L, R]] =
-    l.either(r)
-  implicit val genConfig: Configuration =
-    Configuration.default.withDiscriminator("name")
+  val enrichmentsConfig =
+    """{"schema": "iglu:com.snowplowanalytics.snowplow/enrichments/jsonschema/1-0-0", "data": []}"""
 
-  val badRows = {
-    val br = io.circe.parser.parse(getResourceContent("/bad_rows.json"))
-      .flatMap(_.as[List[BadRow]])
-      .fold(f => throw new Exception(s"invalid bad rows: ${f.getMessage}"), identity)
-    println("Decoded bad rows are:")
-    println(br.map(r => r.copy(line = thriftDeser(r.line).toString)).asJson)
-    br
-  }
-  val recoveryScenarios = io.circe.parser.parse(getResourceContent("/recovery_scenarios.json"))
-    .flatMap(_.hcursor.get[List[RecoveryScenario]]("data"))
-    .fold(f => throw new Exception(s"invalid recovery scenarios: ${f.getMessage}"), identity)
-  val expectedPayloads = io.circe.parser.parse(getResourceContent("/expected_payloads.json"))
-    .flatMap(_.as[List[ExpectedPayload]])
-    .fold(f => throw new Exception(s"invalid expected payloads: ${f.getMessage}"), identity)
-    .map { p =>
-      val cp = new CollectorPayload()
-      cp.schema = "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
-      cp.encoding = "UTF-8"
-      cp.collector = "c"
-      cp.path = p.path
-      p match {
-        case QueryString(_, qs) => cp.querystring = qs
-        case Body(_, b) =>
-          cp.contentType = "application/json; charset=UTF-8"
-          cp.body = b.noSpaces
-      }
-      cp
-    }
+  val client = Client
+    .parseDefault[Id](parse(resolverConfig).right.get)
+    .leftMap(_.toString)
+    .value
+    .fold(
+      e => throw new RuntimeException(e),
+      r => r
+    )
 
-  val resolver = Resolver.parse(parse(getResourceContent("/resolver.json")))
-    .fold(l => throw new Exception(s"invalid resolver: $l"), identity)
-  val registry = EnrichmentRegistry
-    .parse(parse(getResourceContent("/enrichments.json")), true)(resolver)
-    .fold(l => throw new Exception(s"invalid registry: $l"), identity)
+  val enrichmentsRes = EnrichmentRegistry
+    .parse[Id](
+      parse(enrichmentsConfig).right.get,
+      client,
+      true
+    )
+  val enrichments = enrichmentsRes.toEither.right.get
+  val registry = EnrichmentRegistry.build[Id](enrichments).value.right.get
 
   "IntegrationSpec" in {
 
-    // filter -> check expected payloads counts
-    val filtered = badRows.filter(_.isAffected(recoveryScenarios))
-    filtered.size shouldEqual expectedPayloads.size
+    val conf = decode[Conf](
+      Source.fromResource("recovery_scenarios.json").mkString
+    ).right.get.data
 
-    // mutate -> check expected payloads
-    val mutated = filtered.map(_.mutateCollectorPayload(recoveryScenarios))
-    mutated.size shouldEqual expectedPayloads.size
-    // check only the modifiable fields
-    mutated.map(cp => (cp.path, cp.querystring, cp.body)) shouldEqual
-      expectedPayloads.map(cp => (cp.path, cp.querystring, cp.body))
+    val enriched = Source
+      .fromResource("bad_rows.json")
+      .getLines
+      .toList
+      .map(recoveryExecute(conf))
+      .map {
+        _.leftMap(_.badRow).flatMap { p =>
+          val bytes = new TSerializer().serialize(util.thrift.deserialize(p))
+          ThriftLoader
+            .toCollectorPayload(bytes, Processor("recovery", "0.0.0"))
+            .toEither
+            .leftMap(_.head)
+        }
+      }
+      .flatMap { p =>
+        EtlPipeline
+          .processEvents[Id](
+            new AdapterRegistry(),
+            registry,
+            client,
+            Processor("recovery", "0.0.0"),
+            new DateTime(1500000000L),
+            p.toValidatedNel
+          )
+          .map(_.toEither.leftMap(_.toList))
+      }
 
-    // check enrich
-    val enriched = mutated
-      .map { payload =>
-        val thriftSerializer = new TSerializer
-        val bytes = thriftSerializer.serialize(payload)
-        val res = Base64.getEncoder.encode(bytes)
-        val r = ThriftLoader.toCollectorPayload(bytes)
-        r
-      }
-      .map(payload => EtlPipeline.processEvents(
-        registry,
-        "etlVersion",
-        org.joda.time.DateTime.now,
-        payload)(resolver)
-      )
-      .flatten
-    forAll (enriched) { r =>
-      val e = r match {
-        case Success(e) => Right(e)
-        case Failure(e) => Left(e)
-      }
-      e should be ('right)
+    forAll(enriched) { r =>
+      r should be('right)
     }
   }
 
-  private def getResourceContent(resource: String): String = {
-    val f = getClass.getResource(resource).getFile
-    val s = scala.io.Source.fromFile(f)
-    val c = s.mkString
-    s.close()
-    c
-  }
 }
