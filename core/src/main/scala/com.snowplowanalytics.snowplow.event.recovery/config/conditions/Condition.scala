@@ -23,9 +23,9 @@ import io.circe.ACursor
   * Defines a condition used for matching against data to check whether to apply given set of steps in FlowConfig.
   */
 case class Condition(
-    op: Test.type,
-    path: String,
-    value: Matcher
+  op: Test.type,
+  path: String,
+  value: Matcher
 ) {
   def check(str: Json): Boolean =
     nested(str, path).map(value.checks).getOrElse(false)

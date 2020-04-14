@@ -55,13 +55,15 @@ object gens {
 
   val qs = (json: Json) => {
     val str = json.toString
-    val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
+    val unstruct =
+      s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
     s"e=ue&tv=js&ue_px=$encoded"
   }
   val body = (json: Json) => {
     val str = json.toString
-    val unstruct = s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
+    val unstruct =
+      s"""{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-1","data":$str}}"""
     val encoded = Base64.getEncoder.encodeToString(unstruct.getBytes)
     s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","p":"web","tv":"js","ue_px":"$encoded"}]}"""
   }
@@ -69,7 +71,7 @@ object gens {
   val jsonGen: EitherT[Id, String, Gen[Json]] = for {
     r <- EitherT.right(Resolver.init[Id](0, None, Registry.IgluCentral))
     schemaKey = SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema", SchemaVer.Full(1, 0, 1))
-    schemaJson <- EitherT(IgluSchemas.lookup[Id](r, schemaKey))
+    schemaJson   <- EitherT(IgluSchemas.lookup[Id](r, schemaKey))
     schemaObject <- EitherT.fromEither(IgluSchemas.parseSchema(schemaJson))
   } yield JsonGenSchema.json(schemaObject)
 
@@ -83,8 +85,8 @@ object gens {
     } yield {
       val collectorPayload = new CollectorPayload()
       collectorPayload.timestamp = ts
-      collectorPayload.path = path
-      if (post) collectorPayload.body = body(json)
+      collectorPayload.path      = path
+      if (post) collectorPayload.body   = body(json)
       else collectorPayload.querystring = qs(json)
       collectorPayload
     }
@@ -93,41 +95,45 @@ object gens {
   implicit def arbUUID: Arbitrary[UUID] = Arbitrary {
     Gen.delay(UUID.randomUUID)
   }
-  implicit val processorA = implicitly[Arbitrary[Processor]]
-  implicit val notJsonA = implicitly[Arbitrary[FailureDetails.AdapterFailure.NotJson]]
-  implicit val inputDataA = implicitly[Arbitrary[FailureDetails.AdapterFailure.InputData]]
+  implicit val processorA     = implicitly[Arbitrary[Processor]]
+  implicit val notJsonA       = implicitly[Arbitrary[FailureDetails.AdapterFailure.NotJson]]
+  implicit val inputDataA     = implicitly[Arbitrary[FailureDetails.AdapterFailure.InputData]]
   implicit val schemaMappingA = implicitly[Arbitrary[FailureDetails.AdapterFailure.SchemaMapping]]
-  implicit val adapterFailureA: Arbitrary[FailureDetails.AdapterFailure] = Arbitrary(Gen.oneOf(notJsonA.arbitrary, inputDataA.arbitrary, schemaMappingA.arbitrary))
+  implicit val adapterFailureA: Arbitrary[FailureDetails.AdapterFailure] = Arbitrary(
+    Gen.oneOf(notJsonA.arbitrary, inputDataA.arbitrary, schemaMappingA.arbitrary)
+  )
   implicit val tpvCriterionMismatchA = implicitly[Arbitrary[FailureDetails.TrackerProtocolViolation.CriterionMismatch]]
-  implicit val tpvNotJsonA = implicitly[Arbitrary[FailureDetails.TrackerProtocolViolation.NotJson]]
-  implicit val tpvInputDataA = implicitly[Arbitrary[FailureDetails.TrackerProtocolViolation.InputData]]
-  implicit val trackerProtocolViolationA: Arbitrary[FailureDetails.TrackerProtocolViolation] = Arbitrary(Gen.oneOf(tpvNotJsonA.arbitrary, tpvInputDataA.arbitrary, tpvCriterionMismatchA.arbitrary))
-  implicit val sizeViolationA = implicitly[Arbitrary[Failure.SizeViolation]]
+  implicit val tpvNotJsonA           = implicitly[Arbitrary[FailureDetails.TrackerProtocolViolation.NotJson]]
+  implicit val tpvInputDataA         = implicitly[Arbitrary[FailureDetails.TrackerProtocolViolation.InputData]]
+  implicit val trackerProtocolViolationA: Arbitrary[FailureDetails.TrackerProtocolViolation] = Arbitrary(
+    Gen.oneOf(tpvNotJsonA.arbitrary, tpvInputDataA.arbitrary, tpvCriterionMismatchA.arbitrary)
+  )
+  implicit val sizeViolationA    = implicitly[Arbitrary[Failure.SizeViolation]]
   implicit val collectorPayloadA = implicitly[Arbitrary[Payload.CollectorPayload]]
   // implicit val rawPayloadA = implicitly[Arbitrary[Payload.RawPayload]]
   // implicit val enrichmentPayloadA = implicitly[Arbitrary[Payload.EnrichmentPayload]]
   // implicit val payloadA = Arbitrary(Gen.oneOf(collectorPayloadA.arbitrary, rawPayloadA.arbitrary, enrichmentPayloadA.arbitrary))
 
-  implicit val badRowAdapterFailuresA = implicitly[Arbitrary[BadRow.AdapterFailures]]
+  implicit val badRowAdapterFailuresA           = implicitly[Arbitrary[BadRow.AdapterFailures]]
   implicit val badRowTrackerProtocolViolationsA = implicitly[Arbitrary[BadRow.TrackerProtocolViolations]]
-  implicit val badRowSizeViolationA = implicitly[Arbitrary[BadRow.SizeViolation]]
-  implicit val badRowcpFormatViolationA = implicitly[Arbitrary[BadRow.CPFormatViolation]]
-  implicit val uuidGen: Gen[UUID] = Gen.uuid
+  implicit val badRowSizeViolationA             = implicitly[Arbitrary[BadRow.SizeViolation]]
+  implicit val badRowcpFormatViolationA         = implicitly[Arbitrary[BadRow.CPFormatViolation]]
+  implicit val uuidGen: Gen[UUID]               = Gen.uuid
 
   implicit val replacementA = implicitly[Arbitrary[Replacement]]
-  implicit val removalA = implicitly[Arbitrary[Removal]]
-  implicit val castingA = implicitly[Arbitrary[Casting]]
-  implicit val stepConfigA = implicitly[Arbitrary[StepConfig]]
-    
-  implicit val compareA = Arbitrary(valueA.arbitrary.map(Compare(_)))
+  implicit val removalA     = implicitly[Arbitrary[Removal]]
+  implicit val castingA     = implicitly[Arbitrary[Casting]]
+  implicit val stepConfigA  = implicitly[Arbitrary[StepConfig]]
+
+  implicit val compareA  = Arbitrary(valueA.arbitrary.map(Compare(_)))
   implicit val functionA = implicitly[Arbitrary[Function]]
-  implicit val regexA = implicitly[Arbitrary[RegularExpression]]
+  implicit val regexA    = implicitly[Arbitrary[RegularExpression]]
 
   implicit val sizeGtA = implicitly[Arbitrary[Size.Gt]]
   implicit val sizeLtA = implicitly[Arbitrary[Size.Lt]]
   implicit val sizeEqA = implicitly[Arbitrary[Size.Eq]]
-  implicit val sizesA = implicitly[Arbitrary[Size.Matcher]]
-  implicit val sizeA = implicitly[Arbitrary[Size]]
+  implicit val sizesA  = implicitly[Arbitrary[Size.Matcher]]
+  implicit val sizeA   = implicitly[Arbitrary[Size]]
 
   implicit val invalidJsonFormatA = implicitly[Arbitrary[InvalidJsonFormat]]
   // implicit val failedToMatchConfigurationA = implicitly[Arbitrary[FailedToMatchConfiguration]]
@@ -136,23 +142,41 @@ object gens {
   // implicit val recoveryFailedA = implicitly[Arbitrary[RecoveryFailed]]
   // implicit val unsupportedStepA = implicitly[Arbitrary[UnsupportedStep]]
   // implicit val processingFailureA = implicitly[Arbitrary[ProcessingFailure]]
-  // implicit val invalidStepA: Arbitrary[InvalidStep] = invalidJsonFormatA.asInstanceOf[Arbitrary[InvalidStep]]  
+  // implicit val invalidStepA: Arbitrary[InvalidStep] = invalidJsonFormatA.asInstanceOf[Arbitrary[InvalidStep]]
   // implicit val recoveryStatusA = implicitly[Arbitrary[RecoveryStatus]]
 
   // TODO also add JSON
-  implicit val valueA: Arbitrary[Value] = Arbitrary(Gen.oneOf(Gen.posNum[Long].map(Coproduct[Value](_)), Gen.alphaNumStr.map(Coproduct[Value](_))))
+  implicit val valueA: Arbitrary[Value] = Arbitrary(
+    Gen.oneOf(Gen.posNum[Long].map(Coproduct[Value](_)), Gen.alphaNumStr.map(Coproduct[Value](_)))
+  )
 
-
-  implicit val matcherA: Arbitrary[Matcher] = Arbitrary(Gen.oneOf(functionA.arbitrary, regexA.arbitrary, sizeA.arbitrary))
+  implicit val matcherA: Arbitrary[Matcher] = Arbitrary(
+    Gen.oneOf(functionA.arbitrary, regexA.arbitrary, sizeA.arbitrary)
+  )
   implicit val conditionA = implicitly[Arbitrary[Condition]]
 
-  val badRowTypeA = Arbitrary(Gen.oneOf("adapter_failures", "collector_format_violation", "enrichment_failures", "loader_iglu_error", "loader_parsing_error", "loader_recovery_error", "loader_runtime_error", "relay_failure", "schema_violations", "size_violation", "snowflake_error", "tracker_protocol_violations"))
+  val badRowTypeA = Arbitrary(
+    Gen.oneOf(
+      "adapter_failures",
+      "collector_format_violation",
+      "enrichment_failures",
+      "loader_iglu_error",
+      "loader_parsing_error",
+      "loader_recovery_error",
+      "loader_runtime_error",
+      "relay_failure",
+      "schema_violations",
+      "size_violation",
+      "snowflake_error",
+      "tracker_protocol_violations"
+    )
+  )
   val numberOrStarA = Arbitrary(Gen.oneOf(Gen.posNum[Int], Gen.const("*")))
   val igluUriGen = for {
     badRowType <- badRowTypeA.arbitrary
-    major <- numberOrStarA.arbitrary
-    minor <- numberOrStarA.arbitrary
-    patch <- numberOrStarA.arbitrary
+    major      <- numberOrStarA.arbitrary
+    minor      <- numberOrStarA.arbitrary
+    patch      <- numberOrStarA.arbitrary
   } yield s"iglu:com.snowplowanalytics.snowplow.badrows/$badRowType/jsonschema/$major-$minor-$patch"
 
   val nonEmptyString = Arbitrary(Gen.nonEmptyListOf[Char](Gen.alphaChar).map(_.mkString))

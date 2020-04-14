@@ -30,13 +30,13 @@ class PathsSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues
   "path" - {
     "should provide a standard path for bad rows" in {
       forAll(nonEmptyString.arbitrary) { output =>
-        val schema = Schemas.RecoveryError
-        val time = JClock.fixed(Instant.now, ZoneId.systemDefault)
+        val schema           = Schemas.RecoveryError
+        val time             = JClock.fixed(Instant.now, ZoneId.systemDefault)
         val Array(p, sk, ts) = paths.path(output, schema, time).split('/')
-        p should equal (output)
+        p should equal(output)
         sk.startsWith(schema.vendor)
         sk.endsWith(schema.name)
-        ts should equal (time.millis.toString)
+        ts should equal(time.millis.toString)
       }
     }
   }
@@ -45,8 +45,8 @@ class PathsSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues
     "should sanitize paths" in {
       forAll(nonEmptyString.arbitrary) { path =>
         val trimmed = paths.trimDir(s"gs://$path")
-        trimmed should not endWith ("/")
-        trimmed should not endWith ("*")
+        (trimmed should not).endWith("/")
+        (trimmed should not).endWith("*")
       }
     }
   }
@@ -54,8 +54,8 @@ class PathsSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues
     "should make a path with a suffix" in {
       forAll(nonEmptyString.arbitrary) { path =>
         val appended = paths.append("unrecovered")(path)
-        appended should startWith (path)
-        appended should endWith ("/unrecovered")
+        appended should startWith(path)
+        appended should endWith("/unrecovered")
       }
     }
   }

@@ -20,4 +20,8 @@ import conditions.Condition
 /**
   * Defines a flow configuration for given schema key pattern.
   */
-case class FlowConfig(name: String, conditions: List[Condition], steps: List[StepConfig])
+case class FlowConfig(
+  name: String,
+  conditions: List[Condition],
+  steps: List[StepConfig]
+)

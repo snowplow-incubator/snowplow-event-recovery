@@ -38,27 +38,25 @@ object RecoveryStatus {
       case s: InvalidDataFormat => InvalidDataFormat.encoder(s)
       case s: FailedToMatchConfiguration =>
         FailedToMatchConfiguration.encoder(s)
-      case s: UncoerciblePayload => UncoerciblePayload.encoder(s)
-      case s: ThriftFailure => ThriftFailure.encoder(s)
+      case s: UncoerciblePayload   => UncoerciblePayload.encoder(s)
+      case s: ThriftFailure        => ThriftFailure.encoder(s)
       case s: FieldDoesNotExist[_] => FieldDoesNotExist.encoder.apply(s)
       case s: UnrecoverableBadRowType[_] =>
         UnrecoverableBadRowType.encoder.apply(s)
-      case s: RecoveryFailed[_]    => RecoveryFailed.encoder.apply(s)
-      case s: ProcessingFailure[_] => ProcessingFailure.encoder.apply(s)
-      case s: UnsupportedStep[_]   => UnsupportedStep.encoder.apply(s)
+      case s: RecoveryFailed[_]          => RecoveryFailed.encoder.apply(s)
+      case s: ProcessingFailure[_]       => ProcessingFailure.encoder.apply(s)
+      case s: UnsupportedStep[_]         => UnsupportedStep.encoder.apply(s)
       case s: RecoveryThresholdExceeded  => RecoveryThresholdExceeded.encoder.apply(s)
-      case s: ReplacementFailure => ReplacementFailure.encoder(s)
+      case s: ReplacementFailure         => ReplacementFailure.encoder(s)
       case s: UnableToDecodeBase64String => UnableToDecodeBase64String.encoder(s)
-      case s: CastFailure => CastFailure.encoder(s)
+      case s: CastFailure                => CastFailure.encoder(s)
     }
 }
 
 /**
   * Signifies that a step configuration to be applied is not supported, does not exist.
   */
-case class InvalidStep(data: Payload, stepName: String)(
-    implicit val encoder: Encoder[Payload]
-) extends RecoveryStatus {
+case class InvalidStep(data: Payload, stepName: String)(implicit val encoder: Encoder[Payload]) extends RecoveryStatus {
   def message =
     s"Failed to recover $data - recovery step $stepName does not exist"
 }
@@ -115,15 +113,12 @@ object FailedToMatchConfiguration {
 /**
   * Signifies that a field that was supposed to be replaced does not exist in Bad Row.
   */
-case class FieldDoesNotExist[+A <: Payload: Encoder](data: A, field: String)
-    extends RecoveryStatus {
+case class FieldDoesNotExist[+A <: Payload: Encoder](data: A, field: String) extends RecoveryStatus {
   def message = s"Failed to modify $field. Field does not exist in $data"
 }
 
 object FieldDoesNotExist {
-  implicit def encoder[A <: Payload](
-      implicit encoder: Encoder[A]
-  ): Encoder[FieldDoesNotExist[A]] =
+  implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[FieldDoesNotExist[A]] =
     Encoder.forProduct2[FieldDoesNotExist[A], Json, String]("data", "reason") {
       case m @ FieldDoesNotExist(d, _) => (encoder(d), m.message)
     }
@@ -132,16 +127,13 @@ object FieldDoesNotExist {
 /**
   * Signifies that the supplied bad row type is not known to be recoverable.
   */
-case class UnrecoverableBadRowType[+A <: BadRow](data: A)
-    extends RecoveryStatus {
+case class UnrecoverableBadRowType[+A <: BadRow](data: A) extends RecoveryStatus {
   def message =
     s"Failed to recover bad row of type ${data.getClass.getCanonicalName}."
 }
 
 object UnrecoverableBadRowType {
-  implicit def encoder[A <: BadRow](
-      implicit encoder: Encoder[A]
-  ): Encoder[UnrecoverableBadRowType[A]] =
+  implicit def encoder[A <: BadRow](implicit encoder: Encoder[A]): Encoder[UnrecoverableBadRowType[A]] =
     Encoder.forProduct2[UnrecoverableBadRowType[A], Json, String](
       "data",
       "reason"
@@ -153,8 +145,7 @@ object UnrecoverableBadRowType {
 /**
   * Signifies that the supplied bad row type is not known to be recoverable.
   */
-case class RecoveryThresholdExceeded(data: BadRow.RecoveryError)
-    extends RecoveryStatus {
+case class RecoveryThresholdExceeded(data: BadRow.RecoveryError) extends RecoveryStatus {
   def message =
     s"Maximum number of recoveries (${data.recoveries}) exceeded of type ${data.payload.getClass.getCanonicalName}."
 }
@@ -166,18 +157,13 @@ object RecoveryThresholdExceeded {
 /**
   * Signifies that recovery process' step application has failed and is unable to proceed.
   */
-case class RecoveryFailed[+A <: BadRow: Encoder](
-    data: A,
-    steps: List[StepConfig]
-) extends RecoveryStatus {
+case class RecoveryFailed[+A <: BadRow: Encoder](data: A, steps: List[StepConfig]) extends RecoveryStatus {
   def message =
     s"Failed to apply step $steps for bad row $data."
 }
 
 object RecoveryFailed {
-  implicit def encoder[A <: BadRow](
-      implicit encoder: Encoder[A]
-  ): Encoder[RecoveryFailed[A]] =
+  implicit def encoder[A <: BadRow](implicit encoder: Encoder[A]): Encoder[RecoveryFailed[A]] =
     Encoder.forProduct2[RecoveryFailed[A], Json, String]("data", "reason") {
       case m @ RecoveryFailed(d, _) => (encoder(d), m.message)
     }
@@ -186,22 +172,23 @@ object RecoveryFailed {
 /**
   * Signifies an unsupported step is requested.
   */
-case class UnsupportedStep[+A <: Payload: Encoder](data: A, step: String)
-    extends RecoveryStatus {
+case class UnsupportedStep[+A <: Payload: Encoder](data: A, step: String) extends RecoveryStatus {
   def message =
     s"Step $step unsupported for ${data.getClass.getCanonicalName}"
 }
 
 object UnsupportedStep {
-  implicit def encoder[A <: Payload](
-      implicit encoder: Encoder[A]
-  ): Encoder[UnsupportedStep[A]] =
+  implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[UnsupportedStep[A]] =
     Encoder.forProduct2[UnsupportedStep[A], Json, String]("data", "reason") {
       case m @ UnsupportedStep(d, _) => (encoder(d), m.message)
     }
 }
 
-case class ReplacementFailure(data: String, matcher: String, value: String) extends RecoveryStatus {
+case class ReplacementFailure(
+  data: String,
+  matcher: String,
+  value: String
+) extends RecoveryStatus {
   def message = s"Failed to replace $matcher with $value in $data"
 }
 
@@ -209,7 +196,11 @@ object ReplacementFailure {
   implicit val encoder: Encoder[ReplacementFailure] = deriveEncoder
 }
 
-case class CastFailure(data: String, from: CastType, to: CastType) extends RecoveryStatus {
+case class CastFailure(
+  data: String,
+  from: CastType,
+  to: CastType
+) extends RecoveryStatus {
   def message = s"Failed to cast $data from $from to $to"
 }
 
@@ -220,15 +211,12 @@ object CastFailure {
 /**
   * Signifies a step has failed during processing.
   */
-case class ProcessingFailure[+A <: Payload: Encoder](data: A, reason: String)
-    extends RecoveryStatus {
+case class ProcessingFailure[+A <: Payload: Encoder](data: A, reason: String) extends RecoveryStatus {
   def message = s"A processing failure has occured because of $reason"
 }
 
 object ProcessingFailure {
-  implicit def encoder[A <: Payload](
-      implicit encoder: Encoder[A]
-  ): Encoder[ProcessingFailure[A]] =
+  implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[ProcessingFailure[A]] =
     Encoder.forProduct2[ProcessingFailure[A], Json, String]("data", "reason") {
       case m @ ProcessingFailure(d, _) => (encoder(d), m.message)
     }
@@ -249,4 +237,3 @@ case class ThriftFailure(data: String) extends RecoveryStatus {
 object ThriftFailure {
   implicit val encoder: Encoder[ThriftFailure] = deriveEncoder
 }
-

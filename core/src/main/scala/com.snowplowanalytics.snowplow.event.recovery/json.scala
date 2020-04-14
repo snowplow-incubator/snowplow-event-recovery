@@ -18,11 +18,8 @@ package event.recovery
 import cats.syntax.functor._
 import io.circe.{Decoder, Encoder}
 import io.circe.shapes._, io.circe.syntax._
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
-import io.circe.generic.extras.semiauto.{
-  deriveEnumerationDecoder,
-  deriveEnumerationEncoder
-}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.generic.extras.semiauto.{deriveEnumerationDecoder, deriveEnumerationEncoder}
 import com.snowplowanalytics.snowplow.badrows.{BadRow, Payload}
 import config._
 import config.conditions._
@@ -64,10 +61,10 @@ object json {
 
   implicit val regexE: Encoder[conditions.RegularExpression] = deriveEncoder
   implicit val regexD: Decoder[conditions.RegularExpression] = deriveDecoder
-  implicit val compareE: Encoder[conditions.Compare] = deriveEncoder
-  implicit val compareD: Decoder[conditions.Compare] = deriveDecoder
-  implicit val functionE: Encoder[conditions.Function] = deriveEncoder
-  implicit val functionD: Decoder[conditions.Function] = deriveDecoder
+  implicit val compareE: Encoder[conditions.Compare]         = deriveEncoder
+  implicit val compareD: Decoder[conditions.Compare]         = deriveDecoder
+  implicit val functionE: Encoder[conditions.Function]       = deriveEncoder
+  implicit val functionD: Decoder[conditions.Function]       = deriveDecoder
 
   implicit val eqE: Encoder[conditions.Size.Eq] = deriveEncoder
   implicit val eqD: Decoder[conditions.Size.Eq] = deriveDecoder
@@ -81,7 +78,7 @@ object json {
       Decoder[conditions.Size.Eq].widen,
       Decoder[conditions.Size.Gt].widen,
       Decoder[conditions.Size.Lt].widen
-    ).reduceLeft(_ or _)
+    ).reduceLeft(_.or(_))
 
   implicit val sizesE: Encoder[conditions.Size.Matcher] = Encoder.instance {
     case r: conditions.Size.Eq => r.asJson
@@ -105,7 +102,7 @@ object json {
       Decoder[conditions.Compare].widen,
       Decoder[conditions.Function].widen,
       Decoder[conditions.Size].widen
-    ).reduceLeft(_ or _)
+    ).reduceLeft(_.or(_))
 
   implicit val castTypeD: Decoder[CastType] = deriveEnumerationDecoder
   implicit val castTypeE: Encoder[CastType] = deriveEnumerationEncoder
@@ -134,7 +131,7 @@ object json {
     Decoder[Removal].widen,
     Decoder[Casting].widen,
     Decoder[Application].widen
-  ).reduceLeft(_ or _)
+  ).reduceLeft(_.or(_))
 
   implicit val confD: Decoder[Conf] = deriveDecoder
   implicit val confE: Encoder[Conf] = deriveEncoder
@@ -145,11 +142,10 @@ object json {
     deriveDecoder
 
   object untyped {
-    val payload: BadRow => Option[Any] = b => field[Payload]("payload")(b) orElse field[BadRow]("payload")(b)
+    val payload: BadRow => Option[Any]    = b => field[Payload]("payload")(b).orElse(field[BadRow]("payload")(b))
     val recoveries: BadRow => Option[Int] = field[Int]("recoveries")
 
-    private[this] def field[A: Decoder](fieldName: String)(
-        b: BadRow
-    ): Option[A] = b.selfDescribingData.data.hcursor.get[A](fieldName).toOption
+    private[this] def field[A: Decoder](fieldName: String)(b: BadRow): Option[A] =
+      b.selfDescribingData.data.hcursor.get[A](fieldName).toOption
   }
 }

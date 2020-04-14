@@ -27,9 +27,9 @@ object thrift {
 
   /** Deserialize a String into a CollectorPayload after having base64-decoded it. */
   val deserialize: String => CollectorPayload = { s =>
-    val decoded = Base64.getDecoder.decode(s.getBytes(StandardCharsets.UTF_8))
+    val decoded            = Base64.getDecoder.decode(s.getBytes(StandardCharsets.UTF_8))
     val thriftDeserializer = new TDeserializer
-    val payload = new CollectorPayload
+    val payload            = new CollectorPayload
     thriftDeserializer.deserialize(payload, decoded)
     payload
   }
@@ -37,15 +37,12 @@ object thrift {
   /** Serialize a CollectorPayload into a byte array and base64-encode it. */
   val serialize: CollectorPayload => String = { cp =>
     val thriftSerializer = new TSerializer
-    val bytes = thriftSerializer.serialize(cp)
+    val bytes            = thriftSerializer.serialize(cp)
     Base64.getEncoder.encodeToString(bytes)
   }
 
   /** Serialize CollectorPayload into a byte array and base64-encode it. */
   val thrift: CollectorPayload => Either[RecoveryStatus, String] =
-    c =>
-      Either
-        .catchNonFatal(serialize(c))
-        .leftMap(err => ThriftFailure(err.getMessage))
+    c => Either.catchNonFatal(serialize(c)).leftMap(err => ThriftFailure(err.getMessage))
 
 }

@@ -38,21 +38,18 @@ private[inspect] object transform {
     * @param body JSON structure being transformed
     */
   def apply(
-      transformFn: Json => Recovering[Json],
-      error: String => RecoveryStatus
+    transformFn: Json => Recovering[Json],
+    error: String => RecoveryStatus
   )(
-      path: Seq[String]
-  )(body: Json): Recovering[Json] = {
+    path: Seq[String]
+  )(
+    body: Json
+  ): Recovering[Json] = {
     @tailrec
-    def run(ap: Json => Recovering[Json])(
-        json: ACursor,
-        path: Seq[String]
-    ): Recovering[Json] = path match {
+    def run(ap: Json => Recovering[Json])(json: ACursor, path: Seq[String]): Recovering[Json] = path match {
       // Base case
       case Seq() =>
-        json
-          .withFocusM(transformFn)
-          .flatMap(top(error)(json))
+        json.withFocusM(transformFn).flatMap(top(error)(json))
 
       // Access array item by id
       case Seq(h, t @ _*) if h.toString.forall(_.isDigit) =>
@@ -60,15 +57,12 @@ private[inspect] object transform {
 
       // Top-level Base64 encoded field
       case Seq(h, t @ _*) if isB64Encoded(h) =>
-        json
-          .downField(h)
-          .withFocusM(b64Fn(apply(transformFn, error))(t))
-          .flatMap(top(error)(json))
+        json.downField(h).withFocusM(b64Fn(apply(transformFn, error))(t)).flatMap(top(error)(json))
 
       // An item in List[NVP] that is not Base64-encoded
       case Seq(h, th, tt @ _*) if isNVPs(h) && !isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
         run(ap)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
-        
+
       // An item in List[NVP] that is Base64-encoded
       case Seq(h, th, tt @ _*) if isNVPs(h) && isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
         json
@@ -79,10 +73,11 @@ private[inspect] object transform {
           .flatMap(top(error)(json))
 
       // Falsey item in List[NVP]
-      case Seq(h, _) if isNVPs(h) => json.focus match {
-        case Some(j) => Left(InvalidDataFormat(j.some, s"Cannot access field $h"))
-        case None => Left(InvalidDataFormat(None, s"Cannot access field $h in empty cursor."))
-      }
+      case Seq(h, _) if isNVPs(h) =>
+        json.focus match {
+          case Some(j) => Left(InvalidDataFormat(j.some, s"Cannot access field $h"))
+          case None    => Left(InvalidDataFormat(None, s"Cannot access field $h in empty cursor."))
+        }
 
       // Recursive case
       case Seq(h, t @ _*) =>
@@ -93,8 +88,8 @@ private[inspect] object transform {
   }
 
   private[this] def b64Fn(
-      apply: Seq[String] => Json => Recovering[Json]
-  )(path: Seq[String])(body: Json): Recovering[Json] = {
+    apply: Seq[String] => Json => Recovering[Json]
+  )(path: Seq[String])(body: Json): Recovering[Json] =
     body
       .as[String]
       .leftMap(err => InvalidJsonFormat(err.message))
@@ -102,18 +97,13 @@ private[inspect] object transform {
       .flatMap(parse)
       .flatMap(apply(path))
       .flatMap(encode)
-  }
 
   private[this] val indexF = (name: String) =>
-    (json: ACursor) =>
-      (Option(index(name)) <*> json.as[List[NVP]].toOption).filter(_ >= 0)
+    (json: ACursor) => (Option(index(name)) <*> json.as[List[NVP]].toOption).filter(_ >= 0)
 
-  private[this] val index = (name: String) =>
-    (nvps: List[NVP]) => nvps.indexWhere(_.name == name)
+  private[this] val index = (name: String) => (nvps: List[NVP]) => nvps.indexWhere(_.name == name)
 
-  private[this] def top(
-      err: String => RecoveryStatus
-  )(previous: ACursor): ACursor => Recovering[Json] =
+  private[this] def top(err: String => RecoveryStatus)(previous: ACursor): ACursor => Recovering[Json] =
     _.top.toRight(err(previous.history.map(_.toString).mkString))
 
   private[inspect] def isNVPs(str: String) =
@@ -129,9 +119,6 @@ private[inspect] object transform {
     parseJson(data).leftMap(err => InvalidJsonFormat(err.message))
 
   private[inspect] def encode(json: Json): Recovering[Json] =
-    util.base64
-      .encode(json.noSpaces)
-      .map(_.asJson)
-      .leftMap(InvalidJsonFormat(_))
+    util.base64.encode(json.noSpaces).map(_.asJson).leftMap(InvalidJsonFormat(_))
 
 }

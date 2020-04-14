@@ -21,8 +21,8 @@ import io.circe.Json
   *  A matcher allowing comparing data against Value.
   */
 case class Compare(value: Value) extends Matcher {
-  def string = _ == value.select[String].get
-  def num: Long => Boolean = _.toString == value.select[Long].get
+  def string                 = _ == value.select[String].get
+  def num: Long => Boolean   = _.toString == value.select[Long].get
   def seq: Seq[_] => Boolean = _ => false
-  def json: Json => Boolean = _ == value.select[Json].get
+  def json: Json => Boolean  = _ == value.select[Json].get
 }

@@ -28,7 +28,7 @@ object base64 {
     */
   def decode(encoded: String): Either[String, String] =
     Either
-      .catchNonFatal(new String(Base64.getDecoder.decode(encoded.getBytes(StandardCharsets.UTF_8))))
+      .catchNonFatal(new String(Base64.getDecoder.decode(encoded)))
       .leftMap(e => s"Configuration is not properly base64-encoded: ${e.getMessage}")
 
   /**
@@ -38,7 +38,7 @@ object base64 {
     */
   def encode(str: String): Either[String, String] =
     Either
-      .catchNonFatal(Base64.getEncoder.encodeToString(str.getBytes(StandardCharsets.UTF_8)))
+      .catchNonFatal(Base64.getEncoder.encodeToString(str.getBytes))
       .leftMap(e => s"Unable to base64-encode string: ${e.getMessage}")
 
 }
