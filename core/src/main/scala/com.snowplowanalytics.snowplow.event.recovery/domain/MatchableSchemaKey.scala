@@ -47,12 +47,12 @@ object MatchableSchemaKey {
   * will match revision and addition version.
   */
 case class MatchableSchemaKey(
-    vendor: String,
-    name: String,
-    format: String,
-    model: String,
-    revision: String,
-    addition: String
+  vendor: String,
+  name: String,
+  format: String,
+  model: String,
+  revision: String,
+  addition: String
 ) {
   override def hashCode = (vendor, name, format).##
   override def equals(any: Any) = any match {
@@ -61,7 +61,7 @@ case class MatchableSchemaKey(
       vendor == that.vendor &&
       name == that.name &&
       format == that.format &&
-      (model == that.model || model == any || that.model == any) &&
+      (model == that.model       || model == any    || that.model == any) &&
       (revision == that.revision || revision == any || that.revision == any) &&
       (addition == that.addition || addition == any || that.addition == any)
     case _ =>

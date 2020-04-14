@@ -14,7 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{TimeUnit, MILLISECONDS, NANOSECONDS}
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import cats.Id
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
@@ -36,9 +36,7 @@ object Main {
     val (sc, args) = ContextAndArgs(cmdlineArgs)
     val input =
       args.optional("inputDirectory").toValidNel("Input GCS path is mandatory")
-    val output = args
-      .optional("outputTopic")
-      .toValidNel("Output PubSub topic is mandatory")
+    val output = args.optional("outputTopic").toValidNel("Output PubSub topic is mandatory")
     val unrecoveredOutput =
       args
         .optional("unrecoveredOutput")
@@ -55,7 +53,7 @@ object Main {
         .orElse(unrecoveredOutput.map(unrecoverablePath))
         .orElse(input.map(unrecoverablePath))
     val resolverConfig = (for {
-      config <- args.optional("resolver").toRight("Iglu resolver configuration")
+      config  <- args.optional("resolver").toRight("Iglu resolver configuration")
       decoded <- base64.decode(config)
     } yield decoded)
     val config = (for {
@@ -65,10 +63,10 @@ object Main {
           "Base64-encoded configuration with schema " +
             "com.snowplowanalytics.snowplow/recovery_config/jsonschema/1-0-0 is mandatory"
         )
-      decoded <- base64.decode(config)
+      decoded  <- base64.decode(config)
       resolver <- resolverConfig
-      _ <- validateSchema(decoded, resolver).value
-      cfg <- load(decoded)
+      _        <- validateSchema(decoded, resolver).value
+      cfg      <- load(decoded)
     } yield cfg).toValidatedNel
     (input, output, unrecoveredOutput, unrecoverableOutput, config).tupled match {
       case Valid((i, o, u, e, cfg)) =>
@@ -81,7 +79,7 @@ object Main {
     }
   }
 
- implicit private[this] val catsClockIdInstance: Clock[Id] = new Clock[Id] {
+  implicit private[this] val catsClockIdInstance: Clock[Id] = new Clock[Id] {
     override def realTime(unit: TimeUnit): Id[Long] =
       unit.convert(System.nanoTime(), NANOSECONDS)
     override def monotonic(unit: TimeUnit): Id[Long] =

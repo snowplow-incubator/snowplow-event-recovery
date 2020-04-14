@@ -24,14 +24,14 @@ import org.scalacheck.Gen
 class MatchableSchemaKeySpec extends FreeSpec with ScalaCheckPropertyChecks with OptionValues {
   "MatchableSchemaKey" - {
     "should be able to parse uri" in {
-      forAll(igluUriGen){ uri =>
+      forAll(igluUriGen) { uri =>
         MatchableSchemaKey.parse(uri).isDefined
       }
     }
     "should be able to match uris" in {
-      forAll(igluUriGen, Gen.posNum[Int]){ (uri, specific) =>
+      forAll(igluUriGen, Gen.posNum[Int]) { (uri, specific) =>
         val starred = uri.replaceAll("\\*", specific.toString)
-        MatchableSchemaKey.matchSchema(uri, starred) should equal (true)
+        MatchableSchemaKey.matchSchema(uri, starred) should equal(true)
       }
     }
   }

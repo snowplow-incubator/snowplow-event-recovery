@@ -42,37 +42,29 @@ object RecoveryJob {
     * @param recoveryScenarios list of recovery scenarios to apply on the bad rows
     */
   def run(
-      input: String,
-      output: String,
-      failedOutput: String,
-      unrecoverableOutput: String,
-      region: Regions,
-      cfg: Config
+    input: String,
+    output: String,
+    failedOutput: String,
+    unrecoverableOutput: String,
+    region: Regions,
+    cfg: Config
   ): Unit = {
     implicit val spark: SparkSession = init()
     import spark.implicits._
 
-    val recovered: Dataset[Either[RecoveryError, String]] = spark.read
-      .textFile(input)
-      .map(execute(cfg))
+    val recovered: Dataset[Either[RecoveryError, String]] = spark.read.textFile(input).map(execute(cfg))
 
-    partition(recovered)
-      .foreach {
-        case (k, v) =>
-          sink(output, failedOutput, unrecoverableOutput, region)(k, v)
-      }
+    partition(recovered).foreach {
+      case (k, v) =>
+        sink(output, failedOutput, unrecoverableOutput, region)(k, v)
+    }
   }
 
   implicit val stringE: Encoder[String] = Encoders.kryo
 
   private[this] def init(): SparkSession = {
-    val conf = new SparkConf()
-      .setIfMissing("spark.master", "local[*]")
-      .setAppName("recovery")
-    val session = SparkSession
-      .builder()
-      .config(conf)
-      .getOrCreate()
+    val conf         = new SparkConf().setIfMissing("spark.master", "local[*]").setAppName("recovery")
+    val session      = SparkSession.builder().config(conf).getOrCreate()
     val sparkContext = session.sparkContext
     sparkContext.setLogLevel("WARN")
     val hadoopConfiguration = sparkContext.hadoopConfiguration
@@ -88,15 +80,16 @@ object RecoveryJob {
   }
 
   private[this] def sink(
-      output: String,
-      failedOutput: String,
-      unrecoverableOutput: String,
-      region: Regions
-  )(k: Result, v: Dataset[Either[RecoveryError, String]]) = k match {
+    output: String,
+    failedOutput: String,
+    unrecoverableOutput: String,
+    region: Regions
+  )(
+    k: Result,
+    v: Dataset[Either[RecoveryError, String]]
+  ) = k match {
     case Recovered =>
-      v.map(_.right.get)
-        .rdd
-        .saveToKinesis(streamName = output, region = region)
+      v.map(_.right.get).rdd.saveToKinesis(streamName = output, region = region)
     case Failed =>
       v.map(_.left.get.json)
         .write
@@ -112,9 +105,7 @@ object RecoveryJob {
   }
 
   private[this] def partition(dataset: Dataset[Either[RecoveryError, String]]) =
-    Result.partitions
-      .foldLeft(Map.empty[Result, Dataset[Either[RecoveryError, String]]]) {
-        (acc, cur) =>
-          acc ++ Map(cur -> dataset.filter(Result.byKey(_) == cur))
-      }
+    Result.partitions.foldLeft(Map.empty[Result, Dataset[Either[RecoveryError, String]]]) { (acc, cur) =>
+      acc ++ Map(cur -> dataset.filter(Result.byKey(_) == cur))
+    }
 }

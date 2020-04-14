@@ -26,28 +26,28 @@ import gens._
 
 class InspectableSpec extends FreeSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$"
-  val prefix = "replacement"
+  val prefix    = "replacement"
 
   "Inspectable" - {
     "allow matcher-based field content replacement" in {
       forAll { (payload: Payload.CollectorPayload) =>
-        val field = Field(payload)
+        val field       = Field(payload)
         val replacement = s"$prefix${field.name}"
-        val replaced = payload.replace(field.name, anyString, replacement)
-        replaced should be ('right)
-        replaced.right.value should not be equal (payload)
+        val replaced    = payload.replace(field.name, anyString, replacement)
+        replaced should be('right)
+        replaced.right.value should not be equal(payload)
         val reverted = replaced.right.value.replace(field.name, anyString, field.strValue)
-        reverted should be ('right)
-        Field.extract(payload, field.name).map(_.value).value should equal (field.value)
+        reverted should be('right)
+        Field.extract(payload, field.name).map(_.value).value should equal(field.value)
       }
     }
     "allow matcher-based field content removal" in {
       forAll { (payload: Payload.CollectorPayload) =>
-        val field = Field(payload)
+        val field    = Field(payload)
         val replaced = payload.remove(s"${field.name}", anyString)
-        replaced should be ('right)
-        replaced.right.value should not be equal (payload)
-        Field.extract(payload, field.name).map(_.value).value should equal (field.value)
+        replaced should be('right)
+        replaced.right.value should not be equal(payload)
+        Field.extract(payload, field.name).map(_.value).value should equal(field.value)
       }
     }
   }

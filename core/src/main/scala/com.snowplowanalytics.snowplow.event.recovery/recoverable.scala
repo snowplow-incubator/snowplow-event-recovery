@@ -46,18 +46,16 @@ object recoverable {
   }
 
   object Recoverable {
-    def apply[A <: BadRow, B <: Payload](
-        implicit r: Recoverable[A, B]
-    ): Recoverable[A, B] = r
+    def apply[A <: BadRow, B <: Payload](implicit r: Recoverable[A, B]): Recoverable[A, B] = r
 
     final def instance[A <: BadRow, B <: Payload](
-        r: A => List[StepConfig] => Recovering[A]
-    )(p: A => Option[B]): Recoverable[A, B] =
+      r: A => List[StepConfig] => Recovering[A]
+    )(
+      p: A => Option[B]
+    ): Recoverable[A, B] =
       new Recoverable[A, B] {
-        override def recover(a: A)(
-            config: List[StepConfig]
-        ): Recovering[A] = r(a)(config)
-        override def payload(a: A): Option[B] = p(a)
+        override def recover(a: A)(config: List[StepConfig]): Recovering[A] = r(a)(config)
+        override def payload(a: A): Option[B]                               = p(a)
       }
 
     /**
@@ -67,21 +65,13 @@ object recoverable {
       * @param payload
       * @param mkStep: a definition of how to turn `StepConfig` to `Step`
       */
-    def step[B <: Payload](steps: List[StepConfig], payload: B)(
-        mkStep: StepConfig => Step[B]
-    ): Recovering[B] = {
-      steps
-        .map(c => Kleisli(mkStep(c).recover))
-        .foldLeft(Kleisli(new PassThrough[B]().recover))(_ >>> _)(payload)
-    }
+    def step[B <: Payload](steps: List[StepConfig], payload: B)(mkStep: StepConfig => Step[B]): Recovering[B] =
+      steps.map(c => Kleisli(mkStep(c).recover)).foldLeft(Kleisli(new PassThrough[B]().recover))(_ >>> _)(payload)
 
-    def recover[A <: BadRow, B <: Payload](a: A)(config: List[StepConfig])(
-        implicit rs: Recoverable[A, B]
-    ) = rs.recover(a)(config)
+    def recover[A <: BadRow, B <: Payload](a: A)(config: List[StepConfig])(implicit rs: Recoverable[A, B]) =
+      rs.recover(a)(config)
     object ops {
-      implicit class RecoverableOps[A <: BadRow, B <: Payload](a: A)(
-          implicit rec: Recoverable[A, B]
-      ) {
+      implicit class RecoverableOps[A <: BadRow, B <: Payload](a: A)(implicit rec: Recoverable[A, B]) {
         def recover(config: List[StepConfig]) =
           Recoverable[A, B].recover(a)(config)
         def payload = Recoverable[A, B].payload(a)
@@ -106,72 +96,53 @@ object recoverable {
         case _                            => None
       }
 
-    implicit val sizeViolationRecovery
-        : Recoverable[SizeViolation, Payload.RawPayload] = unrecoverable
-    implicit val cpFormatViolationRecovery
-        : Recoverable[CPFormatViolation, Payload.RawPayload] = unrecoverable
+    implicit val sizeViolationRecovery: Recoverable[SizeViolation, Payload.RawPayload]         = unrecoverable
+    implicit val cpFormatViolationRecovery: Recoverable[CPFormatViolation, Payload.RawPayload] = unrecoverable
 
-    implicit val adapterFailuresRecovery
-        : Recoverable[AdapterFailures, Payload.CollectorPayload] =
+    implicit val adapterFailuresRecovery: Recoverable[AdapterFailures, Payload.CollectorPayload] =
       new Recoverable[AdapterFailures, Payload.CollectorPayload] {
         override def payload(b: AdapterFailures) = b.payload.some
         override def recover(b: AdapterFailures)(config: List[StepConfig]) = {
           def update(b: AdapterFailures)(p: Payload.CollectorPayload) =
             b.copy(payload = p)
 
-          step(config, b.payload)(new Modify[Payload.CollectorPayload](_))
-            .map(update(b))
+          step(config, b.payload)(new Modify[Payload.CollectorPayload](_)).map(update(b))
         }
       }
 
-    implicit val trackerProtocolViolationsRecovery
-        : Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] =
+    implicit val trackerProtocolViolationsRecovery: Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] =
       new Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] {
         override def payload(b: TrackerProtocolViolations) = b.payload.some
-        override def recover(
-            b: TrackerProtocolViolations
-        )(config: List[StepConfig]) = {
-          def update(b: TrackerProtocolViolations)(
-              p: Payload.CollectorPayload
-          ) = b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.CollectorPayload](_))
-            .map(update(b))
+        override def recover(b: TrackerProtocolViolations)(config: List[StepConfig]) = {
+          def update(b: TrackerProtocolViolations)(p: Payload.CollectorPayload) = b.copy(payload = p)
+          step(config, b.payload)(new Modify[Payload.CollectorPayload](_)).map(update(b))
         }
       }
 
-    implicit val schemaViolationsRecovery
-        : Recoverable[SchemaViolations, Payload.EnrichmentPayload] =
+    implicit val schemaViolationsRecovery: Recoverable[SchemaViolations, Payload.EnrichmentPayload] =
       new Recoverable[SchemaViolations, Payload.EnrichmentPayload] {
         override def payload(b: SchemaViolations) = b.payload.some
         override def recover(b: SchemaViolations)(config: List[StepConfig]) = {
           def update(b: SchemaViolations)(p: Payload.EnrichmentPayload) =
             b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_))
-            .map(update(b))
+          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_)).map(update(b))
         }
       }
 
-    implicit val enrichmentFailuresRecovery
-        : Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] =
+    implicit val enrichmentFailuresRecovery: Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] =
       new Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] {
         override def payload(b: EnrichmentFailures) = b.payload.some
-        override def recover(
-            b: EnrichmentFailures
-        )(config: List[StepConfig]) = {
+        override def recover(b: EnrichmentFailures)(config: List[StepConfig]) = {
           def update(b: EnrichmentFailures)(p: Payload.EnrichmentPayload) =
             b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_))
-            .map(update(b))
+          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_)).map(update(b))
         }
       }
 
-    implicit val recoveryErrorRecovery
-        : Recoverable[BadRow.RecoveryError, Payload] =
+    implicit val recoveryErrorRecovery: Recoverable[BadRow.RecoveryError, Payload] =
       new Recoverable[BadRow.RecoveryError, Payload] {
         override def payload(b: BadRow.RecoveryError): Option[Payload] = ???
-        override def recover(b: BadRow.RecoveryError)(
-            config: List[StepConfig]
-        ): Recovering[BadRow.RecoveryError] =
+        override def recover(b: BadRow.RecoveryError)(config: List[StepConfig]): Recovering[BadRow.RecoveryError] =
           (b.payload match {
             case f: AdapterFailures =>
               adapterFailuresRecovery.recover(f)(config)

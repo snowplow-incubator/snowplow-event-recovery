@@ -29,7 +29,7 @@ class ThriftSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValue
     "should deserialize any collector payload" in {
       forAll { (cp: CollectorPayload) =>
         val oldCp = new CollectorPayload(cp)
-        val newCp = (thrift.serialize andThen thrift.deserialize)(cp)
+        val newCp = thrift.serialize.andThen(thrift.deserialize)(cp)
         oldCp shouldEqual newCp
       }
     }

@@ -24,38 +24,38 @@ import domain._
 import inspectable.Inspectable._
 import inspectable.Inspectable.ops._
 
-  /**
-    * A definition of a single recovery process step.
-    * Many subsequent steps form a recovery flow.
-    * The flows are applied to BadRows in recovery process.
-    * @param a type of Payload given Step operates on
-    */
-  sealed trait Step[A <: Payload] {
-
-    /**
-      * Defines a process of application of the `Step` to `A`
-      */
-    val recover: A => Recovering[A]
-  }
+/**
+  * A definition of a single recovery process step.
+  * Many subsequent steps form a recovery flow.
+  * The flows are applied to BadRows in recovery process.
+  * @param a type of Payload given Step operates on
+  */
+sealed trait Step[A <: Payload] {
 
   /**
-    * A pass-through step used for when no modification is required
-    * and bad row was most likely caused by downstream failure.
+    * Defines a process of application of the `Step` to `A`
     */
-  class PassThrough[A <: Payload] extends Step[A] {
-    val recover: A => Recovering[A] = a => Right(a)
-  }
+  val recover: A => Recovering[A]
+}
 
-  class Modify[A <: Payload : Inspectable : Encoder: Decoder](config: StepConfig) extends Step[A] {
-    val recover: A => Recovering[A] = a =>
-      config match {
-        case Replacement(_, context, matcher, replacement) =>
-          a.replace(context, matcher, replacement)
-        case Removal(_, context, matcher) =>
-          a.remove(context, matcher)
-        case Casting(_, context, from, to) =>
-          a.cast(context, from, to)
-        case step =>
-          Left(InvalidStep(a, step.getClass.getCanonicalName))
-      }
-  }
+/**
+  * A pass-through step used for when no modification is required
+  * and bad row was most likely caused by downstream failure.
+  */
+class PassThrough[A <: Payload] extends Step[A] {
+  val recover: A => Recovering[A] = a => Right(a)
+}
+
+class Modify[A <: Payload: Inspectable: Encoder: Decoder](config: StepConfig) extends Step[A] {
+  val recover: A => Recovering[A] = a =>
+    config match {
+      case Replacement(_, context, matcher, replacement) =>
+        a.replace(context, matcher, replacement)
+      case Removal(_, context, matcher) =>
+        a.remove(context, matcher)
+      case Casting(_, context, from, to) =>
+        a.cast(context, from, to)
+      case step =>
+        Left(InvalidStep(a, step.getClass.getCanonicalName))
+    }
+}

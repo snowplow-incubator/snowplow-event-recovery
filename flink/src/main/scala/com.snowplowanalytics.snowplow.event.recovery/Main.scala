@@ -14,7 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{TimeUnit, MILLISECONDS, NANOSECONDS}
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import cats.Id
 import cats.effect._
 import cats.implicits._
@@ -26,7 +26,7 @@ import config._
 
 object Main
     extends CommandIOApp(
-      name = "snowplow-event-recovery-job",
+      name   = "snowplow-event-recovery-job",
       header = "Snowplow event recovery job"
     ) {
   override def main: Opts[IO[ExitCode]] = {
@@ -37,8 +37,7 @@ object Main
     val unrecoveredOutput = Opts
       .option[String](
         "unrecoveredOutput",
-        help =
-          "Unrecovered (bad row) output GCS path. Defaults to `inputDirectory`"
+        help = "Unrecovered (bad row) output GCS path. Defaults to `inputDirectory`"
       )
       .orNone
     val output = Opts.option[String](
@@ -54,18 +53,11 @@ object Main
     val config = Opts
       .option[String](
         "config",
-        help =
-          "Base64 config with schema com.snowplowanalytics.snowplow/recovery_config/jsonschema/1-0-0"
+        help = "Base64 config with schema com.snowplowanalytics.snowplow/recovery_config/jsonschema/1-0-0"
       )
       .mapValidated(base64.decode(_).toValidatedNel)
 
-    val validatedConfig = (resolver, config).mapN(
-      (r, c) =>
-      validateSchema[Id](c, r)
-          .map(_ => c)
-          .value
-          .flatMap(load(_))
-    )
+    val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
 
     (input, output, unrecoveredOutput, validatedConfig).mapN { (i, o, u, c) =>
       IO.fromEither(

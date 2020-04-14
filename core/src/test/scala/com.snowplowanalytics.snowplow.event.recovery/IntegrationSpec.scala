@@ -18,9 +18,7 @@ import scala.io.Source
 import cats.Id
 import cats.syntax.either._
 import io.circe.parser._
-import com.snowplowanalytics.snowplow.event.recovery.{
-  execute => recoveryExecute
-}
+import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
 import org.scalatest.{FreeSpec, Inspectors}
 import org.scalatest.Matchers._
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
@@ -52,14 +50,13 @@ class IntegrationSpec extends FreeSpec with Inspectors {
       r => r
     )
 
-  val enrichmentsRes = EnrichmentRegistry
-    .parse[Id](
-      parse(enrichmentsConfig).right.get,
-      client,
-      true
-    )
+  val enrichmentsRes = EnrichmentRegistry.parse[Id](
+    parse(enrichmentsConfig).right.get,
+    client,
+    true
+  )
   val enrichments = enrichmentsRes.toEither.right.get
-  val registry = EnrichmentRegistry.build[Id](enrichments).value.right.get
+  val registry    = EnrichmentRegistry.build[Id](enrichments).value.right.get
 
   "IntegrationSpec" in {
 
@@ -75,10 +72,7 @@ class IntegrationSpec extends FreeSpec with Inspectors {
       .map {
         _.leftMap(_.badRow).flatMap { p =>
           val bytes = new TSerializer().serialize(util.thrift.deserialize(p))
-          ThriftLoader
-            .toCollectorPayload(bytes, Processor("recovery", "0.0.0"))
-            .toEither
-            .leftMap(_.head)
+          ThriftLoader.toCollectorPayload(bytes, Processor("recovery", "0.0.0")).toEither.leftMap(_.head)
         }
       }
       .flatMap { p =>

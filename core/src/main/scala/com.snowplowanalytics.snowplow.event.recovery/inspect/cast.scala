@@ -36,15 +36,13 @@ object cast {
 
   /**
     * Runs cast operation.
-    * 
+    *
     * @param from current type of the field being cast
     * @param to target type of the field being cast
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(from: CastType, to: CastType)(path: Seq[String])(
-      body: Json
-  ): Recovering[Json] =
+  def apply(from: CastType, to: CastType)(path: Seq[String])(body: Json): Recovering[Json] =
     transform(
       castFn(from, to),
       CastFailure(
@@ -54,22 +52,16 @@ object cast {
       )
     )(path)(body)
 
-  def castFn(
-      from: CastType,
-      to: CastType
-  )(value: Json): Recovering[Json] = (from, to) match {
+  def castFn(from: CastType, to: CastType)(value: Json): Recovering[Json] = (from, to) match {
     case (_, CastType.Array) if !value.isArray => Right(Json.arr(value))
-    case (_, CastType.String)                  => Right(value.noSpaces.asJson)
+    case (_, CastType.String) => Right(value.noSpaces.asJson)
     case (CastType.Numeric, CastType.Boolean) if value.isNumber =>
-      value.asNumber
-        .map(v => if (v == 0) Json.False else Json.True)
-        .toRight(CastFailure(value.noSpaces, from, to))
+      value.asNumber.map(v => if (v == 0) Json.False else Json.True).toRight(CastFailure(value.noSpaces, from, to))
     case (CastType.Boolean, CastType.Numeric) if value.isBoolean =>
-      value.asBoolean
-        .map(v => if (v == true) 1.asJson else 0.asJson)
-        .toRight(CastFailure(value.noSpaces, from, to))
+      value.asBoolean.map(v => if (v == true) 1.asJson else 0.asJson).toRight(CastFailure(value.noSpaces, from, to))
     case (CastType.String, CastType.Numeric) if value.isString =>
-      value.asString
+      value
+        .asString
         .flatMap(v => Either.catchNonFatal(v.toLong.asJson).toOption)
         .toRight(CastFailure(value.noSpaces, from, to))
     case _ => Left(CastFailure(value.noSpaces, from, to))

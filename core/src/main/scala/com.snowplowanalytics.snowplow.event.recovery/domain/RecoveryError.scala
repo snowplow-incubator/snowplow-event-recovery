@@ -24,16 +24,19 @@ import com.snowplowanalytics.iglu.core.circe.instances._
 import config._
 import json._
 
-final case class RecoveryError(status: RecoveryStatus, row: String, configName: Option[String] = None) {
+final case class RecoveryError(
+  status: RecoveryStatus,
+  row: String,
+  configName: Option[String] = None
+) {
   def badRow: BadRow = status match {
     case InvalidJsonFormat(_) =>
       BadRow.CPFormatViolation(
         processor = Processor("snowplow-event-recovery", "0.2.0"),
         failure = Failure.CPFormatViolation(
           timestamp = Instant.now(),
-          loader = "",
-          message =
-            FailureDetails.CPFormatViolationMessage.Fallback(status.message)
+          loader    = "",
+          message   = FailureDetails.CPFormatViolationMessage.Fallback(status.message)
         ),
         payload = Payload.RawPayload(row)
       )
@@ -43,7 +46,7 @@ final case class RecoveryError(status: RecoveryStatus, row: String, configName: 
         .map { typedRow =>
           BadRow.RecoveryError(
             processor = Processor("snowplow-event-recovery", "0.2.0"),
-            failure = Failure.RecoveryFailure(status.message, configName),
+            failure   = Failure.RecoveryFailure(status.message, configName),
             payload = untyped
               .payload(typedRow.data)
               .map {
@@ -51,22 +54,19 @@ final case class RecoveryError(status: RecoveryStatus, row: String, configName: 
                 case _                       => typedRow.data
               }
               .get,
-            recoveries =
-              untyped.recoveries(typedRow.data).map(_ + 1).getOrElse(1)
+            recoveries = untyped.recoveries(typedRow.data).map(_ + 1).getOrElse(1)
           )
         }
-        .leftMap(
-          s =>
-            BadRow.CPFormatViolation(
-              processor = Processor("snowplow-event-recovery", "0.2.0"),
-              failure = Failure.CPFormatViolation(
-                timestamp = Instant.now(),
-                loader = "",
-                message =
-                  FailureDetails.CPFormatViolationMessage.Fallback(s.getMessage)
-              ),
-              payload = Payload.RawPayload(row)
-            )
+        .leftMap(s =>
+          BadRow.CPFormatViolation(
+            processor = Processor("snowplow-event-recovery", "0.2.0"),
+            failure = Failure.CPFormatViolation(
+              timestamp = Instant.now(),
+              loader    = "",
+              message   = FailureDetails.CPFormatViolationMessage.Fallback(s.getMessage)
+            ),
+            payload = Payload.RawPayload(row)
+          )
         )
         .merge
   }
