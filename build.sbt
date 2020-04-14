@@ -28,7 +28,7 @@ lazy val snowplowEventRecovery = (project.in(file(".")))
   .dependsOn(core)
 
 lazy val thriftSchemaVersion = "0.0.0"
-lazy val badRowsVersion = "0.2.0-M2"
+lazy val badRowsVersion = "1.0.0-M2"
 lazy val catsVersion = "1.4.0"
 lazy val scalaUriVersion = "1.4.0"
 lazy val circeOpticsVersion = "0.10.0"
@@ -75,7 +75,7 @@ lazy val core = project
       ("com.snowplowanalytics" %% "snowplow-common-enrich" % sceVersion % "test")
         .exclude("com.maxmind.geoip2", "geoip2"),
       // needed for thrift ser/de
-      "org.slf4j" % "slf4j-log4j12" % slf4jVersion,
+      "org.slf4j" % "slf4j-log4j12" % slf4jVersion
       ) ++ circeDependencies
   )
 
@@ -148,7 +148,7 @@ lazy val flink = project
     Global / cancelable := true
   ).dependsOn(core % "compile->compile;test->test")
 
-lazy val sparkVersion = "2.4.3"
+lazy val sparkVersion = "2.4.5"
 lazy val elephantBirdVersion = "4.17"
 lazy val awsKinesisSparkVersion = "0.0.12"
 
@@ -165,6 +165,9 @@ lazy val spark = project
       "com.monovore" %% "decline" % declineVersion,
       "com.monovore" %% "decline-effect" % declineEffectVersion,      
       "com.twitter.elephantbird" % "elephant-bird-core" % elephantBirdVersion,
+      ),
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.3"
     )
   ).settings(
     initialCommands in console :=
