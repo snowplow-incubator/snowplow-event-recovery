@@ -41,12 +41,15 @@ object inspectable {
         * @param replacement a new value to be set
         */
       def replace(
-          a: A
+        a: A
       )(
-          path: Path,
-          matcher: String,
-          replacement: String
-      )(implicit e: Encoder[A], d: Decoder[A]): Recovering[A] =
+        path: Path,
+        matcher: String,
+        replacement: String
+      )(
+        implicit e: Encoder[A],
+        d: Decoder[A]
+      ): Recovering[A] =
         inspect
           .replace(matcher, replacement)(extractPath(path))(a.asJson)
           .flatMap(_.as[A].leftMap(err => InvalidJsonFormat(err.getMessage)))
@@ -58,10 +61,7 @@ object inspectable {
         * @param path Json Path navigation route ie. raw.vendor
         * @param matcher a regex string for matching values
         */
-      def remove(a: A)(
-          path: Path,
-          matcher: String
-      )(implicit e: Encoder[A], d: Decoder[A]): Recovering[A] =
+      def remove(a: A)(path: Path, matcher: String)(implicit e: Encoder[A], d: Decoder[A]): Recovering[A] =
         replace(a)(path, matcher, "")
 
       /**
@@ -73,39 +73,45 @@ object inspectable {
         * @param to target type of the field being cast
         */
       def cast(
-          a: A
-      )(path: Path, from: CastType, to: CastType)(
-          implicit e: Encoder[A],
-          d: Decoder[A]
+        a: A
+      )(
+        path: Path,
+        from: CastType,
+        to: CastType
+      )(
+        implicit e: Encoder[A],
+        d: Decoder[A]
       ): Recovering[A] =
         inspect
           .cast(from, to)(extractPath(path))(a.asJson)
           .flatMap(_.as[A].leftMap(err => InvalidJsonFormat(err.getMessage)))
     }
 
-    def apply[A <: Payload: Decoder: Encoder](
-        implicit i: Inspectable[A]
-    ): Inspectable[A] = i
+    def apply[A <: Payload: Decoder: Encoder](implicit i: Inspectable[A]): Inspectable[A] = i
 
     object ops {
-      implicit class InspectableOps[A <: Payload: Inspectable: Encoder: Decoder](
-          a: A
-      ) {
-        def replace(path: Path, matcher: String, replacement: String) =
+      implicit class InspectableOps[A <: Payload: Inspectable: Encoder: Decoder](a: A) {
+        def replace(
+          path: Path,
+          matcher: String,
+          replacement: String
+        ) =
           Inspectable[A].replace(a)(path, matcher, replacement)
         def remove(path: Path, matcher: String) =
           Inspectable[A].remove(a)(path, matcher)
-        def cast(path: Path, from: CastType, to: CastType) =
+        def cast(
+          path: Path,
+          from: CastType,
+          to: CastType
+        ) =
           Inspectable[A].cast(a)(path, from, to)
       }
     }
 
-    implicit val collectorPayloadInspectable
-        : Inspectable[Payload.CollectorPayload] =
+    implicit val collectorPayloadInspectable: Inspectable[Payload.CollectorPayload] =
       new Inspectable[Payload.CollectorPayload] {}
 
-    implicit val enrichmentPayloadInspectable
-        : Inspectable[Payload.EnrichmentPayload] =
+    implicit val enrichmentPayloadInspectable: Inspectable[Payload.EnrichmentPayload] =
       new Inspectable[Payload.EnrichmentPayload] {}
   }
 

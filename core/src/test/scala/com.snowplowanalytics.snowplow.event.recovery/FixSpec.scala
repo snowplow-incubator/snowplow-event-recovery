@@ -31,19 +31,14 @@ class FixSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues {
   "replace" - {
     "should replace values" in {
       forAll(gens.badRowSizeViolationA.arbitrary) { br =>
-        val json = br.asJson
+        val json     = br.asJson
         val expected = "com.lorem.ipsum.dolor"
         val replaced =
           replace("(?U)^.*$", expected)(Seq("processor", "artifact"))(json)
 
         replaced
           .flatMap {
-            _.hcursor
-              .downField("processor")
-              .downField("artifact")
-              .focus
-              .get
-              .as[String]
+            _.hcursor.downField("processor").downField("artifact").focus.get.as[String]
           }
           .right
           .value should equal(expected)
@@ -72,7 +67,8 @@ class FixSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues {
             .map(_.value)
             .map(_.get)
             .flatMap(
-              util.base64
+              util
+                .base64
                 .decode(_)
                 .flatMap(parse)
                 .map(
@@ -114,7 +110,8 @@ class FixSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues {
           .map(_.value)
           .map(_.get)
           .flatMap(
-            util.base64
+            util
+              .base64
               .decode(_)
               .flatMap(parse)
               .map(

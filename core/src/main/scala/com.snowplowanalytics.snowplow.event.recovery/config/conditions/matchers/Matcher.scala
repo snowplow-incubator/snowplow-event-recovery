@@ -22,9 +22,9 @@ import io.circe.Json
   */
 trait Matcher {
   object checks extends Poly1 {
-    implicit def checkStr = at[String](string)
-    implicit def checkNum = at[Long](num)
-    implicit def checkSq = at[Seq[_]](seq)
+    implicit def checkStr  = at[String](string)
+    implicit def checkNum  = at[Long](num)
+    implicit def checkSq   = at[Seq[_]](seq)
     implicit def checkJson = at[Json](json)
   }
   def string: String => Boolean

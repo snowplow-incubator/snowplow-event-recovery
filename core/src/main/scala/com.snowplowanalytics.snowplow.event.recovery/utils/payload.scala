@@ -37,14 +37,13 @@ object payload {
         p.encoding,
         p.collector
       )
-      cp.userAgent = p.useragent.orNull
-      cp.refererUri = p.refererUri.orNull
-      cp.querystring =
-        Foldable[List].foldMap(p.querystring)(_.value.getOrElse(""))
-      cp.body = p.body.orNull
-      cp.headers = p.headers.asJava
-      cp.contentType = p.contentType.orNull
-      cp.hostname = p.hostname.orNull
+      cp.userAgent     = p.useragent.orNull
+      cp.refererUri    = p.refererUri.orNull
+      cp.querystring   = Foldable[List].foldMap(p.querystring)(_.value.getOrElse(""))
+      cp.body          = p.body.orNull
+      cp.headers       = p.headers.asJava
+      cp.contentType   = p.contentType.orNull
+      cp.hostname      = p.hostname.orNull
       cp.networkUserId = p.networkUserId.map(_.toString).orNull
       cp
     }
@@ -56,28 +55,27 @@ object payload {
         p.encoding,
         e.v_collector
       )
-      cp.path = s"${p.vendor}/${p.version}"
-      cp.userAgent = p.useragent.orNull
-      cp.refererUri = p.refererUri.orNull
-      cp.querystring = toQuerystring(p.parameters)
-      cp.hostname = p.hostname.orNull
+      cp.path          = s"${p.vendor}/${p.version}"
+      cp.userAgent     = p.useragent.orNull
+      cp.refererUri    = p.refererUri.orNull
+      cp.querystring   = toQuerystring(p.parameters)
+      cp.hostname      = p.hostname.orNull
       cp.networkUserId = p.userId.map(_.toString).orNull
       cp
     }
   }
 
   /**
-   * A homomorphic transformation from a `Payload` of a known-type to `CollectorPayload`.
-   * @param a payload of a bad row
-   * @return optionally a derived `CollectorPayload`
-   */
+    * A homomorphic transformation from a `Payload` of a known-type to `CollectorPayload`.
+    * @param a payload of a bad row
+    * @return optionally a derived `CollectorPayload`
+    */
   val coerce: Payload => Recovering[CollectorPayload] =
     (a: Payload) => coercePF.lift(a).toRight(UncoerciblePayload(a))
 
   private[this] val toQuerystring = (l: List[NVP]) => {
     val urlEncode = (str: String) => URLEncoder.encode(str, UTF_8.toString)
-    val show = (n: NVP) =>
-      n.value.map(urlEncode).map(v => s"${n.name}=$v").getOrElse("")
+    val show      = (n: NVP) => n.value.map(urlEncode).map(v => s"${n.name}=$v").getOrElse("")
 
     l.map(show).mkString("&")
   }

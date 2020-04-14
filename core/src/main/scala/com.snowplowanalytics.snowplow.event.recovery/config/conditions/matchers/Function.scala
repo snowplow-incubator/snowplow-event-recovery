@@ -20,8 +20,8 @@ import io.circe.Json
 /**
   */
 case class Function(apply: String) extends Matcher {
-  def string = _ => false
-  def num: Long => Boolean = _ => false
+  def string                 = _ => false
+  def num: Long => Boolean   = _ => false
   def seq: Seq[_] => Boolean = _ => false
-  def json: Json => Boolean = _ => false
+  def json: Json => Boolean  = _ => false
 }
