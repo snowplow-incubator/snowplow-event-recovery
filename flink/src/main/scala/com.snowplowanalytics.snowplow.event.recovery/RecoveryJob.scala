@@ -17,14 +17,8 @@ package com.snowplowanalytics.snowplow.event.recovery
 import java.time.{Clock => JClock}
 import java.util.Properties
 import org.apache.flink.core.fs.Path
-import org.apache.flink.api.common.serialization.{
-  SimpleStringEncoder,
-  SimpleStringSchema
-}
-import org.apache.flink.streaming.api.scala.{
-  OutputTag,
-  StreamExecutionEnvironment
-}
+import org.apache.flink.api.common.serialization.{SimpleStringEncoder, SimpleStringSchema}
+import org.apache.flink.streaming.api.scala.{OutputTag, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.kinesis._
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 import io.circe.syntax._
@@ -37,10 +31,10 @@ import util.paths._
 
 object RecoveryJob {
   def run(
-      input: String,
-      output: String,
-      unrecoveredOutput: String,
-      cfg: Config
+    input: String,
+    output: String,
+    unrecoveredOutput: String,
+    cfg: Config
   ): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val kinesis = {
@@ -61,21 +55,14 @@ object RecoveryJob {
       )
       .build()
 
-    val failed = OutputTag[RecoveryError]("failed")
+    val failed        = OutputTag[RecoveryError]("failed")
     val unrecoverable = OutputTag[RecoveryError]("unrecoverable")
     def lines =
-      env
-        .readFileStream(s"s3://$input")
-        .map(execute(cfg)(_))
-        .process(new SplitByStatus(failed, unrecoverable))
+      env.readFileStream(s"s3://$input").map(execute(cfg)(_)).process(new SplitByStatus(failed, unrecoverable))
 
-    lines
-      .addSink(kinesis)
+    lines.addSink(kinesis)
 
-    lines
-      .getSideOutput(failed)
-      .map(_.badRow.selfDescribingData.asJson.noSpaces)
-      .addSink(file)
+    lines.getSideOutput(failed).map(_.badRow.selfDescribingData.asJson.noSpaces).addSink(file)
 
     env.execute("Event recovery job started.")
     ()

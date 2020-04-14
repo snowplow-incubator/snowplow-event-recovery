@@ -15,7 +15,7 @@
 package com.snowplowanalytics.snowplow
 package event.recovery
 
-import org.scalatest.{FreeSpec, EitherValues}
+import org.scalatest.{EitherValues, FreeSpec}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
@@ -28,16 +28,17 @@ import org.mockito.Mockito._
 import domain._
 
 class SplitByStatusSpec extends FreeSpec with ScalaCheckPropertyChecks with EitherValues with MockitoSugar {
-  implicit val eitherBRorPayload: Gen[Either[RecoveryError, String]] = Gen.either(gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")), gens.nonEmptyString.arbitrary)
+  implicit val eitherBRorPayload: Gen[Either[RecoveryError, String]] =
+    Gen.either(gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")), gens.nonEmptyString.arbitrary)
 
   "SplitByStatus" - {
     "should separate recovery success from failure" in {
       forAll(eitherBRorPayload) { (b: Either[RecoveryError, String]) =>
-        val tag1 = OutputTag[RecoveryError]("failed")
-        val tag2 = OutputTag[RecoveryError]("unrecoverable")
-        val fn = new SplitByStatus(tag1, tag2)
+        val tag1      = OutputTag[RecoveryError]("failed")
+        val tag2      = OutputTag[RecoveryError]("unrecoverable")
+        val fn        = new SplitByStatus(tag1, tag2)
         val collector = mock[Collector[String]]
-        val ctx = mock[ProcessFunction[Either[RecoveryError, String], String]#Context]
+        val ctx       = mock[ProcessFunction[Either[RecoveryError, String], String]#Context]
         fn.processElement(b, ctx, collector)
         if (b.isRight) verify(collector).collect(b.right.get)
       }

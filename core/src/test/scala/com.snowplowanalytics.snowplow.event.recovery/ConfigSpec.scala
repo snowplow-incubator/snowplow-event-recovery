@@ -25,19 +25,15 @@ import json._
 import org.scalacheck._
 import gens._
 
-class ConfigSpec
-    extends FreeSpec
-    with Inspectors
-    with ScalaCheckPropertyChecks {
+class ConfigSpec extends FreeSpec with Inspectors with ScalaCheckPropertyChecks {
 
   val data = (badRowType: String, conditions: String, steps: String) =>
     s"""{"iglu:com.snowplowanalytics.snowplow.badrows/$badRowType/jsonschema/1-0-0":[{"name":"lorem-ipsum","conditions": $conditions,"steps":$steps}]}"""
 
-  val schema = (schemaKey: String, data: String) =>
-    s"""{"schema": "$schemaKey", "data": $data}"""
+  val schema = (schemaKey: String, data: String) => s"""{"schema": "$schemaKey", "data": $data}"""
 
   val badRowType = "tracker_protocol_violation"
-  val schemaKey = "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/2-0-0"
+  val schemaKey  = "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/2-0-0"
 
   val replace =
     s"""{ "op": "Replace", "path": "root.payload.body", "match": ".*", "value": "aaa" }"""
@@ -49,28 +45,28 @@ class ConfigSpec
     s"""{ "op": "Test", "path": "root.payload.body", "value": { "value": { "error": "RuntimeException" }  } }"""
 
   val conditions = Seq(regex, sizeGt, compare)
-  val steps = Seq(replace)
-  val arr = (s: Seq[String]) => s"""[${s.mkString(", ")}]"""
+  val steps      = Seq(replace)
+  val arr        = (s: Seq[String]) => s"""[${s.mkString(", ")}]"""
 
   val configGen = for {
-    stepsN <- Gen.chooseNum(1, 10)
+    stepsN      <- Gen.chooseNum(1, 10)
     conditionsN <- Gen.chooseNum(0, 10)
-    steps <- Gen.listOfN(stepsN, Gen.oneOf(steps))
-    conditions <- Gen.listOfN(conditionsN, Gen.oneOf(conditions))
+    steps       <- Gen.listOfN(stepsN, Gen.oneOf(steps))
+    conditions  <- Gen.listOfN(conditionsN, Gen.oneOf(conditions))
   } yield data(badRowType, arr(conditions), arr(steps))
 
   "Config" - {
     "should follow a known JSON structure" in {
       forAll(configGen) { config =>
-        val schemed = schema(schemaKey, config)        
-        val conf = decode[Conf](schemed)
+        val schemed = schema(schemaKey, config)
+        val conf    = decode[Conf](schemed)
         conf.right.value.schema should equal(schemaKey)
       }
     }
     "should be a proper JSON" in {
       forAll(configGen) { config =>
         val schemed = schema(schemaKey, config)
-        val conf = decode[Conf](schemed)
+        val conf    = decode[Conf](schemed)
 
         conf.right.value.schema should equal(schemaKey)
       }

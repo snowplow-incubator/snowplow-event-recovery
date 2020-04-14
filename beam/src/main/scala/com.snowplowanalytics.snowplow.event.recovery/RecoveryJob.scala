@@ -41,12 +41,12 @@ object RecoveryJob {
     * @param recoveryScenarios list of recovery scenarios to apply on the bad rows
     */
   def run(
-      sc: ScioContext,
-      input: String,
-      output: String,
-      failedOutput: String,
-      unrecoverableOutput: String,
-      cfg: Config
+    sc: ScioContext,
+    input: String,
+    output: String,
+    failedOutput: String,
+    unrecoverableOutput: String,
+    cfg: Config
   ): Unit =
     sc.withName(s"read-input-bad-rows")
       .textFile(input)
@@ -60,19 +60,24 @@ object RecoveryJob {
       }
 
   private[this] def sink(
-      output: String,
-      failedOutput: String,
-      unrecoverableOutput: String
-  )(k: Result, v: SCollection[Either[RecoveryError, String]]) = k match {
+    output: String,
+    failedOutput: String,
+    unrecoverableOutput: String
+  )(
+    k: Result,
+    v: SCollection[Either[RecoveryError, String]]
+  ) = k match {
     case Recovered =>
-      v.withName("count-recovered").map { r =>
+      v.withName("count-recovered")
+        .map { r =>
           count("recovered")
           r.right.get
         }
         .withName("sink-recovered")
         .saveAsPubsub(output)
     case Failed =>
-      v.withName("count-failed").map { r =>
+      v.withName("count-failed")
+        .map { r =>
           count("failed")
           r.left.get.json
         }
@@ -81,7 +86,8 @@ object RecoveryJob {
           path(failedOutput, Schemas.RecoveryError, JClock.systemUTC)
         )
     case Unrecoverable =>
-      v.withName("count-unrecoverable").map { r =>
+      v.withName("count-unrecoverable")
+        .map { r =>
           count("unrecoverable")
           r.left.get.json
         }
@@ -91,8 +97,7 @@ object RecoveryJob {
         )
   }
 
-  private[this] val count = (suffix: String) =>
-    ScioMetrics.counter("snowplow", s"bad_rows_$suffix")
+  private[this] val count = (suffix: String) => ScioMetrics.counter("snowplow", s"bad_rows_$suffix")
 
   implicit val payloadCodec: Coder[Payload] = Coder.kryo[Payload]
   implicit val recoveryErrorCodec: Coder[RecoveryError] =

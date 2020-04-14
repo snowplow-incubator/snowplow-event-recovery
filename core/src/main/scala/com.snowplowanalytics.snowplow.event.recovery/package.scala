@@ -25,25 +25,25 @@ import recovery.config._
 import recovery.util.payload._
 import recovery.util.thrift._
 
-
 package object recovery {
-  /**
-   * Executes recovery config for given line.
-   * @param cfg overall flow configuration
-   * @param line a line to be recovered
-   */
-  def execute(cfg: Config)(line: String): Either[RecoveryError, String] =
-    parseJson(line)
-      .leftMap(_ => InvalidJsonFormat(line).withRow(line))
-      .flatMap(BadRowWithConfig.extract(cfg))
-      .flatMap { v =>
-        recover(v.steps, v.badRow)
-          .flatMap(coerce)
-          .flatMap(thrift)
-          .leftMap(_.withRow(line))
-      }
 
-  private[this] def recover(steps: List[StepConfig], b: BadRow)(implicit recoverable: Recoverable[BadRow, Payload]): Recovering[Payload] =
+  /**
+    * Executes recovery config for given line.
+    * @param cfg overall flow configuration
+    * @param line a line to be recovered
+    */
+  def execute(cfg: Config)(line: String): Either[RecoveryError, String] =
+    parseJson(line).leftMap(_ => InvalidJsonFormat(line).withRow(line)).flatMap(BadRowWithConfig.extract(cfg)).flatMap {
+      v =>
+        recover(v.steps, v.badRow).flatMap(coerce).flatMap(thrift).leftMap(_.withRow(line))
+    }
+
+  private[this] def recover(
+    steps: List[StepConfig],
+    b: BadRow
+  )(
+    implicit recoverable: Recoverable[BadRow, Payload]
+  ): Recovering[Payload] =
     b.recover(steps)
       .flatMap(
         _.payload.toRight(

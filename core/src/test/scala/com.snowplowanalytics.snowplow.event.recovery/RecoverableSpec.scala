@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2018-2019 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
@@ -28,61 +28,62 @@ import gens._
 
 class RecoverableSpec extends FreeSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$"
-  val prefix = "payload.replacement"
+  val prefix    = "payload.replacement"
 
   "Recoverable" - {
     "allow matcher-based field content replacement" in {
       forAll { (b: BadRow.AdapterFailures) =>
-        val field = "vendor"
-        val value = b.payload.vendor
+        val field       = "vendor"
+        val value       = b.payload.vendor
         val replacement = s"$prefix$value"
-        val conf = (replacement: String) => List(Replacement(Replace, field, anyString, replacement))
+        val conf        = (replacement: String) => List(Replacement(Replace, field, anyString, replacement))
 
         val recovered = b.recover(conf(replacement))
-        recovered should be ('right)
-        recovered.right.value.payload.vendor should equal (replacement)
+        recovered should be('right)
+        recovered.right.value.payload.vendor should equal(replacement)
 
         val reverted = b.recover(conf(value))
-        reverted should be ('right)
-        reverted.right.value.payload.vendor should equal (value)
+        reverted should be('right)
+        reverted.right.value.payload.vendor should equal(value)
       }
     }
     "allow matcher-based field content removal" in {
       forAll { (b: BadRow.TrackerProtocolViolations) =>
         val field = Field(b.payload)
-        val conf = List(Removal(Remove, field.name, anyString))
+        val conf  = List(Removal(Remove, field.name, anyString))
 
         val recovered = b.recover(conf)
-        recovered should be ('right)
+        recovered should be('right)
         recovered.map(v => Field.extract(v.payload, field.name).map(_.value)).right.value.get match {
           case Some(v) => v shouldEqual ""
-          case None => true
-          case v => v shouldEqual ""
+          case None    => true
+          case v       => v shouldEqual ""
         }
       }
     }
     "allow chaining processing steps" in {
       forAll { (b: BadRow.AdapterFailures) =>
-        val field = Field(b.payload)
+        val field       = Field(b.payload)
         val replacement = s"$prefix${field.name}"
 
-        val conf = List(Replacement(Replace, field.name, anyString, replacement), Removal(Remove, field.name, field.name))
+        val conf =
+          List(Replacement(Replace, field.name, anyString, replacement), Removal(Remove, field.name, field.name))
 
         val recovered = b.recover(conf)
-        recovered should be ('right)
+        recovered should be('right)
         recovered.map(v => Field.extract(v.payload, field.name).map(_.value)).right.value.get match {
           case Some(v) => v shouldEqual prefix
-          case None => true
-          case v => v shouldEqual prefix
+          case None    => true
+          case v       => v shouldEqual prefix
         }
       }
     }
     "mark flows unercoverable" in {
       forAll { (b: BadRow.SizeViolation) =>
-        b.recover(List.empty) should be ('left)
+        b.recover(List.empty) should be('left)
       }
       forAll { (b: BadRow.CPFormatViolation) =>
-        b.recover(List.empty) should be ('left)
+        b.recover(List.empty) should be('left)
       }
     }
   }

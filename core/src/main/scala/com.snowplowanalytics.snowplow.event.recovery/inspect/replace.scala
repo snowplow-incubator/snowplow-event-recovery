@@ -23,7 +23,6 @@ import io.circe.parser.{parse => parseJson}
 import transform._
 import domain._
 
-
 /**
   * A transformation casting JSON types (including Base64-encoded) to others including.
   * Can perform operations on all JSON types.
@@ -32,15 +31,13 @@ object replace {
 
   /**
     * Runs replace operation.
-    * 
+    *
     * @param matcher a regex string for matching values
     * @param value a new value to be set for matches
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(matcher: String, value: String)(path: Seq[String])(
-      body: Json
-  ): Recovering[Json] =
+  def apply(matcher: String, value: String)(path: Seq[String])(body: Json): Recovering[Json] =
     transform(
       replaceFn(matcher, value),
       ReplacementFailure(
@@ -50,10 +47,7 @@ object replace {
       )
     )(path)(body)
 
-  private[this] def replaceFn(
-      matcher: String,
-      value: String
-  ): Json => Recovering[Json] = {
+  private[this] def replaceFn(matcher: String, value: String): Json => Recovering[Json] = {
     case v if v.isNumber =>
       number(value)(v.asNumber.get).map(_.asJson)
     case v if v.isObject =>
@@ -68,25 +62,13 @@ object replace {
       string(Seq.empty, matcher, value)(v.asString.get).map(_.asJson)
   }
 
-  private[this] def boolean(value: String)(
-      x: Boolean
-  ): Recovering[Boolean] = {
-    Either
-      .catchNonFatal(value.toBoolean)
-      .leftMap(err => ReplacementFailure(err.getMessage, "any", x.toString))
-  }
+  private[this] def boolean(value: String)(x: Boolean): Recovering[Boolean] =
+    Either.catchNonFatal(value.toBoolean).leftMap(err => ReplacementFailure(err.getMessage, "any", x.toString))
 
-  private[this] def number(value: String)(
-      x: JsonNumber
-  ): Recovering[JsonNumber] = {
-    JsonNumber
-      .fromString(value)
-      .toRight(ReplacementFailure(x.toString, "any", value))
-  }
+  private[this] def number(value: String)(x: JsonNumber): Recovering[JsonNumber] =
+    JsonNumber.fromString(value).toRight(ReplacementFailure(x.toString, "any", value))
 
-  private[this] def array(matcher: String, value: String)(
-      x: Vector[Json]
-  ): Recovering[Vector[Json]] = {
+  private[this] def array(matcher: String, value: String)(x: Vector[Json]): Recovering[Vector[Json]] =
     x.map(
         _.fold[Recovering[Json]](
           Right("".asJson),
@@ -98,14 +80,13 @@ object replace {
         )
       )
       .sequence[Recovering, Json]
-  }
 
   private[this] def string(
-      context: Seq[String],
-      matcher: String,
-      value: String
+    context: Seq[String],
+    matcher: String,
+    value: String
   )(
-      x: String
+    x: String
   ): Recovering[String] =
     if (isB64Encoded(x)) {
       base64(context, matcher, value)(x)
@@ -114,30 +95,32 @@ object replace {
     }
 
   private[this] def jObject(
-      context: Seq[String],
-      matcher: String,
-      value: String
+    context: Seq[String],
+    matcher: String,
+    value: String
   )(
-      x: JsonObject
+    x: JsonObject
   ): Recovering[JsonObject] =
     for {
       s <- string(context, matcher, value)(x.asJson.noSpaces)
       p <- parseJson(s).leftMap(_ => InvalidJsonFormat(s))
-      o <- p.asObject.toRight(
-        ReplacementFailure(x.asJson.noSpaces, matcher, value)
-      )
+      o <- p
+        .asObject
+        .toRight(
+          ReplacementFailure(x.asJson.noSpaces, matcher, value)
+        )
     } yield o
 
   private[this] def base64(
-      path: Seq[String],
-      matcher: String,
-      replacement: String
+    path: Seq[String],
+    matcher: String,
+    replacement: String
   )(
-      str: String
+    str: String
   ): Recovering[String] =
     for {
-      decoded <- decode(str)
-      parsed <- parse(decoded)
+      decoded  <- decode(str)
+      parsed   <- parse(decoded)
       replaced <- replace(matcher, replacement)(path)(parsed)
     } yield replaced.noSpaces
 }

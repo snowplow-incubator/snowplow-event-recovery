@@ -20,11 +20,11 @@ import io.circe.Json
 /**
   */
 case class RegularExpression(regex: String) extends Matcher {
-  def string = compare
-  def num: Long => Boolean = v => compare(v.toString)
+  def string                 = compare
+  def num: Long => Boolean   = v => compare(v.toString)
   def seq: Seq[_] => Boolean = _ => false
-  def json: Json => Boolean = _ => false
+  def json: Json => Boolean  = _ => false
 
-  private[this] def compare(str: String) = 
+  private[this] def compare(str: String) =
     regex.r.findFirstIn(str).isDefined
 }

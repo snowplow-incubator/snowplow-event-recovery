@@ -15,10 +15,28 @@
 
 package com.snowplowanalytics.snowplow.event.recovery.config
 
-import conditions.{Replace, Remove, Cast, Apply}
+import conditions.{Apply, Cast, Remove, Replace}
 
 sealed trait StepConfig
-case class Replacement(op: Replace.type, path: Path, `match`: Regexp, value: String) extends StepConfig
-case class Removal(op: Remove.type, path: Path, `match`: Regexp) extends StepConfig
-case class Casting(op: Cast.type, path: Path, from: CastType, to: CastType) extends StepConfig
-case class Application(op: Apply.type, path: Path, value: String) extends StepConfig
+case class Replacement(
+  op: Replace.type,
+  path: Path,
+  `match`: Regexp,
+  value: String
+) extends StepConfig
+case class Removal(
+  op: Remove.type,
+  path: Path,
+  `match`: Regexp
+) extends StepConfig
+case class Casting(
+  op: Cast.type,
+  path: Path,
+  from: CastType,
+  to: CastType
+) extends StepConfig
+case class Application(
+  op: Apply.type,
+  path: Path,
+  value: String
+) extends StepConfig
