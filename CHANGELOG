@@ -1,3 +1,15 @@
+Version 0.2.0 (2020-??-??)
+--------------------------
+Support new bad row format (#44)
+Add filtering by regex in JSON Path (#54)
+Add basic metrics summary for spark job (#55)
+Update SBT settings to reflect template (#47)
+Configure scalafmt (#45)
+Bump scala-common-enrich to 1.1.0 (#50)
+Bump scio to 0.8.4 (#49)
+Add convenience automation scripts (#48)
+Change Travis distribution to Trusty (#46)
+
 Version 0.1.1 (2019-07-17)
 --------------------------
 Add ReplaceInPath recovery scenario (#38)
