@@ -50,7 +50,7 @@ object Dependencies {
     val scalaCheckToolBox   = "0.3.1"
     val scalaCheckSchema    = "0.2.0-M1"
     val scalaCheckShapeless = "1.2.3"
-    val scalaCommonEnrich   = "1.1.0"
+    val scalaCommonEnrich   = "1.1.0-M2"
   }
 
   // Java

@@ -91,7 +91,7 @@ class IntegrationSpec extends WordSpec with Inspectors {
             new DateTime(1500000000L),
             p.toValidatedNel
           )
-          .map(_.toEither.leftMap(_.toList))
+          .map(_.toEither)
       }
 
     forAll(enriched) { r =>
