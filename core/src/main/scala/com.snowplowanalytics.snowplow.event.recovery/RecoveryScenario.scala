@@ -112,7 +112,7 @@ object RecoveryScenario {
       replaced <- replaceInB64(b64Value, toReplace, replacement)
       newQs = qs.replaceAll(base64Field, replaced)
     } yield {
-      originalPayload.querystring = newQs.toString
+      originalPayload.querystring = newQs.toString.replaceAll("^\\?", "")
       originalPayload
     }).getOrElse(originalPayload)
   }
