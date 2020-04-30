@@ -55,6 +55,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
         val newCp = riqs.mutate(cp)
         if (cp.querystring == null) oldCp shouldEqual newCp
         else {
+          newCp.querystring should not startWith ("?")
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.body shouldEqual newCp.body
@@ -80,6 +81,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.body shouldEqual newCp.body
+          newCp.querystring should not startWith ("?")
           val oldUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(oldCp.querystring)("ue_px"))))
           val newUe = parse(new String(Base64.getDecoder.decode(parseQuerystring(newCp.querystring)("ue_px"))))
           val Diff(changed, JNothing, JNothing) = oldUe diff newUe
@@ -99,6 +101,7 @@ class RecoveryScenarioSpec extends FreeSpec with PropertyChecks {
         val newCp = rfqs.mutate(cp)
         if (cp.querystring == null) oldCp shouldEqual newCp
         else {
+          newCp.querystring should not startWith ("?")
           oldCp.timestamp shouldEqual newCp.timestamp
           oldCp.path shouldEqual newCp.path
           oldCp.body shouldEqual newCp.body
