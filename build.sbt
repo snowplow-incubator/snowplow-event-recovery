@@ -54,10 +54,8 @@ lazy val flink = project
   .settings(
     libraryDependencies ++= Seq(
       Dependencies.mockito
-    )
-      ++ Dependencies.decline
-      ++ Dependencies.flink
-      ++ Dependencies.circe
+    ) ++ Dependencies.decline ++ Dependencies.flink ++ Dependencies.circe,
+    dependencyOverrides += Dependencies.jackson
   )
 
 lazy val spark =

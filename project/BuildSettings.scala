@@ -164,10 +164,23 @@ object BuildSettings {
     daemonUser in Docker := "snowplow"
   )
 
-  lazy val assemblySettings: Seq[sbt.Setting[_]] = Seq(
-    assemblyJarName in assembly := { name.value + "-" + version.value + ".jar" },
-    assemblyOption in assembly := (assemblyOption in assembly).value
-  )
+  lazy val assemblySettings: Boolean => Seq[sbt.Setting[_]] = includeScala =>
+    Seq(
+      assemblyJarName in assembly := { name.value + "-" + version.value + ".jar" },
+      assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = includeScala),
+      assemblyMergeStrategy in assembly := {
+        case x if x.startsWith("META-INF")                           => MergeStrategy.discard
+        case x if x.endsWith(".html")                                => MergeStrategy.discard
+        case x if x.endsWith("ProjectSettings$.class")               => MergeStrategy.first
+        case x if x.endsWith("package-info.class")                   => MergeStrategy.first
+        case x if x.endsWith("module-info.class")                    => MergeStrategy.first
+        case PathList("org", "apache", "spark", "unused", tail @ _*) => MergeStrategy.first
+        case "build.properties"                                      => MergeStrategy.first
+        case x =>
+          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          oldStrategy(x)
+      }
+    )
 
   lazy val commonBuildSettings
     : Seq[sbt.Setting[_]] = compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ scalifiedSettings
@@ -177,20 +190,11 @@ object BuildSettings {
   lazy val beamBuildSettings
     : Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings // ++ macroSettings
 
-  lazy val flinkBuildSettings
-    : Seq[sbt.Setting[_]] = flinkProjectSettings ++ commonBuildSettings ++ assemblySettings ++ dockerSettings
+  lazy val flinkBuildSettings: Seq[sbt.Setting[_]] = flinkProjectSettings ++ commonBuildSettings ++ assemblySettings(
+    false
+  ) ++ dockerSettings
 
-  lazy val sparkBuildSettings: Seq[sbt.Setting[_]] = sparkProjectSettings ++ commonBuildSettings ++ Seq(
-    assemblyMergeStrategy in assembly := {
-      case x if x.startsWith("META-INF")                           => MergeStrategy.discard
-      case x if x.endsWith(".html")                                => MergeStrategy.discard
-      case x if x.endsWith("ProjectSettings$.class")               => MergeStrategy.first
-      case x if x.endsWith("package-info.class")                   => MergeStrategy.first
-      case PathList("org", "apache", "spark", "unused", tail @ _*) => MergeStrategy.first
-      case "build.properties"                                      => MergeStrategy.first
-      case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
-        oldStrategy(x)
-    }
-  ) ++ assemblySettings
+  lazy val sparkBuildSettings: Seq[sbt.Setting[_]] = sparkProjectSettings ++ commonBuildSettings ++ assemblySettings(
+    true
+  )
 }
