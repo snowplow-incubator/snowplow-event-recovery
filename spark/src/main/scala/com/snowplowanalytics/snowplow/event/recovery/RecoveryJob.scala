@@ -16,6 +16,7 @@ package com.snowplowanalytics.snowplow.event.recovery
 
 import com.hadoop.compression.lzo.{LzoCodec, LzopCodec}
 import org.apache.spark.SparkConf
+import org.apache.spark.metrics.source.Metrics
 import org.apache.spark.sql.{Dataset, Encoder, Encoders, SaveMode, SparkSession}
 import com.amazonaws.regions.Regions
 import jp.co.bizreach.kinesis.spark._
@@ -23,6 +24,8 @@ import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
 import domain._
+import org.apache.spark.{SparkContext, SparkEnv}
+import org.apache.spark.util.LongAccumulator
 
 object RecoveryJob extends RecoveryJob
 
@@ -55,26 +58,47 @@ trait RecoveryJob {
     batchSize: Int,
     cfg: Config
   ): Unit = {
-    implicit val spark: SparkSession           = init()
+    implicit val spark: SparkSession = init()
+
+    val metrics = new Metrics()
+    SparkEnv.get.metricsSystem.registerSource(metrics)
+
     implicit val resultE: Encoder[SparkResult] = Encoders.kryo
     import spark.implicits._
 
     val recovered: Dataset[SparkResult] = load(input).map { line =>
       execute(cfg)(line) match {
-        case Right(r)                                                  => SparkSuccess(r): SparkResult
-        case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) => SparkUnrecoverable(e.left.get): SparkResult
-        case Left(e)                                                   => SparkFailure(e): SparkResult
+        case Right(r) =>
+          SparkSuccess(r)
+        case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
+          SparkUnrecoverable(e.left.get)
+        case Left(e) =>
+          SparkFailure(e)
       }
     }
 
-    sink(output, failedOutput, unrecoverableOutput, region, batchSize, recovered)
+    val summary =
+      sink(output, failedOutput, unrecoverableOutput, region, batchSize, recovered, new Summary(spark.sparkContext))
+
+    metrics.recovered.inc(summary.successful.value)
+    metrics.unrecoverable.inc(summary.unrecoverable.value)
+    metrics.failed.inc(summary.failed.value)
+
+    println(summary)
+
+    SparkEnv.get.metricsSystem.report
   }
 
   def load(input: String)(implicit spark: SparkSession): Dataset[String] = spark.read.textFile(input)
 
   private[this] def init(): SparkSession = {
-    val conf         = new SparkConf().setIfMissing("spark.master", "local[*]").setAppName("recovery")
-    val session      = SparkSession.builder().config(conf).getOrCreate()
+    val conf = new SparkConf().setIfMissing("spark.master", "local[*]").setAppName("recovery")
+    val session = SparkSession
+      .builder()
+      .config(conf)
+      .config("*.source.metrics.class", "org.apache.spark.metrics.source.Metrics")
+      .config("spark.metrics.namespace", "event-recovery")
+      .getOrCreate()
     val sparkContext = session.sparkContext
     sparkContext.setLogLevel("WARN")
     val hadoopConfiguration = sparkContext.hadoopConfiguration
@@ -95,21 +119,48 @@ trait RecoveryJob {
     unrecoverableOutput: String,
     region: Regions,
     batchSize: Int,
-    v: Dataset[SparkResult]
-  )(implicit encoder: Encoder[String]) = {
+    v: Dataset[SparkResult],
+    summary: Summary
+  )(implicit encoder: Encoder[String]): Summary = {
     val successful    = v.filter(_.isInstanceOf[SparkSuccess]).map(_.message)
     val unrecoverable = v.filter(_.isInstanceOf[SparkUnrecoverable]).map(_.message)
     val failed        = v.filter(_.isInstanceOf[SparkFailure]).map(_.message)
 
-    successful.rdd.saveToKinesis(streamName = output, region = region, chunk = batchSize)
+    successful
+      .map { x =>
+        summary.successful.add(1)
+        x
+      }
+      .rdd
+      .saveToKinesis(streamName = output, region = region, chunk = batchSize)
 
     if (!failed.isEmpty) {
-      failed.write.mode(SaveMode.Append).text(path(failedOutput, Schemas.RecoveryError))
+      failed
+        .map { x =>
+          summary.failed.add(1)
+          x
+        }
+        .write
+        .mode(SaveMode.Append)
+        .text(path(failedOutput, Schemas.RecoveryError))
     }
 
     if (!unrecoverable.isEmpty) {
-      unrecoverable.write.mode(SaveMode.Append).text(path(unrecoverableOutput, Schemas.RecoveryError))
+      unrecoverable
+        .map { x =>
+          summary.unrecoverable.add(1)
+          x
+        }
+        .write
+        .mode(SaveMode.Append)
+        .text(path(unrecoverableOutput, Schemas.RecoveryError))
     }
-  }
 
+    summary
+  }
+}
+
+case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, failed: LongAccumulator) {
+  def this(sc: SparkContext) =
+    this(sc.longAccumulator("recovered"), sc.longAccumulator("unrecoverable"), sc.longAccumulator("failed"))
 }

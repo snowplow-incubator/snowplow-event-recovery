@@ -21,6 +21,7 @@ import domain._
 import shapeless.syntax.sized._
 import org.scalatest.Matchers._
 
+
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
   object RecoveryJobTest extends RecoveryJob {
@@ -38,12 +39,14 @@ class RecoveryJobSpec extends SparkSpec {
       unrecoverableOutput: String,
       region: Regions,
       batchSize: Int,
-      v: Dataset[SparkResult]
+      v: Dataset[SparkResult],
+      summary: Summary
     )(implicit encoder: Encoder[String]) = {
       println(s"$output,$failedOutput,$unrecoverableOutput,$region,$batchSize")
       recovered ++= v
         .filter(_.isInstanceOf[SparkSuccess])
         .map { r =>
+          summary.successful.add(1)
           r.message
         }
         .collectAsList
@@ -52,6 +55,7 @@ class RecoveryJobSpec extends SparkSpec {
       failed ++= v
         .filter(_.isInstanceOf[SparkFailure])
         .map { r =>
+          summary.failed.add(1)
           r.message
         }
         .collectAsList
@@ -60,11 +64,14 @@ class RecoveryJobSpec extends SparkSpec {
       unrecoverable ++= v
         .filter(_.isInstanceOf[SparkUnrecoverable])
         .map { r =>
+          summary.unrecoverable.add(1)
           r.message
         }
         .collectAsList
         .asScala
         .toList
+
+      summary
     }
 
   }
