@@ -23,7 +23,13 @@ trait SparkSpec extends WordSpec with BeforeAndAfterAll {
   // local[1] means the tests will run locally on one thread
   val conf = new SparkConf().setMaster("local[1]")
   var spark: SparkSession =
-    SparkSession.builder().config(conf).getOrCreate()
+    SparkSession
+      .builder()
+      .config(conf)
+      .config("*.source.metrics.class", "org.apache.spark.metrics.source.Metrics")
+      .config("spark.metrics.namespace", "event-recovery")
+      .config("spark.metrics.conf.*.sink.console.class", "org.apache.spark.metrics.sink.ConsoleSink")
+      .getOrCreate()
 
   val hadoopConfig = {
     val conf = spark.sparkContext.hadoopConfiguration
