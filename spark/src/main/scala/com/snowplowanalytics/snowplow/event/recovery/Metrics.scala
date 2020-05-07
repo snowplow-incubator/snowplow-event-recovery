@@ -12,20 +12,20 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and
  * limitations there under.
  */
-package com.snowplowanalytics.snowplow.event.recovery
+package org.apache.spark.metrics.source
 
-import domain._
+import com.codahale.metrics._
+import com.snowplowanalytics.snowplow.event.recovery.domain.Result
+import com.snowplowanalytics.snowplow.event.recovery.domain.Recovered
+import com.snowplowanalytics.snowplow.event.recovery.domain.Failed
+import com.snowplowanalytics.snowplow.event.recovery.domain.Unrecoverable
 
-sealed trait SparkResult {
-  def message: String
-}
 
-case class SparkSuccess(recovered: String) extends SparkResult {
-  def message = recovered
-}
-case class SparkFailure(error: RecoveryError) extends SparkResult {
-  def message = error.json
-}
-case class SparkUnrecoverable(error: RecoveryError) extends SparkResult {
-  def message = error.json
+class Metrics extends Source with Serializable {
+  override val sourceName     = "summary"
+  override val metricRegistry = new MetricRegistry
+
+  val Vector(recovered, failed, unrecoverable) =
+    Result.partitions.map(p => metricRegistry.counter(p.toString)).toVector
+
 }
