@@ -43,13 +43,5 @@ package object recovery {
     b: BadRow
   )(
     implicit recoverable: Recoverable[BadRow, Payload]
-  ): Recovering[Payload] =
-    b.recover(steps)
-      .flatMap(
-        _.payload.toRight(
-          InvalidJsonFormat(
-            "Cannot extract payload after applying recovery scenario"
-          )
-        )
-      )
+  ): Recovering[Payload] = b.recover(steps)
 }

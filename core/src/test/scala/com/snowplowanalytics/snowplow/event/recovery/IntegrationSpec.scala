@@ -19,7 +19,7 @@ import cats.Id
 import cats.syntax.either._
 import io.circe.parser._
 import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
-import org.scalatest.{WordSpec, Inspectors}
+import org.scalatest.{Inspectors, WordSpec}
 import org.scalatest.Matchers._
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
 import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
