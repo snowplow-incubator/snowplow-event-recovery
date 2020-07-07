@@ -33,12 +33,14 @@ sealed trait RecoveryStatus {
 object RecoveryStatus {
   implicit val recoveryStatusEncoder: Encoder[RecoveryStatus] =
     Encoder.instance {
-      case s: InvalidStep       => InvalidStep.encoder(s)
-      case s: InvalidJsonFormat => InvalidJsonFormat.encoder(s)
-      case s: InvalidDataFormat => InvalidDataFormat.encoder(s)
+      case s: InvalidStep           => InvalidStep.encoder(s)
+      case s: InvalidJsonFormat     => InvalidJsonFormat.encoder(s)
+      case s: InvalidDataFormat     => InvalidDataFormat.encoder(s)
+      case s: UnexpectedFieldFormat => UnexpectedFieldFormat.encoder(s)
       case s: FailedToMatchConfiguration =>
         FailedToMatchConfiguration.encoder(s)
       case s: UncoerciblePayload   => UncoerciblePayload.encoder(s)
+      case s: UncocoerciblePayload => UncocoerciblePayload.encoder(s)
       case s: ThriftFailure        => ThriftFailure.encoder(s)
       case s: FieldDoesNotExist[_] => FieldDoesNotExist.encoder.apply(s)
       case s: UnrecoverableBadRowType[_] =>
@@ -76,6 +78,25 @@ case class InvalidJsonFormat(data: String) extends RecoveryStatus {
 
 object InvalidJsonFormat {
   implicit val encoder: Encoder[InvalidJsonFormat] = deriveEncoder
+}
+
+/**
+  * Signifies a generic field format exception.
+  * Data supplied at runtime did not comply expectation.
+  */
+case class UnexpectedFieldFormat(
+  data: String,
+  field: String,
+  expected: Option[String] = None,
+  error: Option[String]    = None
+) extends RecoveryStatus {
+  def message              = s"Supplied data: $data in $field, does not comply expected data format${fmt(expected)}.${raised(error)}"
+  private[this] val fmt    = (expected: Option[String]) => expected.map(v => s" ($v)").getOrElse("")
+  private[this] val raised = (error: Option[String]) => error.map(v => s" Raised error: $v").getOrElse("")
+}
+
+object UnexpectedFieldFormat {
+  implicit val encoder: Encoder[UnexpectedFieldFormat] = deriveEncoder
 }
 
 /**
@@ -243,6 +264,14 @@ case class UncoerciblePayload(data: Payload) extends RecoveryStatus {
 
 object UncoerciblePayload {
   implicit val encoder: Encoder[UncoerciblePayload] = deriveEncoder
+}
+
+case class UncocoerciblePayload(data: String) extends RecoveryStatus {
+  def message = s"Unable to cocoerce payload of type CollectorPayload to Payload.CollectorPayload"
+}
+
+object UncocoerciblePayload {
+  implicit val encoder: Encoder[UncocoerciblePayload] = deriveEncoder
 }
 
 case class ThriftFailure(data: String) extends RecoveryStatus {

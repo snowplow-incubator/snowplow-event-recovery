@@ -21,7 +21,6 @@ import domain._
 import shapeless.syntax.sized._
 import org.scalatest.Matchers._
 
-
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
   object RecoveryJobTest extends RecoveryJob {
@@ -103,7 +102,7 @@ class RecoveryJobSpec extends SparkSpec {
         RecoveryJobTest.run("input", "output", "failed", "unrecoverable", Regions.AP_EAST_1, 1, cfg)
         RecoveryJobTest.recovered.size == 1
         RecoveryJobTest.recovered should contain(
-          "CgDIAAAAAAAAAAALANIAAAAFVVRGLTgLANwAAAABYwsBQAAAACJjb20uc25vd3Bsb3dhbmFseXRpY3Muc25vd3Bsb3cvdHAyCwFKAAAAF2U9cHYmcGFnZT1EZW1vUGFnZVRpdGxlC3ppAAAAQWlnbHU6Y29tLnNub3dwbG93YW5hbHl0aWNzLnNub3dwbG93L0NvbGxlY3RvclBheWxvYWQvdGhyaWZ0LzEtMC0wAA=="
+          "CgDIAAAAAAAAAAALANIAAAAFVVRGLTgLANwAAAABYwsBQAAAACMvY29tLnNub3dwbG93YW5hbHl0aWNzLnNub3dwbG93L3RwMgsBSgAAABdlPXB2JnBhZ2U9RGVtb1BhZ2VUaXRsZQt6aQAAAEFpZ2x1OmNvbS5zbm93cGxvd2FuYWx5dGljcy5zbm93cGxvdy9Db2xsZWN0b3JQYXlsb2FkL3RocmlmdC8xLTAtMAA="
         )
         RecoveryJobTest.failed.size == 0
         RecoveryJobTest.unrecoverable.size == 0

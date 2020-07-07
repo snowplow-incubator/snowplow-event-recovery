@@ -19,7 +19,7 @@ import cats.Id
 import cats.syntax.either._
 import io.circe.parser._
 import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
-import org.scalatest.{WordSpec, Inspectors}
+import org.scalatest.{Inspectors, WordSpec}
 import org.scalatest.Matchers._
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
 import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
@@ -29,11 +29,9 @@ import com.snowplowanalytics.iglu.client.Client
 import config._
 import json.confD
 import gens.idClock
-import util.thrift
 import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
 import com.snowplowanalytics.snowplow.badrows.Processor
 import org.joda.time.DateTime
-import org.apache.thrift.TSerializer
 
 class IntegrationSpec extends WordSpec with Inspectors {
   val resolverConfig =
