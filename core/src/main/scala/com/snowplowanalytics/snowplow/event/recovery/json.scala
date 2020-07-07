@@ -35,7 +35,7 @@ object json {
   }
 
   val printer = Printer.noSpaces.copy(dropNullValues = true)
-  
+
   implicit val flowConfigE: Encoder[FlowConfig] = deriveEncoder
   implicit val flowConfigD: Decoder[FlowConfig] = deriveDecoder
 

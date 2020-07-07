@@ -17,13 +17,16 @@ package event.recovery
 
 import cats.data._
 import cats.implicits._
+import atto._, Atto._
 import com.snowplowanalytics.snowplow.badrows._
 import com.snowplowanalytics.snowplow.badrows.BadRow._
 import com.snowplowanalytics.snowplow.badrows.Payload
 import config._
 import domain._
 import steps._
+import util.thrift
 import inspectable.Inspectable._
+import util.payload._
 
 object recoverable {
 
@@ -35,27 +38,17 @@ object recoverable {
     /**
       * Apply a recovery configuration flow to given `a`.
       */
-    def recover(a: A)(config: List[StepConfig]): Either[RecoveryStatus, A]
-
-    /**
-      * Query `Recoverable`'s payload.
-      * @param recoverable
-      * @return optionally `Recoverable`'s `Payload`
-      */
-    def payload(a: A): Option[B]
+    def recover(a: A)(config: List[StepConfig]): Either[RecoveryStatus, B]
   }
 
   object Recoverable {
     def apply[A <: BadRow, B <: Payload](implicit r: Recoverable[A, B]): Recoverable[A, B] = r
 
     final def instance[A <: BadRow, B <: Payload](
-      r: A => List[StepConfig] => Recovering[A]
-    )(
-      p: A => Option[B]
+      r: A => List[StepConfig] => Recovering[B]
     ): Recoverable[A, B] =
       new Recoverable[A, B] {
-        override def recover(a: A)(config: List[StepConfig]): Recovering[A] = r(a)(config)
-        override def payload(a: A): Option[B]                               = p(a)
+        override def recover(a: A)(config: List[StepConfig]): Recovering[B] = r(a)(config)
       }
 
     /**
@@ -70,11 +63,11 @@ object recoverable {
 
     def recover[A <: BadRow, B <: Payload](a: A)(config: List[StepConfig])(implicit rs: Recoverable[A, B]) =
       rs.recover(a)(config)
+
     object ops {
       implicit class RecoverableOps[A <: BadRow, B <: Payload](a: A)(implicit rec: Recoverable[A, B]) {
         def recover(config: List[StepConfig]) =
           Recoverable[A, B].recover(a)(config)
-        def payload = Recoverable[A, B].payload(a)
       }
     }
 
@@ -85,65 +78,67 @@ object recoverable {
           trackerProtocolViolationsRecovery.recover(a)
         case a: SchemaViolations   => schemaViolationsRecovery.recover(a)
         case a: EnrichmentFailures => enrichmentFailuresRecovery.recover(a)
+        case a: CPFormatViolation  => cpFormatViolationRecovery.recover(a)
         case a: BadRow => { _ =>
           Left(UnrecoverableBadRowType(a))
         }
-      } {
-        case a: AdapterFailures           => a.payload.some
-        case a: TrackerProtocolViolations => a.payload.some
-        case a: SchemaViolations          => a.payload.some
-        case a: EnrichmentFailures        => a.payload.some
-        case _                            => None
       }
 
-    implicit val sizeViolationRecovery: Recoverable[SizeViolation, Payload.RawPayload]         = unrecoverable
-    implicit val cpFormatViolationRecovery: Recoverable[CPFormatViolation, Payload.RawPayload] = unrecoverable
-
+    implicit val sizeViolationRecovery: Recoverable[SizeViolation, Payload.RawPayload] =
+      unrecoverable
     implicit val adapterFailuresRecovery: Recoverable[AdapterFailures, Payload.CollectorPayload] =
-      new Recoverable[AdapterFailures, Payload.CollectorPayload] {
-        override def payload(b: AdapterFailures) = b.payload.some
-        override def recover(b: AdapterFailures)(config: List[StepConfig]) = {
-          def update(b: AdapterFailures)(p: Payload.CollectorPayload) =
-            b.copy(payload = p)
-
-          step(config, b.payload)(new Modify[Payload.CollectorPayload](_)).map(update(b))
-        }
-      }
-
+      recoverable(_.payload)
     implicit val trackerProtocolViolationsRecovery: Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] =
-      new Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] {
-        override def payload(b: TrackerProtocolViolations) = b.payload.some
-        override def recover(b: TrackerProtocolViolations)(config: List[StepConfig]) = {
-          def update(b: TrackerProtocolViolations)(p: Payload.CollectorPayload) = b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.CollectorPayload](_)).map(update(b))
-        }
-      }
-
+      recoverable(_.payload)
     implicit val schemaViolationsRecovery: Recoverable[SchemaViolations, Payload.EnrichmentPayload] =
-      new Recoverable[SchemaViolations, Payload.EnrichmentPayload] {
-        override def payload(b: SchemaViolations) = b.payload.some
-        override def recover(b: SchemaViolations)(config: List[StepConfig]) = {
-          def update(b: SchemaViolations)(p: Payload.EnrichmentPayload) =
-            b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_)).map(update(b))
-        }
-      }
-
+      recoverable(_.payload)
     implicit val enrichmentFailuresRecovery: Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] =
-      new Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] {
-        override def payload(b: EnrichmentFailures) = b.payload.some
-        override def recover(b: EnrichmentFailures)(config: List[StepConfig]) = {
-          def update(b: EnrichmentFailures)(p: Payload.EnrichmentPayload) =
-            b.copy(payload = p)
-          step(config, b.payload)(new Modify[Payload.EnrichmentPayload](_)).map(update(b))
+      recoverable(_.payload)
+
+    /**
+      * Fixes bad rows originating in
+      * https://github.com/snowplow/enrich/blob/4732d4d8b2e0d75c2b88530a60913542a3bd49c3/modules/common/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/loaders/Loader.scala#L60
+      */
+    implicit val cpFormatViolationRecovery: Recoverable[CPFormatViolation, Payload.CollectorPayload] =
+      new Recoverable[CPFormatViolation, Payload.CollectorPayload] {
+        override def recover(b: CPFormatViolation)(config: List[StepConfig]) =
+          for {
+            msg       <- querystring(b)
+            params    <- queryParams(msg).map(_.mapValues(filterInvalid))
+            payload   <- mkPayload(b.payload, params)
+            recovered <- step(config, payload)(new Modify[Payload.CollectorPayload](_))
+          } yield recovered
+
+        private[this] def querystring(b: CPFormatViolation) =
+          Option(b.payload.line).toRight(unexpectedFormat("empty")).flatMap(thrift.deserialize).map(_.querystring)
+
+        private[this] def queryParams(message: String) = {
+          val parser = ((stringOf(noneOf("&=")) <~ char('=')) ~ stringOf(notChar('&'))).sepBy(char('&'))
+          val parsed = parser.parse(message).map(_.toMap).done
+          (parsed.either match {
+            case Right(r) if r.isEmpty => Left("empty")
+            case Right(r)              => Right(r)
+            case Left(l)               => Left(l)
+          }).leftMap(err => unexpectedFormat(message, err.some))
         }
+
+        private[this] def mkPayload(p: Payload.RawPayload, params: Map[String, String]) =
+          thrift.deserialize(p.line).flatMap(cocoerce).map(_.copy(querystring = toNVP(params)))
+
+        private[this] def toNVP(params: Map[String, String]) =
+          params.map { case (k, v) => NVP(k, Option(v)) }.toList
+
+        // TODO remove name of placeholder or leave it?
+        private[this] def filterInvalid(s: String) = s.filterNot(Seq('[',']','{','}').contains(_))
+
+        private[this] def unexpectedFormat(data: String, error: Option[String] = None) =
+          UnexpectedFieldFormat(data, "querystring", "k1=v1&k2=v2".some, error)
       }
 
     implicit val recoveryErrorRecovery: Recoverable[BadRow.RecoveryError, Payload] =
       new Recoverable[BadRow.RecoveryError, Payload] {
-        override def payload(b: BadRow.RecoveryError): Option[Payload] = ???
-        override def recover(b: BadRow.RecoveryError)(config: List[StepConfig]): Recovering[BadRow.RecoveryError] =
-          (b.payload match {
+        override def recover(b: BadRow.RecoveryError)(config: List[StepConfig]): Recovering[Payload] =
+          b.payload match {
             case f: AdapterFailures =>
               adapterFailuresRecovery.recover(f)(config)
             case f: SizeViolation => sizeViolationRecovery.recover(f)(config)
@@ -152,12 +147,19 @@ object recoverable {
             case f: TrackerProtocolViolations =>
               trackerProtocolViolationsRecovery.recover(f)(config)
             case _ => Left(UnrecoverableBadRowType(b.payload))
-          }).map(recovered => b.copy(payload = recovered))
+          }
+      }
+
+    private[this] def recoverable[A <: BadRow, B <: Payload: Inspectable: io.circe.Encoder: io.circe.Decoder](
+      payload: A => B
+    ) =
+      new Recoverable[A, B] {
+        override def recover(b: A)(config: List[StepConfig]) =
+          step(config, payload(b))(new Modify[B](_))
       }
 
     private[this] def unrecoverable[A <: BadRow, B <: Payload] =
       new Recoverable[A, B] {
-        override def payload(a: A) = None
         override def recover(a: A)(c: List[StepConfig]) =
           Left(UnrecoverableBadRowType(a))
       }

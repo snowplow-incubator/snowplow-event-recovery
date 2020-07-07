@@ -15,7 +15,7 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.util.Random
-import org.scalatest.{WordSpec, Inspectors}
+import org.scalatest.{Inspectors, WordSpec}
 import org.scalatest.Matchers._
 import org.scalatestplus.scalacheck._
 

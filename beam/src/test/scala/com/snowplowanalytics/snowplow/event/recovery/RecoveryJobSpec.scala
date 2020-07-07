@@ -49,7 +49,7 @@ class RecoveryJobSpec extends PipelineSpec {
       "UTF-8",
       "c"
     )
-    c.path        = "com.snowplowanalytics.snowplow/tp2"
+    c.path        = "/com.snowplowanalytics.snowplow/tp2"
     c.querystring = "e=pv&page=DemoPageTitle"
     util.thrift.serialize(c).right.get :: Nil
   }

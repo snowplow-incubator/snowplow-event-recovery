@@ -25,6 +25,7 @@ object Dependencies {
     val slf4j        = "1.7.25"
 
     // Scala third-party
+    val atto            = "0.8.0"
     val catsCore        = "1.6.1"
     val catsEffect      = "1.4.1"
     val circe           = "0.11.1"
@@ -61,6 +62,7 @@ object Dependencies {
   val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"  % V.elephantBird
 
   // Scala third-party
+  val atto       = "org.tpolecat"  %% "atto-core"   % V.atto
   val catsCore   = "org.typelevel" %% "cats-core"   % V.catsCore
   val catsEffect = "org.typelevel" %% "cats-effect" % V.catsEffect
   val circe = Seq(
