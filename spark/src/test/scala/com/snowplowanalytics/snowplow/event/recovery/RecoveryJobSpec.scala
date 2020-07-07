@@ -21,7 +21,6 @@ import domain._
 import shapeless.syntax.sized._
 import org.scalatest.Matchers._
 
-
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
   object RecoveryJobTest extends RecoveryJob {
