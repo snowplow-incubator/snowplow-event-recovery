@@ -56,11 +56,10 @@ object Main
         help = "Unrecoverable (bad row) output S3 path. Defaults failedOutput/unrecoverable` or `input/unrecoverable`"
       )
       .orNone
-    val region = Opts
-      .option[String](
-        "region",
-        help = "Kinesis region"
-      )
+    val region = Opts.option[String](
+      "region",
+      help = "Kinesis region"
+    )
     val batchSize = Opts
       .option[Int](
         "batchSize",

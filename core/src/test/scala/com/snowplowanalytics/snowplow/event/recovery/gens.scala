@@ -126,8 +126,8 @@ object gens {
   implicit val castingA     = implicitly[Arbitrary[Casting]]
   implicit val stepConfigA  = implicitly[Arbitrary[StepConfig]]
 
-  implicit val compareA  = Arbitrary(valueA.arbitrary.map(Compare(_)))
-  implicit val regexA    = implicitly[Arbitrary[RegularExpression]]
+  implicit val compareA = Arbitrary(valueA.arbitrary.map(Compare(_)))
+  implicit val regexA   = implicitly[Arbitrary[RegularExpression]]
 
   implicit val sizeGtA = implicitly[Arbitrary[Size.Gt]]
   implicit val sizeLtA = implicitly[Arbitrary[Size.Lt]]
