@@ -1,3 +1,13 @@
+Version 0.3.0 (XXXX-XX-XX)
+--------------------------
+Add a better example for filtring querystrings (#68)
+Make Kinesis output optional (#65)
+Add RFC-based character-encoding to URL fixing (#66)
+Add `debugOutput` flag for Spark job (#64)
+Remove Base64 encoding upon writing (#63)
+Explicitly use JSON types in conditions (#62)
+Extend copyright notice to 2020 (#69)
+
 Version 0.2.0 (2020-05-10)
 --------------------------
 Support new bad row format (#44)
