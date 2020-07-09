@@ -15,20 +15,10 @@
 
 package com.snowplowanalytics.snowplow.event.recovery.config.conditions
 
-import shapeless._
 import io.circe.Json
 
 /**
   */
 trait Matcher {
-  object checks extends Poly1 {
-    implicit def checkStr  = at[String](string)
-    implicit def checkNum  = at[Long](num)
-    implicit def checkSq   = at[Seq[_]](seq)
-    implicit def checkJson = at[Json](json)
-  }
-  def string: String => Boolean
-  def num: Long => Boolean
-  def seq: Seq[_] => Boolean
-  def json: Json => Boolean
+  def checks(j: Json): Boolean
 }
