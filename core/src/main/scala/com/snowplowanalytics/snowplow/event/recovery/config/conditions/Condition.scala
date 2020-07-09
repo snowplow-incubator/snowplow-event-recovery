@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery
 package config.conditions
 
 import scala.annotation.tailrec
-import io.circe.Json
-import io.circe.ACursor
+import io.circe.{ACursor, Json}
 
 /**
   * Defines a condition used for matching against data to check whether to apply given set of steps in FlowConfig.
@@ -35,11 +34,11 @@ case class Condition(
     * Checks fields that are at a lower JSON level
     * ie. $.payload.parameters.aid
     */
-  private[this] def nested(obj: Json, path: String): Option[String] = {
+  private[this] def nested(obj: Json, path: String): Option[Json] = {
     @tailrec
-    def apply(root: ACursor, nodes: Seq[String]): Option[String] = nodes match {
+    def apply(root: ACursor, nodes: Seq[String]): Option[Json] = nodes match {
       case Seq() =>
-        root.focus.flatMap(_.asString)
+        root.focus
       case Seq(h, t @ _*) =>
         apply(root.downField(h), t)
     }

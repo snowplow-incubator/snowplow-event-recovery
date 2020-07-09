@@ -45,7 +45,7 @@ object inspectable {
       )(
         path: String,
         matcher: Option[String],
-        replacement: String
+        replacement: Json
       )(
         implicit e: Encoder[A],
         d: Decoder[A]
@@ -62,7 +62,7 @@ object inspectable {
         * @param matcher a regex string for matching values
         */
       def remove(a: A)(path: Path, matcher: Option[String])(implicit e: Encoder[A], d: Decoder[A]): Recovering[A] =
-        replace(a)(path, matcher, "")
+        replace(a)(path, matcher, "".asJson)
 
       /**
         * A transformation casting JSON types (including Base64-encoded) to others.
@@ -94,7 +94,7 @@ object inspectable {
         def replace(
           path: Path,
           matcher: Option[String],
-          replacement: String
+          replacement: Json
         ) =
           Inspectable[A].replace(a)(path, matcher, replacement)
         def remove(path: Path, matcher: Option[String]) =
