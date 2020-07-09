@@ -14,8 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import org.apache.flink.util.{OutputTag => JOutputTag}
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{Collector, OutputTag => JOutputTag}
 import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import domain._

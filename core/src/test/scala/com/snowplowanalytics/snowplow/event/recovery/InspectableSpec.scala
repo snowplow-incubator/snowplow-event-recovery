@@ -24,6 +24,7 @@ import org.scalatestplus.scalacheck._
 import com.snowplowanalytics.snowplow.badrows._
 import inspectable.Inspectable.ops._
 import gens._
+import io.circe.syntax._
 
 class InspectableSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$".some
@@ -34,10 +35,10 @@ class InspectableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
       forAll { (payload: Payload.CollectorPayload) =>
         val field       = Field(payload)
         val replacement = s"$prefix${field.name}"
-        val replaced    = payload.replace(field.name, anyString, replacement)
+        val replaced    = payload.replace(field.name, anyString, replacement.asJson)
         replaced should be('right)
         replaced.right.value should not be equal(payload)
-        val reverted = replaced.right.value.replace(field.name, anyString, field.strValue)
+        val reverted = replaced.right.value.replace(field.name, anyString, field.strValue.asJson)
         reverted should be('right)
         Field.extract(payload, field.name).map(_.value).value should equal(field.value)
       }
