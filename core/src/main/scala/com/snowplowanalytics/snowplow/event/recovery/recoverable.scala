@@ -73,32 +73,29 @@ object recoverable {
 
     implicit val badRowRecovery: Recoverable[BadRow, Payload] =
       Recoverable.instance[BadRow, Payload] {
-        case a: AdapterFailures => adapterFailuresRecovery.recover(a)
-        case a: TrackerProtocolViolations =>
-          trackerProtocolViolationsRecovery.recover(a)
-        case a: SchemaViolations   => schemaViolationsRecovery.recover(a)
-        case a: EnrichmentFailures => enrichmentFailuresRecovery.recover(a)
-        case a: CPFormatViolation  => cpFormatViolationRecovery.recover(a)
+        case a: AdapterFailures           => adapterFailuresRecovery.recover(a)
+        case a: CPFormatViolation         => cpFormatViolationRecovery.recover(a)
+        case a: EnrichmentFailures        => enrichmentFailuresRecovery.recover(a)
+        case a: SchemaViolations          => schemaViolationsRecovery.recover(a)
+        case a: SizeViolation             => sizeViolationRecovery.recover(a)
+        case a: TrackerProtocolViolations => trackerProtocolViolationsRecovery.recover(a)
+        case a: BadRow.RecoveryError      => recoveryErrorRecovery.recover(a)
         case a: BadRow => { _ =>
           Left(UnrecoverableBadRowType(a))
         }
       }
 
-    implicit val sizeViolationRecovery: Recoverable[SizeViolation, Payload.RawPayload] =
-      unrecoverable
     implicit val adapterFailuresRecovery: Recoverable[AdapterFailures, Payload.CollectorPayload] =
-      recoverable(_.payload)
-    implicit val trackerProtocolViolationsRecovery: Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] =
-      recoverable(_.payload)
-    implicit val schemaViolationsRecovery: Recoverable[SchemaViolations, Payload.EnrichmentPayload] =
-      recoverable(_.payload)
+      recoverableInstance(_.payload)
     implicit val enrichmentFailuresRecovery: Recoverable[EnrichmentFailures, Payload.EnrichmentPayload] =
-      recoverable(_.payload)
+      recoverableInstance(_.payload)
+    implicit val schemaViolationsRecovery: Recoverable[SchemaViolations, Payload.EnrichmentPayload] =
+      recoverableInstance(_.payload)
+    implicit val sizeViolationRecovery: Recoverable[SizeViolation, Payload.RawPayload] =
+      unrecoverableInstance
+    implicit val trackerProtocolViolationsRecovery: Recoverable[TrackerProtocolViolations, Payload.CollectorPayload] =
+      recoverableInstance(_.payload)
 
-    /**
-      * Fixes bad rows originating in
-      * https://github.com/snowplow/enrich/blob/4732d4d8b2e0d75c2b88530a60913542a3bd49c3/modules/common/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/loaders/Loader.scala#L60
-      */
     implicit val cpFormatViolationRecovery: Recoverable[CPFormatViolation, Payload.CollectorPayload] =
       new Recoverable[CPFormatViolation, Payload.CollectorPayload] {
         override def recover(b: CPFormatViolation)(config: List[StepConfig]) =
@@ -129,7 +126,7 @@ object recoverable {
           params.map { case (k, v) => NVP(k, Option(v)) }.toList
 
         // TODO remove name of placeholder or leave it?
-        private[this] def filterInvalid(s: String) = s.filterNot(Seq('[',']','{','}').contains(_))
+        private[this] def filterInvalid(s: String) = s.filterNot(Seq('[', ']', '{', '}').contains(_))
 
         private[this] def unexpectedFormat(data: String, error: Option[String] = None) =
           UnexpectedFieldFormat(data, "querystring", "k1=v1&k2=v2".some, error)
@@ -139,18 +136,17 @@ object recoverable {
       new Recoverable[BadRow.RecoveryError, Payload] {
         override def recover(b: BadRow.RecoveryError)(config: List[StepConfig]): Recovering[Payload] =
           b.payload match {
-            case f: AdapterFailures =>
-              adapterFailuresRecovery.recover(f)(config)
-            case f: SizeViolation => sizeViolationRecovery.recover(f)(config)
-            case f: EnrichmentFailures =>
-              enrichmentFailuresRecovery.recover(f)(config)
-            case f: TrackerProtocolViolations =>
-              trackerProtocolViolationsRecovery.recover(f)(config)
-            case _ => Left(UnrecoverableBadRowType(b.payload))
+            case a: AdapterFailures           => adapterFailuresRecovery.recover(a)(config)
+            case a: CPFormatViolation         => cpFormatViolationRecovery.recover(a)(config)
+            case a: EnrichmentFailures        => enrichmentFailuresRecovery.recover(a)(config)
+            case a: SchemaViolations          => schemaViolationsRecovery.recover(a)(config)
+            case a: SizeViolation             => sizeViolationRecovery.recover(a)(config)
+            case a: TrackerProtocolViolations => trackerProtocolViolationsRecovery.recover(a)(config)
+            case _                            => Left(UnrecoverableBadRowType(b.payload))
           }
       }
 
-    private[this] def recoverable[A <: BadRow, B <: Payload: Inspectable: io.circe.Encoder: io.circe.Decoder](
+    private[this] def recoverableInstance[A <: BadRow, B <: Payload: Inspectable: io.circe.Encoder: io.circe.Decoder](
       payload: A => B
     ) =
       new Recoverable[A, B] {
@@ -158,7 +154,7 @@ object recoverable {
           step(config, payload(b))(new Modify[B](_))
       }
 
-    private[this] def unrecoverable[A <: BadRow, B <: Payload] =
+    private[this] def unrecoverableInstance[A <: BadRow, B <: Payload] =
       new Recoverable[A, B] {
         override def recover(a: A)(c: List[StepConfig]) =
           Left(UnrecoverableBadRowType(a))

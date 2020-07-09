@@ -16,7 +16,7 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 package util
 
-import java.net.URLEncoder
+import java.net.{URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets.UTF_8
 import scala.collection.JavaConverters._
 import cats.syntax.either._
@@ -25,7 +25,6 @@ import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
 import org.joda.time.DateTime
 import java.util.UUID
-import java.net.URLDecoder
 
 object payload {
 

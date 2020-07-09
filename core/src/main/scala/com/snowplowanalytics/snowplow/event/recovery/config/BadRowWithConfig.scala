@@ -59,7 +59,7 @@ object BadRowWithConfig {
         .leftMap(err => InvalidDataFormat(line.some, err.getMessage))
     else Right(decoded)
 
-  private[this] val find = (config: Config, body: SelfDescribingBadRow) =>
+  private[config] val find = (config: Config, body: SelfDescribingBadRow) =>
     config
       .find(v => matchSchema(v._1, body.schema.toSchemaUri))
       .flatMap(_._2.find(v => check(v.conditions, body.data)))

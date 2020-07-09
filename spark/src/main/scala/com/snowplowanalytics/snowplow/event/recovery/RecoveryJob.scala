@@ -15,17 +15,16 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import com.hadoop.compression.lzo.{LzoCodec, LzopCodec}
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext, SparkEnv}
 import org.apache.spark.metrics.source.Metrics
 import org.apache.spark.sql.{Dataset, Encoder, Encoders, SaveMode, SparkSession}
+import org.apache.spark.util.LongAccumulator
 import com.amazonaws.regions.Regions
 import jp.co.bizreach.kinesis.spark._
 import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
 import domain._
-import org.apache.spark.{SparkContext, SparkEnv}
-import org.apache.spark.util.LongAccumulator
 
 object RecoveryJob extends RecoveryJob
 
@@ -66,15 +65,13 @@ trait RecoveryJob {
     implicit val resultE: Encoder[SparkResult] = Encoders.kryo
     import spark.implicits._
 
-    val recovered: Dataset[SparkResult] = load(input).map { line =>
-      execute(cfg)(line) match {
-        case Right(r) =>
-          SparkSuccess(r)
-        case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
-          SparkUnrecoverable(e.left.get)
-        case Left(e) =>
-          SparkFailure(e)
-      }
+    val recovered: Dataset[SparkResult] = load(input).map(execute(cfg)).map {
+      case Right(r) =>
+        SparkSuccess(r)
+      case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
+        SparkUnrecoverable(e.left.get)
+      case Left(e) =>
+        SparkFailure(e)
     }
 
     val summary =
