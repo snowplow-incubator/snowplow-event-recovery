@@ -19,29 +19,27 @@ package event.recovery
 import java.util.{Base64, UUID}
 import java.util.concurrent.TimeUnit
 
+import shapeless._
+import cats.Id
+import cats.data.EitherT
+import cats.effect.Clock
 import io.circe.Json
+import io.circe.syntax._
 import io.circe.literal._
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalacheck.ScalacheckShapeless._
 import com.fortysevendeg.scalacheck.datetime.joda.ArbitraryJoda._
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import org.scalacheck.ScalacheckShapeless._
 
+import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
 import iglu.core.{SchemaKey, SchemaVer}
 import iglu.client.resolver.registries.Registry
 import iglu.client.resolver.Resolver
 import iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
 
-import com.snowplowanalytics.snowplow.badrows._
-import com.snowplowanalytics.snowplow.event.recovery.config.conditions._
-
-import cats.Id
-import cats.data.EitherT
-import cats.effect.Clock
-import shapeless._
-import com.snowplowanalytics.snowplow.event.recovery.config._
-import com.snowplowanalytics.snowplow.event.recovery.config.conditions._
+import config.conditions._
+import config._
 import domain._
 
 object gens {
@@ -119,6 +117,16 @@ object gens {
   implicit val recoverableBadRowA: Arbitrary[BadRow] = Arbitrary(
     Gen.oneOf(badRowAdapterFailuresA.arbitrary, badRowTrackerProtocolViolationsA.arbitrary)
   )
+  implicit val recoveryErrorBadRow: Arbitrary[BadRow.RecoveryError] = Arbitrary(
+    for {
+      processor  <- processorA.arbitrary
+      error      <- nonEmptyString.arbitrary
+      failure    <- Gen.option(nonEmptyString.arbitrary)
+      payload    <- recoverableBadRowA.arbitrary
+      recoveries <- Gen.choose(1, 3)
+    } yield BadRow.RecoveryError(processor, Failure.RecoveryFailure(error, failure), payload, recoveries)
+  )
+
   implicit val uuidGen: Gen[UUID] = Gen.uuid
 
   implicit val replacementA = implicitly[Arbitrary[Replacement]]
@@ -126,8 +134,9 @@ object gens {
   implicit val castingA     = implicitly[Arbitrary[Casting]]
   implicit val stepConfigA  = implicitly[Arbitrary[StepConfig]]
 
-  implicit val compareA = Arbitrary(valueA.arbitrary.map(Compare(_)))
-  implicit val regexA   = implicitly[Arbitrary[RegularExpression]]
+  implicit val jsonA: Arbitrary[Json] = Arbitrary(Gen.alphaNumStr.map(_.asJson))
+  implicit val basic                  = Vector(Gen.alphaNumStr, Gen.posNum[Double])
+  implicit val regexA                 = implicitly[Arbitrary[RegularExpression]]
 
   implicit val sizeGtA = implicitly[Arbitrary[Size.Gt]]
   implicit val sizeLtA = implicitly[Arbitrary[Size.Lt]]
@@ -136,9 +145,6 @@ object gens {
   implicit val sizeA   = implicitly[Arbitrary[Size]]
 
   implicit val invalidJsonFormatA = implicitly[Arbitrary[InvalidJsonFormat]]
-  implicit val valueA: Arbitrary[Value] = Arbitrary(
-    Gen.oneOf(Gen.posNum[Long].map(Coproduct[Value](_)), Gen.alphaNumStr.map(Coproduct[Value](_)))
-  )
 
   implicit val matcherA: Arbitrary[Matcher] = Arbitrary(
     Gen.oneOf(regexA.arbitrary, sizeA.arbitrary)

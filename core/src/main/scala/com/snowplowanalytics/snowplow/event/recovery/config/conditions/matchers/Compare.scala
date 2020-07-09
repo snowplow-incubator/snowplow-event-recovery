@@ -20,9 +20,14 @@ import io.circe.Json
 /**
   *  A matcher allowing comparing data against Value.
   */
-case class Compare(value: Value) extends Matcher {
-  def string                 = _ == value.select[String].get
-  def num: Long => Boolean   = _.toString == value.select[Long].get
-  def seq: Seq[_] => Boolean = _ => false
-  def json: Json => Boolean  = _ == value.select[Json].get
+case class Compare(value: Json) extends Matcher {
+  def checks(j: Json) =
+    j.fold(
+      value.isNull,
+      b => value.asBoolean.map(_ == b).getOrElse(false),
+      n => value.asNumber.map(_ == n).getOrElse(false),
+      s => value.asString.map(_ == s).getOrElse(false),
+      a => value.asArray.map(_ == a).getOrElse(false),
+      o => value.asObject.map(_ == o).getOrElse(false)
+    )
 }

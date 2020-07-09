@@ -34,14 +34,14 @@ final case class RecoveryError(
     case _ =>
       parse(row)
         .flatMap(_.as[SelfDescribingBadRow])
-        .map(toRecoveryError(configName))
+        .map(toBadRow(configName))
         .leftMap(s => toCPFormatViolation(row, s.getMessage))
         .merge
   }
 
   val json = badRow.selfDescribingData.asJson.noSpaces
 
-  private[this] def toRecoveryError(configName: Option[String])(typedRow: SelfDescribingBadRow) =
+  private[this] def toBadRow(configName: Option[String])(typedRow: SelfDescribingBadRow) =
     BadRow.RecoveryError(
       processor = Processor("snowplow-event-recovery", "0.2.0"),
       failure   = Failure.RecoveryFailure(status.message, configName),
@@ -51,7 +51,7 @@ final case class RecoveryError(
           case b: BadRow.RecoveryError => b.payload
           case _                       => typedRow.data
         }
-        .get,
+        .getOrElse(typedRow.data),
       recoveries = untyped.recoveries(typedRow.data).map(_ + 1).getOrElse(1)
     )
   private[this] def toCPFormatViolation(row: String, message: String) =
