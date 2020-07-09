@@ -17,9 +17,12 @@ package com.snowplowanalytics.snowplow.event.recovery
 import com.amazonaws.regions.Regions
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import scala.collection.JavaConverters._
-import domain._
 import shapeless.syntax.sized._
+import io.circe.parser.decode
 import org.scalatest.Matchers._
+import domain._
+import json._
+import config._
 
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
@@ -41,7 +44,6 @@ class RecoveryJobSpec extends SparkSpec {
       v: Dataset[SparkResult],
       summary: Summary
     )(implicit encoder: Encoder[String]) = {
-      println(s"$output,$failedOutput,$unrecoverableOutput,$region,$batchSize")
       recovered ++= v
         .filter(_.isInstanceOf[SparkSuccess])
         .map { r =>
@@ -74,9 +76,7 @@ class RecoveryJobSpec extends SparkSpec {
     }
 
   }
-  import json._
-  import config._
-  import io.circe.parser.decode
+
   val cfg: Config = decode("""
     {
       "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/2-0-0",

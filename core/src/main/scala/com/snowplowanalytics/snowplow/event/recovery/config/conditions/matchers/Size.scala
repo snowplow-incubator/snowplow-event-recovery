@@ -20,10 +20,15 @@ import io.circe.Json
 /**
   */
 case class Size(size: Size.Matcher) extends Matcher {
-  def string                 = v => size.check(v.size)
-  def num: Long => Boolean   = v => size.check(Math.ceil(v.toDouble).toInt)
-  def seq: Seq[_] => Boolean = v => size.check(v.size)
-  def json: Json => Boolean  = _ => false
+  def checks(j: Json) =
+    j.fold(
+      false,
+      _ => false,
+      n => size.check(Math.ceil(n.toDouble).toInt),
+      s => size.check(s.size),
+      a => size.check(a.size),
+      _ => false
+    )
 }
 
 case object Size {

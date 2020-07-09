@@ -16,6 +16,7 @@
 package com.snowplowanalytics.snowplow.event.recovery.config
 
 import conditions.{Cast, Remove, Replace}
+import io.circe.Json
 
 sealed trait StepConfig
 
@@ -23,7 +24,7 @@ case class Replacement(
   op: Replace.type,
   path: Path,
   `match`: Option[Regexp],
-  value: String
+  value: Json
 ) extends StepConfig
 
 case class Removal(

@@ -29,6 +29,7 @@ import config.conditions._
 import domain._
 import util.thrift
 import gens._
+import io.circe.syntax._
 
 class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$".some
@@ -40,7 +41,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val field       = "vendor"
         val value       = b.payload.vendor
         val replacement = s"$prefix$value"
-        val conf        = (replacement: String) => List(Replacement(Replace, field, anyString, replacement))
+        val conf        = (replacement: String) => List(Replacement(Replace, field, anyString, replacement.asJson))
 
         val recovered = b.recover(conf(replacement))
         recovered should be('right)
@@ -53,12 +54,12 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
     }
     "allow matcher-based field content removal" in {
       forAll { (b: BadRow.TrackerProtocolViolations) =>
-        val field = Field(b.payload)
-        val conf  = List(Removal(Remove, field.name, anyString))
-
+        val field     = Field(b.payload)
+        val conf      = List(Removal(Remove, field.name, anyString))
         val recovered = b.recover(conf)
+
         recovered should be('right)
-        recovered.map(v => Field.extract(v, field.name).map(_.value)).right.value.get match {
+        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).right.value match {
           case Some(v) => v shouldEqual ""
           case None    => true
           case v       => v shouldEqual ""
@@ -71,11 +72,13 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val replacement = s"$prefix${field.name}"
 
         val conf =
-          List(Replacement(Replace, field.name, anyString, replacement), Removal(Remove, field.name, field.name.some))
-
+          List(
+            Replacement(Replace, field.name, anyString, replacement.asJson),
+            Removal(Remove, field.name, field.name.some)
+          )
         val recovered = b.recover(conf)
         recovered should be('right)
-        recovered.map(v => Field.extract(v, field.name).map(_.value)).right.value.get match {
+        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).right.value match {
           case Some(v) => v shouldEqual prefix
           case None    => true
           case v       => v shouldEqual prefix
@@ -93,7 +96,12 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
       }
       forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
         val withoutQuerystring = withQS(b, Map.empty, cp)
-        withoutQuerystring.right.get.recover(List.empty) should be('left)
+        withoutQuerystring.right.value.recover(List.empty) should be('left)
+      }
+    }
+    "handle composite bad row" in {
+      forAll { (b: BadRow.RecoveryError) =>
+        b.recover(List.empty) should be('right)
       }
     }
     "handle CPFormatViolation when querystring contains invalid characters" in {

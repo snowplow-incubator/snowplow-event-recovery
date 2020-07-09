@@ -38,17 +38,17 @@ object replace {
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(matcher: Option[String], value: String)(path: Seq[String])(body: Json): Recovering[Json] =
+  def apply(matcher: Option[String], value: Json)(path: Seq[String])(body: Json): Recovering[Json] =
     transform(
       replaceFn(matcher, value),
       ReplacementFailure(
         _,
         matcher,
-        value
+        value.noSpaces
       )
     )(path)(body)
 
-  private[this] def replaceFn(matcher: Option[String], value: String): Json => Recovering[Json] = {
+  private[this] def replaceFn(matcher: Option[String], value: Json): Json => Recovering[Json] = {
     case v if v.isNumber =>
       number(value)(v.asNumber.get).map(_.asJson)
     case v if v.isObject =>
@@ -63,42 +63,46 @@ object replace {
       string(Seq.empty, matcher, value)(v.asString.get).map(_.asJson)
   }
 
-  private[this] def boolean(value: String)(x: Boolean): Recovering[Boolean] =
-    Either.catchNonFatal(value.toBoolean).leftMap(err => ReplacementFailure(err.getMessage, None, x.toString))
+  private[this] def boolean(value: Json)(x: Boolean): Recovering[Boolean] =
+    value.asBoolean.toRight(ReplacementFailure(x.toString, None, value.noSpaces))
 
-  private[this] def number(value: String)(x: JsonNumber): Recovering[JsonNumber] =
-    JsonNumber.fromString(value).toRight(ReplacementFailure(x.toString, None, value))
+  private[this] def number(value: Json)(x: JsonNumber): Recovering[JsonNumber] =
+    value.asNumber.toRight(ReplacementFailure(x.toString, None, value.noSpaces))
 
-  private[this] def array(matcher: Option[String], value: String)(x: Vector[Json]): Recovering[Vector[Json]] =
-    x.map(
-        _.fold[Recovering[Json]](
-          Right("".asJson),
-          b => boolean(value)(b).map(_.asJson),
-          n => number(value)(n).map(_.asJson),
-          s => string(Seq.empty, matcher, value)(s).map(_.asJson),
-          a => array(matcher, value)(a).map(_.asJson),
-          o => jObject(Seq.empty, matcher, value)(o).map(_.asJson)
-        )
-      )
-      .sequence[Recovering, Json]
+  private[this] def array(matcher: Option[String], value: Json)(x: Vector[Json]): Recovering[Vector[Json]] =
+    matcher match {
+      case Some(m) if value.isArray =>
+        (x.filter(v => m.r.findAllIn(v.noSpaces).isEmpty) ++ value.asArray.getOrElse(Vector.empty)).asRight
+      case Some(m) =>
+        x.map(v => m.r.replaceAllIn(v.noSpaces, value.noSpaces))
+          .traverse(parseJson)
+          .leftMap(err => ReplacementFailure(err.toString, None, value.noSpaces))
+      case None if value.isArray =>
+        value.as[Vector[Json]].leftMap(err => ReplacementFailure(err.toString, None, value.noSpaces))
+      case None => Vector(value).asRight
+    }
 
   private[this] def string(
     context: Seq[String],
     matcher: Option[String],
-    value: String
+    value: Json
   )(
     x: String
   ): Recovering[String] =
     if (isB64Encoded(x)) {
       base64(context, matcher, value)(x)
     } else {
-      matcher.map(_.r.replaceAllIn(x, value)).getOrElse(value).asRight
+      value
+        .asString
+        .flatMap(v => matcher.map(_.r.replaceAllIn(x, v)))
+        .getOrElse(value.asString.getOrElse(value.noSpaces))
+        .asRight
     }
 
   private[this] def jObject(
     context: Seq[String],
     matcher: Option[String],
-    value: String
+    value: Json
   )(
     x: JsonObject
   ): Recovering[JsonObject] =
@@ -108,14 +112,14 @@ object replace {
       o <- p
         .asObject
         .toRight(
-          ReplacementFailure(x.asJson.noSpaces, matcher, value)
+          ReplacementFailure(x.asJson.noSpaces, matcher, value.noSpaces)
         )
     } yield o
 
   private[this] def base64(
     path: Seq[String],
     matcher: Option[String],
-    replacement: String
+    replacement: Json
   )(
     str: String
   ): Recovering[String] =
