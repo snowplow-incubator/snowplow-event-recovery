@@ -1,7 +1,7 @@
 import ammonite.ops._
 import $ivy.`org.typelevel::cats-core:2.0.0`, cats.Id, cats.instances.list._, cats.syntax.traverse._, cats.syntax.either._
 import $ivy.`io.circe::circe-parser:0.11.1`, io.circe._, io.circe.syntax._, io.circe.parser._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.2.0`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.3.0-rc3`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 import java.util.concurrent.TimeUnit
 import cats.effect.Clock
 
@@ -38,7 +38,7 @@ object configs {
   def fromFile(cfgPath: String) = validate(load(cfgPath))
 
   private[this] val resolverConfig =
-    """{"schema":"iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1","data":{"cacheSize":0,"repositories":[{"name": "Iglu Central","priority": 0,"vendorPrefixes": [ "com.snowplowanalytics" ],"connection": {"http":{"uri":"http://iglucentral.com"}}},{"name":"Priv","priority":0,"vendorPrefixes":["com.snowplowanalytics"],"connection":{"http":{"uri":"http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/release/r114"}}}]}}"""
+    """{"schema":"iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1","data":{"cacheSize":0,"repositories":[{"name": "Iglu Central","priority": 0,"vendorPrefixes": [ "com.snowplowanalytics" ],"connection": {"http":{"uri":"http://iglucentral.com"}}},{"name":"Priv","priority":0,"vendorPrefixes":["com.snowplowanalytics"],"connection":{"http":{"uri":"http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/feature/recoveries-4-ux-improvements"}}}]}}"""
 
   private[this] implicit val idClock: Clock[Id] = new Clock[Id] {
     final def realTime(unit: TimeUnit): Id[Long] =
