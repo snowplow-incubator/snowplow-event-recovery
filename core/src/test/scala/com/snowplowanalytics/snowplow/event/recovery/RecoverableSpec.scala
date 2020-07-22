@@ -107,12 +107,20 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
     "handle CPFormatViolation when querystring contains invalid characters" in {
       forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
         val fill            = "lorem-ipsum"
-        val withQuerystring = withQS(b, Map("aaaa" -> s"[$fill]", "cccc" -> s"{{$fill}}", "eeee" -> s"{$fill}"), cp)
+        val formats         = Seq(s"[$fill]", s"{{$fill}}", s"{$fill}", s"$${$fill}")
+        val withQuerystring = withQS(b, Stream.from(1).map(_.toString).zip(formats).toMap, cp)
         val recovered       = withQuerystring.getOrElse(b).recover(List.empty)
         val params          = recovered.right.value.querystring.map { case NVP(_, v) => v }.flatten
 
         recovered should be('right)
-        params.filter(_ == fill) should have size 3
+        params.filter(_ == fill) should have size (formats.size)
+      }
+    }
+    "handle CPFormatViolation when querystring is null" in {
+      forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
+        cp.querystring = null
+        val badRow = thrift.serialize(cp).map(p => b.copy(payload = RawPayload(p)))
+        badRow.flatMap(_.recover(List.empty)) should be('left)
       }
     }
   }

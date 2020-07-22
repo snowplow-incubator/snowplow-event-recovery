@@ -20,11 +20,14 @@ import org.apache.spark.metrics.source.Metrics
 import org.apache.spark.sql.{Dataset, Encoder, Encoders, SaveMode, SparkSession}
 import org.apache.spark.util.LongAccumulator
 import com.amazonaws.regions.Regions
-import jp.co.bizreach.kinesis.spark._
+import jp.co.bizreach.kinesis.recordsMaxCount
+import jp.co.bizreach.kinesis.spark.{DefaultCredentials, KinesisRDDWriter, SparkAWSCredentials}
 import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
+import util.base64
 import domain._
+import kinesis._
 
 object RecoveryJob extends RecoveryJob
 
@@ -62,20 +65,29 @@ trait RecoveryJob {
     val metrics = new Metrics()
     SparkEnv.get.metricsSystem.registerSource(metrics)
 
-    implicit val resultE: Encoder[SparkResult] = Encoders.kryo
-    import spark.implicits._
+    implicit val resultE: Encoder[Result]                      = Encoders.kryo
+    implicit val stringResultE: Encoder[(Array[Byte], Result)] = Encoders.kryo
 
-    val recovered: Dataset[SparkResult] = load(input).map(execute(cfg)).map {
+    import spark.implicits._
+    val recovered: Dataset[(Array[Byte], Result)] = load(input).map(execute(cfg)).map {
       case Right(r) =>
-        SparkSuccess(r)
+        (r, Recovered)
       case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
-        SparkUnrecoverable(e.left.get)
+        (e.left.get.json.getBytes, Unrecoverable)
       case Left(e) =>
-        SparkFailure(e)
+        (e.json.getBytes, Failed)
     }
 
     val summary =
-      sink(output, failedOutput, unrecoverableOutput, region, batchSize, recovered, new Summary(spark.sparkContext))
+      sink(
+        output,
+        failedOutput,
+        unrecoverableOutput,
+        region,
+        batchSize,
+        recovered,
+        new Summary(spark.sparkContext)
+      )
 
     metrics.recovered.inc(summary.successful.value)
     metrics.unrecoverable.inc(summary.unrecoverable.value)
@@ -116,12 +128,12 @@ trait RecoveryJob {
     unrecoverableOutput: String,
     region: Regions,
     batchSize: Int,
-    v: Dataset[SparkResult],
+    v: Dataset[(Array[Byte], Result)],
     summary: Summary
-  )(implicit encoder: Encoder[String]): Summary = {
-    val successful    = v.filter(_.isInstanceOf[SparkSuccess]).map(_.message)
-    val unrecoverable = v.filter(_.isInstanceOf[SparkUnrecoverable]).map(_.message)
-    val failed        = v.filter(_.isInstanceOf[SparkFailure]).map(_.message)
+  )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]): Summary = {
+    val successful    = v.filter(_._2 == Recovered).map(_._1)
+    val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
+    val failed        = v.filter(_._2 == Failed).map(_._1)
 
     successful
       .map { x =>
@@ -129,13 +141,13 @@ trait RecoveryJob {
         x
       }
       .rdd
-      .saveToKinesis(streamName = output, region = region, chunk = batchSize)
+      .sinkToKinesis(streamName = output, region = region, chunk = batchSize)
 
     if (!failed.isEmpty) {
       failed
         .map { x =>
           summary.failed.add(1)
-          x
+          base64.byteToString(x)
         }
         .write
         .mode(SaveMode.Append)
@@ -146,7 +158,7 @@ trait RecoveryJob {
       unrecoverable
         .map { x =>
           summary.unrecoverable.add(1)
-          x
+          base64.byteToString(x)
         }
         .write
         .mode(SaveMode.Append)
@@ -160,4 +172,37 @@ trait RecoveryJob {
 case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, failed: LongAccumulator) {
   def this(sc: SparkContext) =
     this(sc.longAccumulator("recovered"), sc.longAccumulator("unrecoverable"), sc.longAccumulator("failed"))
+
+  override def toString() = s"SUMMARY | RECOVERED: ${successful.value} | FAILED : ${failed.value} | UNRECOVERABLE: ${unrecoverable.value}"
+}
+
+import org.apache.spark.rdd.RDD
+import org.json4s.{DefaultFormats, Formats}
+object kinesis {
+  implicit class KinesisRDD[A <: AnyRef](rdd: RDD[A]) {
+    def sinkToKinesis(
+      streamName: String,
+      region: Regions,
+      credentials: SparkAWSCredentials = DefaultCredentials,
+      chunk: Int                       = recordsMaxCount,
+      endpoint: Option[String]         = None
+    ): Unit =
+      if (!rdd.isEmpty)
+        rdd
+          .sparkContext
+          .runJob(rdd, new PlainKinesisRDDWriter(streamName, region, credentials, chunk, endpoint).write _)
+  }
+  class PlainKinesisRDDWriter[A <: AnyRef](
+    streamName: String,
+    region: Regions,
+    credentials: SparkAWSCredentials,
+    chunk: Int,
+    endpoint: Option[String]
+  ) extends KinesisRDDWriter[A](streamName, region, credentials, chunk, endpoint) {
+
+    override def serialize(a: A)(implicit formats: Formats = DefaultFormats): Array[Byte] =
+      a.asInstanceOf[Array[Byte]]
+
+  }
+
 }

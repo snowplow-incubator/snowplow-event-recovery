@@ -17,7 +17,7 @@ package event.recovery
 
 import cats.syntax.functor._
 import io.circe.{Decoder, Encoder, Printer}
-import io.circe.shapes._, io.circe.syntax._
+import io.circe.syntax._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.generic.extras.semiauto.{deriveEnumerationDecoder, deriveEnumerationEncoder}
 import com.snowplowanalytics.snowplow.badrows._

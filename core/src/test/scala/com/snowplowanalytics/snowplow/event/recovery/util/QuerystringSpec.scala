@@ -18,28 +18,34 @@ package event.recovery
 import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
-import CollectorPayload.thrift.model1.CollectorPayload
 import gens._
 
-import util.thrift
+import util.querystring._
+import org.scalacheck.Shrink
 
-class ThriftSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
-  "thriftSerDe" should {
-    "deserialize any collector payload with base64-encoding" in {
-      forAll { (cp: CollectorPayload) =>
-        val oldCp = new CollectorPayload(cp)
-        val newCp = thrift.serialize(cp).map(new String(_)).flatMap(thrift.deserialize)
-        oldCp shouldEqual newCp.right.value
+class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+  implicit val noShrink: Shrink[String] = Shrink.shrinkAny
+
+  "querystring" should {
+    "extract params from string" in {
+
+      forAll(querystringGen) { qs =>
+        val p = params(qs)
+        p.right.value.size shouldEqual qs.split("&").size
       }
     }
-    "deserialize any collector payload without base64 encoding" in {
-      forAll { (cp: CollectorPayload) =>
-        val oldCp = new CollectorPayload(cp)
-        val newCp = thrift.serializeNoB64(cp).flatMap(thrift.deser)
-        oldCp shouldEqual newCp.right.value
+    "extract values from query params" in {
+      forAll(paramGen) { p =>
+        (clean(p)).r.findFirstIn(p).isDefined should be(true)
       }
-    }    
+    }
+    "convert strings to lists of NVPs and back" in {
+      forAll(querystringGen) { qs =>
+        fromNVP(toNVP(clean(qs))) shouldEqual clean(qs)
+      }
+    }
+    "produce BadRow for invalid line data" in {
+      orBadRow(null, None) should be('left)
+    }
   }
-
 }
