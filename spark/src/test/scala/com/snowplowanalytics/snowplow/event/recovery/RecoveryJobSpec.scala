@@ -42,6 +42,7 @@ class RecoveryJobSpec extends SparkSpec {
       output: String,
       failedOutput: String,
       unrecoverableOutput: String,
+      debugOutput: Option[String],
       region: Regions,
       batchSize: Int,
       v: Dataset[(Array[Byte], Result)],
@@ -115,7 +116,7 @@ class RecoveryJobSpec extends SparkSpec {
   "RecoveryJob" must {
     "filter" should {
       "should filter based on the criteria passed as arguments" in {
-        RecoveryJobTest.run("input", "output", "failed", "unrecoverable", Regions.AP_EAST_1, 1, cfg)
+        RecoveryJobTest.run("input", "output", "failed", "unrecoverable", Some("debug"), Regions.AP_EAST_1, 1, cfg)
         RecoveryJobTest.recovered.size == 1
         RecoveryJobTest.recovered should contain(fixed)
         RecoveryJobTest.failed.size == 0
