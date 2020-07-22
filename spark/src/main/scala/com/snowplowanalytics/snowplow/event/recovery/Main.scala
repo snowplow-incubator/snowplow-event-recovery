@@ -56,6 +56,12 @@ object Main
         help = "Unrecoverable (bad row) output S3 path. Defaults failedOutput/unrecoverable` or `input/unrecoverable`"
       )
       .orNone
+    val debugOutput = Opts
+      .option[String](
+        "debugOutput",
+        help = "Debug output for pushing recovered `ControllerPayload` to S3 path."
+      )
+      .orNone
     val region = Opts.option[String](
       "region",
       help = "Kinesis region"
@@ -86,10 +92,11 @@ object Main
       output,
       failedOutput,
       unrecoverableOutput,
+      debugOutput,
       region,
       batchSize,
       validatedConfig
-    ).mapN { (i, o, f, u, r, b, c) =>
+    ).mapN { (i, o, f, u, d, r, b, c) =>
       IO.fromEither(
         c.map(
             RecoveryJob.run(
@@ -97,6 +104,7 @@ object Main
               o,
               f.getOrElse(failedPath(i)),
               u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
+              d,              
               Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
               b.getOrElse(kinesis.recordsMaxDataSize),
               _
