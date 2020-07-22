@@ -22,7 +22,7 @@ case object Unrecoverable extends Result
 
 object Result {
   val partitions = Set[Result](Recovered, Failed, Unrecoverable)
-  val byKey: Either[RecoveryError, String] => Result = {
+  val byKey: Either[RecoveryError, Array[Byte]] => Result = {
     case Right(_)                                              => Recovered
     case Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) => Unrecoverable
     case Left(_)                                               => Failed

@@ -70,15 +70,10 @@ class IntegrationSpec extends WordSpec with Inspectors {
       .getLines
       .toList
       .map(recoveryExecute(conf))
+      .map(_.leftMap(_.badRow))
       .map {
-        _.leftMap(_.badRow).flatMap { p =>
-          thrift
-            .deserialize(p)
-            .leftMap(_.withRow("").badRow)
-            .map(new TSerializer().serialize)
-            .flatMap(bytes =>
-              ThriftLoader.toCollectorPayload(bytes, Processor("recovery", "0.0.0")).toEither.leftMap(_.head)
-            )
+        _.flatMap { bytes =>
+          ThriftLoader.toCollectorPayload(bytes, Processor("recovery", "0.0.0")).toEither.leftMap(_.head)
         }
       }
       .flatMap { p =>
