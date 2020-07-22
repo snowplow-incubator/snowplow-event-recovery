@@ -47,15 +47,17 @@ trait RecoveryJob {
     * @param region Kinesis deployment region
     * @param batchSize size of event batches sent to Kinesis
     * @param cfg configuration object containing mappings and recovery flow configurations
+    * @param debugOutput optionally output successful recoveries into a file
     */
   def run(
     input: String,
     output: String,
     failedOutput: String,
     unrecoverableOutput: String,
+    debugOutput: Option[String],
     region: Regions,
     batchSize: Int,
-    cfg: Config
+    cfg: Config,
   ): Unit = {
     implicit val spark: SparkSession = init()
 
@@ -76,7 +78,7 @@ trait RecoveryJob {
     }
 
     val summary =
-      sink(output, failedOutput, unrecoverableOutput, region, batchSize, recovered, new Summary(spark.sparkContext))
+      sink(output, failedOutput, unrecoverableOutput, debugOutput, region, batchSize, recovered, new Summary(spark.sparkContext))
 
     metrics.recovered.inc(summary.successful.value)
     metrics.unrecoverable.inc(summary.unrecoverable.value)
@@ -115,11 +117,12 @@ trait RecoveryJob {
     output: String,
     failedOutput: String,
     unrecoverableOutput: String,
+    debugOutput: Option[String],
     region: Regions,
     batchSize: Int,
     v: Dataset[(Array[Byte], Result)],
     summary: Summary
-  )(implicit encoder: Encoder[Array[Byte]]): Summary = {
+  )(implicit encoder: Encoder[Array[Byte]], stringEncoder: Encoder[String]): Summary = {
     val successful    = v.filter(_._2 == Recovered).map(_._1)
     val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
     val failed        = v.filter(_._2 == Failed).map(_._1)
@@ -131,6 +134,10 @@ trait RecoveryJob {
       }
       .rdd
       .saveToKinesis(streamName = output, region = region, chunk = batchSize)
+
+    if (debugOutput.isDefined) {
+      successful.map(new String(_)).write.mode(SaveMode.Append).text(debugOutput.get)
+    }
 
     if (!failed.isEmpty) {
       failed
