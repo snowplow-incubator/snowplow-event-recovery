@@ -42,14 +42,16 @@ object typeinfo {
     TypeInformation.of(classOf[Either[BadRow, Payload]])
   implicit val eitherRPT: TypeInformation[Either[RecoveryError, Payload]] =
     TypeInformation.of(classOf[Either[RecoveryError, Payload]])
-  implicit val eitherRST: TypeInformation[Either[RecoveryError, String]] =
-    TypeInformation.of(classOf[Either[RecoveryError, String]])
+  implicit val eitherRABT: TypeInformation[Either[RecoveryError, Array[Byte]]] =
+    TypeInformation.of(classOf[Either[RecoveryError, Array[Byte]]])
   implicit val collectorPayloadT: TypeInformation[CollectorPayload] =
     TypeInformation.of(classOf[CollectorPayload])
   implicit val optionCollectorPayloadT: TypeInformation[Option[CollectorPayload]] =
     TypeInformation.of(classOf[Option[CollectorPayload]])
   implicit val stringT: TypeInformation[String] =
     TypeInformation.of(classOf[String])
+  implicit val abT: TypeInformation[Array[Byte]] =
+    TypeInformation.of(classOf[Array[Byte]])
   implicit val jsonT: TypeInformation[Json] = TypeInformation.of(classOf[Json])
   implicit val badRowStepsT: TypeInformation[BadRowWithConfig] =
     TypeInformation.of(classOf[BadRowWithConfig])

@@ -32,10 +32,10 @@ package object recovery {
     * @param cfg overall flow configuration
     * @param line a line to be recovered
     */
-  def execute(cfg: Config)(line: String): Either[RecoveryError, String] =
+  def execute(cfg: Config)(line: String): Either[RecoveryError, Array[Byte]] =
     parseJson(line).leftMap(_ => InvalidJsonFormat(line).withRow(line)).flatMap(BadRowWithConfig.extract(cfg)).flatMap {
       v =>
-        recover(v.steps, v.badRow).flatMap(coerce).flatMap(thrift.serialize).leftMap(_.withRow(line))
+        recover(v.steps, v.badRow).flatMap(coerce).flatMap(thrift.serializeNoB64).leftMap(_.withRow(line))
     }
 
   private[this] def recover(
