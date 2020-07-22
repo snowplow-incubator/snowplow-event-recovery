@@ -50,12 +50,14 @@ trait RecoveryJob {
     * @param region Kinesis deployment region
     * @param batchSize size of event batches sent to Kinesis
     * @param cfg configuration object containing mappings and recovery flow configurations
+    * @param debugOutput optionally output successful recoveries into a file
     */
   def run(
     input: String,
     output: String,
     failedOutput: String,
     unrecoverableOutput: String,
+    debugOutput: Option[String],
     region: Regions,
     batchSize: Int,
     cfg: Config
@@ -83,6 +85,7 @@ trait RecoveryJob {
         output,
         failedOutput,
         unrecoverableOutput,
+        debugOutput,
         region,
         batchSize,
         recovered,
@@ -126,6 +129,7 @@ trait RecoveryJob {
     output: String,
     failedOutput: String,
     unrecoverableOutput: String,
+    debugOutput: Option[String],
     region: Regions,
     batchSize: Int,
     v: Dataset[(Array[Byte], Result)],
@@ -142,6 +146,10 @@ trait RecoveryJob {
       }
       .rdd
       .sinkToKinesis(streamName = output, region = region, chunk = batchSize)
+
+    if (debugOutput.isDefined) {
+      successful.write.mode(SaveMode.Append).text(debugOutput.get)
+    }
 
     if (!failed.isEmpty) {
       failed
