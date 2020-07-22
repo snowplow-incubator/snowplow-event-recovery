@@ -51,7 +51,7 @@ class RecoveryJobSpec extends PipelineSpec {
     )
     c.path        = "/com.snowplowanalytics.snowplow/tp2"
     c.querystring = "e=pv&page=DemoPageTitle"
-    util.thrift.serialize(c).right.get :: Nil
+    util.thrift.serializeNoB64(c).right.get :: Nil
   }
 
   val badRows = Seq(
@@ -81,7 +81,7 @@ class RecoveryJobSpec extends PipelineSpec {
       .output(TextIO("failed/com.snowplowanalytics.snowplow.badrows.recovery_error")) { s =>
         s should haveSize(0)
       }
-      .output(PubsubIO.readString("out")) { s =>
+      .output(PubsubIO.readCoder[Array[Byte]]("out")) { s =>
         s should haveSize(1)
         s should containInAnyOrder(fixed)
       }

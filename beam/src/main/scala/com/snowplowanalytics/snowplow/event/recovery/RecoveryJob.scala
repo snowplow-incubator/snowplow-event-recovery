@@ -66,7 +66,7 @@ object RecoveryJob {
     unrecoverableOutput: String
   )(
     k: Result,
-    v: SCollection[Either[RecoveryError, String]]
+    v: SCollection[Either[RecoveryError, Array[Byte]]]
   ) = k match {
     case Recovered =>
       v.withName("count-recovered")

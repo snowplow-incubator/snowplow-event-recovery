@@ -26,13 +26,20 @@ import util.thrift
 
 class ThriftSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
   "thriftSerDe" should {
-    "deserialize any collector payload" in {
+    "deserialize any collector payload with base64-encoding" in {
       forAll { (cp: CollectorPayload) =>
         val oldCp = new CollectorPayload(cp)
         val newCp = thrift.serialize(cp).map(new String(_)).flatMap(thrift.deserialize)
         oldCp shouldEqual newCp.right.value
       }
     }
+    "deserialize any collector payload without base64 encoding" in {
+      forAll { (cp: CollectorPayload) =>
+        val oldCp = new CollectorPayload(cp)
+        val newCp = thrift.serializeNoB64(cp).flatMap(thrift.deser)
+        oldCp shouldEqual newCp.right.value
+      }
+    }    
   }
 
 }

@@ -62,16 +62,17 @@ trait RecoveryJob {
     val metrics = new Metrics()
     SparkEnv.get.metricsSystem.registerSource(metrics)
 
-    implicit val resultE: Encoder[SparkResult] = Encoders.kryo
-    import spark.implicits._
+    implicit val resultE: Encoder[Result] = Encoders.kryo
+    implicit val resultAbE: Encoder[(Array[Byte], Result)] = Encoders.kryo
 
-    val recovered: Dataset[SparkResult] = load(input).map(execute(cfg)).map {
+    import spark.implicits._
+    val recovered: Dataset[(Array[Byte], Result)] = load(input).map(execute(cfg)) map {
       case Right(r) =>
-        SparkSuccess(r)
+        (r, Recovered)
       case e @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
-        SparkUnrecoverable(e.left.get)
+        (e.left.get.json.getBytes, Unrecoverable)
       case Left(e) =>
-        SparkFailure(e)
+        (e.json.getBytes, Failed)
     }
 
     val summary =
@@ -116,12 +117,12 @@ trait RecoveryJob {
     unrecoverableOutput: String,
     region: Regions,
     batchSize: Int,
-    v: Dataset[SparkResult],
+    v: Dataset[(Array[Byte], Result)],
     summary: Summary
-  )(implicit encoder: Encoder[String]): Summary = {
-    val successful    = v.filter(_.isInstanceOf[SparkSuccess]).map(_.message)
-    val unrecoverable = v.filter(_.isInstanceOf[SparkUnrecoverable]).map(_.message)
-    val failed        = v.filter(_.isInstanceOf[SparkFailure]).map(_.message)
+  )(implicit encoder: Encoder[Array[Byte]]): Summary = {
+    val successful    = v.filter(_._2 == Recovered).map(_._1)
+    val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1).map(new String(_))
+    val failed        = v.filter(_._2 == Failed).map(_._1).map(new String(_))
 
     successful
       .map { x =>
