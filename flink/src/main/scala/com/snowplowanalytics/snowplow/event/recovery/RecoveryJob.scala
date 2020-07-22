@@ -18,7 +18,7 @@ import java.util.Properties
 import org.slf4j.LoggerFactory
 import cats.syntax.either._
 import org.apache.flink.core.fs.Path
-import org.apache.flink.api.common.serialization.{SimpleStringEncoder, SimpleStringSchema}
+import org.apache.flink.api.common.serialization.{SimpleStringEncoder, SerializationSchema}
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.kinesis._
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
@@ -58,7 +58,7 @@ object RecoveryJob {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val kinesis = {
       val producer =
-        new FlinkKinesisProducer[String](new SimpleStringSchema, new Properties())
+        new FlinkKinesisProducer[Array[Byte]](BytesSerializationSchema, new Properties())
       producer.setFailOnError(true)
       producer.setDefaultStream(output)
       producer.setDefaultPartition("0")
@@ -78,7 +78,7 @@ object RecoveryJob {
     ()
   }
 
-  private[this] def sinkErr(lines: DataStream[String], sideTag: OutputTag[RecoveryError], output: String) =
+  private[this] def sinkErr(lines: DataStream[Array[Byte]], sideTag: OutputTag[RecoveryError], output: String) =
     Either
       .catchNonFatal(
         lines.getSideOutput(sideTag).map(_.badRow.selfDescribingData.asJson.noSpaces).addSink(file(output))
@@ -98,4 +98,9 @@ object RecoveryJob {
       .build()
 
   private[this] val log = LoggerFactory.getLogger(getClass())
+}
+
+object BytesSerializationSchema extends SerializationSchema[Array[Byte]] {
+  override def serialize(element: Array[Byte]): Array[Byte] =
+    element
 }

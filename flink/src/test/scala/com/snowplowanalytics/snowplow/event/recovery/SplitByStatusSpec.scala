@@ -28,17 +28,17 @@ import org.mockito.Mockito._
 import domain._
 
 class SplitByStatusSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues with MockitoSugar {
-  implicit val eitherBRorPayload: Gen[Either[RecoveryError, String]] =
-    Gen.either(gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")), gens.nonEmptyString.arbitrary)
+  implicit val eitherBRorPayload: Gen[Either[RecoveryError, Array[Byte]]] =
+    Gen.either(gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")), gens.nonEmptyString.arbitrary.map(_.getBytes))
 
   "SplitByStatus" should {
     "separate recovery success from failure" in {
-      forAll(eitherBRorPayload) { (b: Either[RecoveryError, String]) =>
+      forAll(eitherBRorPayload) { (b: Either[RecoveryError, Array[Byte]]) =>
         val tag1      = OutputTag[RecoveryError]("failed")
         val tag2      = OutputTag[RecoveryError]("unrecoverable")
         val fn        = new SplitByStatus(tag1, tag2)
-        val collector = mock[Collector[String]]
-        val ctx       = mock[ProcessFunction[Either[RecoveryError, String], String]#Context]
+        val collector = mock[Collector[Array[Byte]]]
+        val ctx       = mock[ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]]#Context]
         fn.processElement(b, ctx, collector)
         if (b.isRight) verify(collector).collect(b.right.get)
       }

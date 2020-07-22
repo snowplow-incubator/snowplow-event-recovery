@@ -20,11 +20,11 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import domain._
 
 class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[RecoveryError])
-    extends ProcessFunction[Either[RecoveryError, String], String] {
+    extends ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]] {
   override def processElement(
-    value: Either[RecoveryError, String],
-    ctx: ProcessFunction[Either[RecoveryError, String], String]#Context,
-    out: Collector[String]
+    value: Either[RecoveryError, Array[Byte]],
+    ctx: ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]]#Context,
+    out: Collector[Array[Byte]]
   ): Unit = {
     def logAndCollect(tag: OutputTag[RecoveryError])(s: RecoveryError) =
       ctx.output(
