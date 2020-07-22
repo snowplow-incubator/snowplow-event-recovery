@@ -17,6 +17,7 @@ package event.recovery
 package util
 
 import java.util.Base64
+import java.nio.charset.StandardCharsets.UTF_8
 import cats.syntax.either._
 import domain.{Base64Failure, Recovering}
 
@@ -44,7 +45,7 @@ object base64 {
   def encode(str: Array[Byte]): Recovering[String] =
     Either
       .catchNonFatal(Base64.getEncoder.encodeToString(str))
-      .leftMap(e => Base64Failure(new String(str), s"Unable to base64-encode string: ${e.getMessage}"))
+      .leftMap(e => Base64Failure(byteToString(str), s"Unable to base64-encode string: ${e.getMessage}"))
 
-  val byteToString = (arr: Array[Byte]) => new String(arr)
+  val byteToString = (arr: Array[Byte]) => new String(arr, UTF_8)
 }
