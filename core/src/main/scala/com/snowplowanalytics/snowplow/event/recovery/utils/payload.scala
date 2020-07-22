@@ -16,8 +16,6 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 package util
 
-import java.net.{URLDecoder, URLEncoder}
-import java.nio.charset.StandardCharsets.UTF_8
 import scala.collection.JavaConverters._
 import cats.syntax.either._
 import domain._
@@ -40,7 +38,7 @@ object payload {
       cp.path          = mkPath(p.vendor, p.version)
       cp.userAgent     = p.useragent.orNull
       cp.refererUri    = p.refererUri.orNull
-      cp.querystring   = toQuerystring(p.querystring)
+      cp.querystring   = querystring.fromNVP(p.querystring)
       cp.body          = p.body.orNull
       cp.headers       = p.headers.asJava
       cp.contentType   = p.contentType.orNull
@@ -59,7 +57,7 @@ object payload {
       cp.path          = mkPath(p.vendor, p.version)
       cp.userAgent     = p.useragent.orNull
       cp.refererUri    = p.refererUri.orNull
-      cp.querystring   = toQuerystring(p.parameters)
+      cp.querystring   = querystring.fromNVP(p.parameters)
       cp.hostname      = p.hostname.orNull
       cp.networkUserId = p.userId.map(_.toString).orNull
       cp
@@ -76,13 +74,6 @@ object payload {
   val coerce: Payload => Recovering[CollectorPayload] =
     (a: Payload) => coercePF.lift(a).toRight(UncoerciblePayload(a))
 
-  private[this] val toQuerystring = (l: List[NVP]) => {
-    val urlEncode = (str: String) => URLEncoder.encode(str, UTF_8.toString)
-    val show      = (n: NVP) => s"${n.name}=${urlEncode(n.value.getOrElse(""))}"
-
-    l.map(show).mkString("&")
-  }
-
   private[this] val thriftSchema =
     "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
 
@@ -92,7 +83,7 @@ object payload {
       Payload.CollectorPayload(
         vendor        = vendorVersion.vendor,
         version       = vendorVersion.version,
-        querystring   = fromQuerystring(cp.querystring),
+        querystring   = querystring.toNVP(cp.querystring),
         contentType   = Option(cp.contentType),
         body          = Option(cp.body),
         collector     = Option(cp.collector).getOrElse(""),
@@ -122,26 +113,6 @@ object payload {
 
     Option(path).map(split).getOrElse(Empty)
   }
-
-  private[this] val fromQuerystring = (s: String) => {
-    val Empty      = List.empty
-    val urlDecoded = (s: String) => URLDecoder.decode(s, UTF_8.toString())
-    val toNVP = (s: String) =>
-      s.split("=").toList match {
-        case Nil                  => List(NVP("", Some("")))
-        case "" :: "" :: Nil      => List(NVP("", Some("")))
-        case "" :: value :: Nil   => List(NVP("", Some(urlDecoded(value))))
-        case name :: "" :: Nil    => List(NVP(name, None))
-        case "" :: Nil            => Empty
-        case name :: Nil          => List(NVP(name, None))
-        case name :: value :: Nil => List(NVP(name, Some(urlDecoded(value))))
-        case _                    => Empty
-      }
-    val split = (s: String) => s.split("&").toList.flatMap(toNVP)
-
-    Option(s).map(split).getOrElse(Empty)
-  }
-
   val cocoerce: CollectorPayload => Recovering[Payload.CollectorPayload] =
     (a: CollectorPayload) => cocoercePF.lift(a).toRight(UncocoerciblePayload(a.toString))
 }

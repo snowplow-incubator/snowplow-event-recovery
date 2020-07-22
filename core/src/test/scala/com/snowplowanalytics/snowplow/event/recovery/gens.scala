@@ -176,4 +176,15 @@ object gens {
   } yield s"iglu:com.snowplowanalytics.snowplow.badrows/$badRowType/jsonschema/$major-$minor-$patch"
 
   val nonEmptyString = Arbitrary(Gen.nonEmptyListOf[Char](Gen.alphaChar).map(_.mkString))
+
+  val querystringGen = (for {
+    xs <- Gen.choose(5, 20)
+    ks <- Gen.listOfN(xs, nonEmptyString.arbitrary.map(_.take(7)).map(_.replace("=","")))
+    vs <- Gen.listOfN(xs, paramGen)
+  } yield ks.zip(vs).toMap.map { case (k, v) => s"$k=$v" }.mkString("&"))
+
+  val paramGen = for {
+    format <- Gen.oneOf(("", ""), ("{{", "}}"), ("${", "}"), ("[", "]"))
+    str    <- Gen.alphaNumStr
+  } yield format._1 ++ str ++ format._2
 }
