@@ -49,7 +49,7 @@ class RecoveryJobSpec extends SparkSpec {
       batchSize: Int,
       v: Dataset[(Array[Byte], Result)],
       summary: Summary
-    )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)]) = {
+    )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]) = {
       recovered ++= v
         .filter(_._2 == Recovered).map(_._1)
         .map { r =>
