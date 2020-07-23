@@ -134,7 +134,7 @@ trait RecoveryJob {
     batchSize: Int,
     v: Dataset[(Array[Byte], Result)],
     summary: Summary
-  )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)]): Summary = {
+  )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]): Summary = {
     val successful    = v.filter(_._2 == Recovered).map(_._1)
     val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
     val failed        = v.filter(_._2 == Failed).map(_._1)
@@ -148,14 +148,14 @@ trait RecoveryJob {
       .sinkToKinesis(streamName = output, region = region, chunk = batchSize)
 
     if (debugOutput.isDefined) {
-      successful.write.mode(SaveMode.Append).text(debugOutput.get)
+      successful.map(base64.byteToString).write.mode(SaveMode.Append).text(debugOutput.get)
     }
 
     if (!failed.isEmpty) {
       failed
         .map { x =>
           summary.failed.add(1)
-          x
+          base64.byteToString(x)
         }
         .write
         .mode(SaveMode.Append)
@@ -166,7 +166,7 @@ trait RecoveryJob {
       unrecoverable
         .map { x =>
           summary.unrecoverable.add(1)
-          x
+          base64.byteToString(x)
         }
         .write
         .mode(SaveMode.Append)
@@ -183,8 +183,7 @@ case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, 
 }
 
 import org.apache.spark.rdd.RDD
-import org.json4s.jackson.JsonMethods
-import org.json4s.{DefaultFormats, Extraction, Formats}
+import org.json4s.{DefaultFormats, Formats}
 object kinesis {
   implicit class KinesisRDD[A <: AnyRef](rdd: RDD[A]) {
     def sinkToKinesis(
