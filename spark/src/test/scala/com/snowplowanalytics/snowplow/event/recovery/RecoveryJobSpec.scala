@@ -29,11 +29,11 @@ import config._
 
 class RecoveryJobSpec extends SparkSpec {
   implicit val session = spark
-  implicit val resultE: Encoder[(String, Result)] = Encoders.kryo
+  implicit val resultE: Encoder[(Array[Byte], Result)] = Encoders.kryo
 
   object RecoveryJobTest extends RecoveryJob {
     val Some((recovered, failed, unrecoverable)) =
-      Result.partitions.toList.map(_ => collection.mutable.ListBuffer.empty[String]).sized(3).map(_.tupled)
+      Result.partitions.toList.map(_ => collection.mutable.ListBuffer.empty[Array[Byte]]).sized(3).map(_.tupled)
 
     override def load(input: String)(implicit spark: SparkSession): Dataset[String] = {
       import spark.implicits._
@@ -47,9 +47,9 @@ class RecoveryJobSpec extends SparkSpec {
       debugOutput: Option[String],
       region: Regions,
       batchSize: Int,
-      v: Dataset[(String, Result)],
+      v: Dataset[(Array[Byte], Result)],
       summary: Summary
-    )(implicit encoder: Encoder[String], resEncoder: Encoder[(String, Result)]) = {
+    )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)]) = {
       recovered ++= v
         .filter(_._2 == Recovered).map(_._1)
         .map { r =>
@@ -112,7 +112,7 @@ class RecoveryJobSpec extends SparkSpec {
     )
     c.path        = "/com.snowplowanalytics.snowplow/tp2"
     c.querystring = "e=pv&page=DemoPageTitle"
-    util.thrift.serializeNoB64(c).map(new String(_)).right.get
+    util.thrift.serializeNoB64(c).right.get
   }
 
   "RecoveryJob" must {

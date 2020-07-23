@@ -41,7 +41,7 @@ object base64 {
     * @param encoded base64-encoded string
     * @return either a successfully decoded string or a failure
     */
-  def encode(str: String): Recovering[String] = encode(str.getBytes)
+  def encode(str: String): Recovering[String] = encode(str.getBytes(UTF_8))
   def encode(str: Array[Byte]): Recovering[String] =
     Either
       .catchNonFatal(Base64.getEncoder.encodeToString(str))

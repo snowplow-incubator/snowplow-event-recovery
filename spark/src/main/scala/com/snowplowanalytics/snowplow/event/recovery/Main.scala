@@ -23,7 +23,7 @@ import cats.effect._
 
 import com.monovore.decline._
 import com.monovore.decline.effect._
-import jp.co.bizreach.kinesis
+import jp.co.bizreach.kinesis.recordsMaxDataSize
 
 import util.paths._
 import util.base64
@@ -106,7 +106,7 @@ object Main
               u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
               d,              
               Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
-              b.getOrElse(kinesis.recordsMaxDataSize),
+              b.getOrElse(recordsMaxDataSize),
               _
             )
           )
