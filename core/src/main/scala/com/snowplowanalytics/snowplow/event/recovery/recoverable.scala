@@ -27,6 +27,7 @@ import steps._
 import util.thrift
 import inspectable.Inspectable._
 import util.payload._
+import cats.syntax.either._
 
 object recoverable {
 
@@ -107,7 +108,7 @@ object recoverable {
           } yield recovered
 
         private[this] def querystring(b: CPFormatViolation) =
-          Option(b.payload.line).toRight(unexpectedFormat("empty")).flatMap(thrift.deserialize).map(_.querystring)
+          Option(b.payload.line).toRight(unexpectedFormat("empty payload line")).flatMap(thrift.deserialize).flatMap(v => Option(v.querystring).toRight(unexpectedFormat("null querystring")))
 
         private[this] def queryParams(message: String) = {
           val parser = ((stringOf(noneOf("&=")) <~ char('=')) ~ stringOf(notChar('&'))).sepBy(char('&'))

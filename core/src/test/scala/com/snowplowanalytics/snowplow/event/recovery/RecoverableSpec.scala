@@ -115,6 +115,13 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         params.filter(_ == fill) should have size 3
       }
     }
+    "handle CPFormatViolation when querystring is null" in {
+      forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
+        cp.querystring = null
+        val badRow = thrift.serialize(cp).map(p => b.copy(payload = RawPayload(p)))
+        badRow.flatMap(_.recover(List.empty)) should be('left)
+      }
+    }
   }
 
   private[this] def withQS(
