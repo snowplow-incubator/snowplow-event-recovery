@@ -108,7 +108,9 @@ object recoverable {
           } yield recovered
 
         private[this] def querystring(b: CPFormatViolation) =
-          Option(b.payload.line).toRight(unexpectedFormat("empty payload line")).flatMap(thrift.deserialize).flatMap(v => Option(v.querystring).toRight(unexpectedFormat("null querystring")))
+          orBadRow(b.payload.line, "nullified payload line".some)
+            .flatMap(thrift.deserialize)
+            .flatMap(v => orBadRow(v.querystring, "nullified querystring".some))
 
         private[this] def queryParams(message: String) = {
           val parser = ((stringOf(noneOf("&=")) <~ char('=')) ~ stringOf(notChar('&'))).sepBy(char('&'))
@@ -128,6 +130,9 @@ object recoverable {
 
         // TODO remove name of placeholder or leave it?
         private[this] def filterInvalid(s: String) = s.filterNot(Seq('[', ']', '{', '}').contains(_))
+
+        private[this] def orBadRow(str: String, error: Option[String] = None) =
+          Option(str).toRight(unexpectedFormat("empty payload line", error))
 
         private[this] def unexpectedFormat(data: String, error: Option[String] = None) =
           UnexpectedFieldFormat(data, "querystring", "k1=v1&k2=v2".some, error)
