@@ -17,7 +17,6 @@ package event.recovery
 
 import cats.data._
 import cats.implicits._
-import atto._, Atto._
 import com.snowplowanalytics.snowplow.badrows._
 import com.snowplowanalytics.snowplow.badrows.BadRow._
 import com.snowplowanalytics.snowplow.badrows.Payload
@@ -27,7 +26,7 @@ import steps._
 import util.thrift
 import inspectable.Inspectable._
 import util.payload._
-import cats.syntax.either._
+import util.querystring._
 
 object recoverable {
 
@@ -101,41 +100,24 @@ object recoverable {
       new Recoverable[CPFormatViolation, Payload.CollectorPayload] {
         override def recover(b: CPFormatViolation)(config: List[StepConfig]) =
           for {
-            msg       <- querystring(b)
-            params    <- queryParams(msg).map(_.mapValues(filterInvalid))
-            payload   <- mkPayload(b.payload, params)
+            payload   <- recoverQuery(b)
             recovered <- step(config, payload)(new Modify[Payload.CollectorPayload](_))
           } yield recovered
+
+        private[this] def recoverQuery(b: CPFormatViolation) =
+          for {
+            msg       <- querystring(b)
+            params    <- params(msg).map(_.mapValues(clean))
+            payload   <- mkPayload(b.payload, params)
+          } yield payload
 
         private[this] def querystring(b: CPFormatViolation) =
           orBadRow(b.payload.line, "nullified payload line".some)
             .flatMap(thrift.deserialize)
             .flatMap(v => orBadRow(v.querystring, "nullified querystring".some))
 
-        private[this] def queryParams(message: String) = {
-          val parser = ((stringOf(noneOf("&=")) <~ char('=')) ~ stringOf(notChar('&'))).sepBy(char('&'))
-          val parsed = parser.parse(message).map(_.toMap).done
-          (parsed.either match {
-            case Right(r) if r.isEmpty => Left("empty")
-            case Right(r)              => Right(r)
-            case Left(l)               => Left(l)
-          }).leftMap(err => unexpectedFormat(message, err.some))
-        }
-
         private[this] def mkPayload(p: Payload.RawPayload, params: Map[String, String]) =
           thrift.deserialize(p.line).flatMap(cocoerce).map(_.copy(querystring = toNVP(params)))
-
-        private[this] def toNVP(params: Map[String, String]) =
-          params.map { case (k, v) => NVP(k, Option(v)) }.toList
-
-        // TODO remove name of placeholder or leave it?
-        private[this] def filterInvalid(s: String) = s.filterNot(Seq('$', '[', ']', '{', '}').contains(_))
-
-        private[this] def orBadRow(str: String, error: Option[String] = None) =
-          Option(str).toRight(unexpectedFormat("empty payload line", error))
-
-        private[this] def unexpectedFormat(data: String, error: Option[String] = None) =
-          UnexpectedFieldFormat(data, "querystring", "k1=v1&k2=v2".some, error)
       }
 
     implicit val recoveryErrorRecovery: Recoverable[BadRow.RecoveryError, Payload] =
