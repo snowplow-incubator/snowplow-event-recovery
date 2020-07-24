@@ -16,7 +16,6 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 package util
 
-import java.nio.charset.StandardCharsets.UTF_8
 import org.apache.thrift.{TDeserializer, TSerializer}
 import CollectorPayload.thrift.model1.CollectorPayload
 import cats.implicits._
