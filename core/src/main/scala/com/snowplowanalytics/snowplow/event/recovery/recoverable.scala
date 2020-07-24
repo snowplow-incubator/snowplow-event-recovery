@@ -129,7 +129,7 @@ object recoverable {
           params.map { case (k, v) => NVP(k, Option(v)) }.toList
 
         // TODO remove name of placeholder or leave it?
-        private[this] def filterInvalid(s: String) = s.filterNot(Seq('[', ']', '{', '}').contains(_))
+        private[this] def filterInvalid(s: String) = s.filterNot(Seq('$', '[', ']', '{', '}').contains(_))
 
         private[this] def orBadRow(str: String, error: Option[String] = None) =
           Option(str).toRight(unexpectedFormat("empty payload line", error))
