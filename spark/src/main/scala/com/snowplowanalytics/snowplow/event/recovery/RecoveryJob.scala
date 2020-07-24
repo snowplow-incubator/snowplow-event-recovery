@@ -180,6 +180,8 @@ trait RecoveryJob {
 case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, failed: LongAccumulator) {
   def this(sc: SparkContext) =
     this(sc.longAccumulator("recovered"), sc.longAccumulator("unrecoverable"), sc.longAccumulator("failed"))
+
+  override def toString() = s"SUMMARY | RECOVERED: ${successful.value} | FAILED : ${failed.value} | UNRECOVERABLE: ${unrecoverable.value}"
 }
 
 import org.apache.spark.rdd.RDD
