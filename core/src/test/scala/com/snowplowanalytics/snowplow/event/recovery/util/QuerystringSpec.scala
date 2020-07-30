@@ -15,6 +15,8 @@
 package com.snowplowanalytics.snowplow
 package event.recovery
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets.UTF_8
 import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -28,20 +30,27 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
 
   "querystring" should {
     "extract params from string" in {
-
-      forAll(querystringGen) { qs =>
+      forAll(querystringGen(paramGen)) { qs =>
         val p = params(qs)
         p.right.value.size shouldEqual qs.split("&").size
       }
     }
-    "extract values from query params" in {
-      forAll(paramGen) { p =>
-        (clean(p)).r.findFirstIn(p).isDefined should be(true)
+    "fix known querystring issues" in {
+      val issues =
+        "e={ue}&tv=${js}&ue_px={{unknown}}&pv=[pv !@]&er=(aaa,bbb)"
+      val expected = Map("e" -> "%7Bue%7D", "tv" -> "$%7Bjs%7D", "pv" -> "%5Bpv+!@%5D", "ue_px" -> "%7B%7Bunknown%7D%7D", "er" -> "%28aaa,bbb%29")
+      val recovered = params(issues).map(_.mapValues(clean)).right.value
+      recovered shouldEqual expected
+      recovered.map{case (k,v) => s"$k=$v"}.mkString("&") shouldEqual "e=%7Bue%7D&tv=$%7Bjs%7D&pv=%5Bpv+!@%5D&ue_px=%7B%7Bunknown%7D%7D&er=%28aaa,bbb%29"
+    }
+    "fix special characters" in {
+      forAll{ (p: String) =>
+        URLEncoder.encode(p, UTF_8.toString) shouldEqual clean(p)
       }
     }
     "convert strings to lists of NVPs and back" in {
-      forAll(querystringGen) { qs =>
-        fromNVP(toNVP(clean(qs))) shouldEqual clean(qs)
+      forAll(querystringGen(validParamGen)) { qs =>
+        params(qs).map(toNVP).map(fromNVP).right.value shouldEqual java.net.URLDecoder.decode(qs, UTF_8.toString)
       }
     }
     "produce BadRow for invalid line data" in {
