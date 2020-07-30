@@ -43,7 +43,7 @@ object Main
     val output = Opts.option[String](
       "output",
       help = "Output Kinesis topic"
-    )
+    ).orNone
     val failedOutput = Opts
       .option[String](
         "failedOutput",
@@ -56,10 +56,10 @@ object Main
         help = "Unrecoverable (bad row) output S3 path. Defaults failedOutput/unrecoverable` or `input/unrecoverable`"
       )
       .orNone
-    val debugOutput = Opts
+    val directoryOutput = Opts
       .option[String](
-        "debugOutput",
-        help = "Debug output for pushing recovered `ControllerPayload` to S3 path."
+        "directoryOutput",
+        help = "Directory output for pushing recovered `ControllerPayload` to S3 path."
       )
       .orNone
     val region = Opts.option[String](
@@ -92,7 +92,7 @@ object Main
       output,
       failedOutput,
       unrecoverableOutput,
-      debugOutput,
+      directoryOutput,
       region,
       batchSize,
       validatedConfig

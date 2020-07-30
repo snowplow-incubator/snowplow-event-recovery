@@ -66,7 +66,8 @@ lazy val spark =
     .settings(
       libraryDependencies ++= Seq(
         Dependencies.awsKinesisSpark,
-        Dependencies.elephantBird
+        Dependencies.elephantBird,
+        Dependencies.hadoopLzo
       ) ++ Dependencies.spark ++ Dependencies.decline,
       dependencyOverrides += Dependencies.jackson
     )
