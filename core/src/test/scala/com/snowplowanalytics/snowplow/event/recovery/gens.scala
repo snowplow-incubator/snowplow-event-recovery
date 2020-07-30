@@ -177,14 +177,16 @@ object gens {
 
   val nonEmptyString = Arbitrary(Gen.nonEmptyListOf[Char](Gen.alphaChar).map(_.mkString))
 
-  val querystringGen = (for {
-    xs <- Gen.choose(5, 20)
-    ks <- Gen.listOfN(xs, nonEmptyString.arbitrary.map(_.take(7)).map(_.replace("=","")))
-    vs <- Gen.listOfN(xs, paramGen)
-  } yield ks.zip(vs).toMap.map { case (k, v) => s"$k=$v" }.mkString("&"))
+  val querystringGen = (paramGen: Gen[String]) =>
+    (for {
+      xs <- Gen.choose(5, 20)
+      ks <- Gen.listOfN(xs, nonEmptyString.arbitrary.map(_.take(7)).map(v => "(=|&)".r.replaceAllIn(v, "")))
+      vs <- Gen.listOfN(xs, paramGen)
+    } yield ks.zip(vs).toMap.map { case (k, v) => s"$k=$v" }.mkString("&"))
 
+  val validParamGen = Gen.nonEmptyListOf(Gen.oneOf((('a' to 'z') ++ ('A' to 'Z') ++ (0 to 9)).mkString)).map(_.mkString)
   val paramGen = for {
     format <- Gen.oneOf(("", ""), ("{{", "}}"), ("${", "}"), ("[", "]"))
-    str    <- Gen.alphaNumStr
+    str    <- Gen.alphaNumStr.map(v => "(=|&)".r.replaceAllIn(v, ""))
   } yield format._1 ++ str ++ format._2
 }
