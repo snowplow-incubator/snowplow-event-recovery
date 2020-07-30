@@ -15,13 +15,17 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import com.hadoop.compression.lzo.{LzoCodec, LzopCodec}
+import org.apache.hadoop.io.LongWritable
 import org.apache.spark.{SparkConf, SparkContext, SparkEnv}
 import org.apache.spark.metrics.source.Metrics
 import org.apache.spark.sql.{Dataset, Encoder, Encoders, SaveMode, SparkSession}
 import org.apache.spark.util.LongAccumulator
 import com.amazonaws.regions.Regions
+import com.twitter.elephantbird.mapreduce.output.LzoThriftBlockOutputFormat
+import com.twitter.elephantbird.mapreduce.io.ThriftWritable
 import jp.co.bizreach.kinesis.recordsMaxCount
 import jp.co.bizreach.kinesis.spark.{DefaultCredentials, KinesisRDDWriter, SparkAWSCredentials}
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
@@ -50,14 +54,14 @@ trait RecoveryJob {
     * @param region Kinesis deployment region
     * @param batchSize size of event batches sent to Kinesis
     * @param cfg configuration object containing mappings and recovery flow configurations
-    * @param debugOutput optionally output successful recoveries into a file
+    * @param directoryOutput optionally output successful recoveries into a file
     */
   def run(
     input: String,
-    output: String,
+    output: Option[String],
     failedOutput: String,
     unrecoverableOutput: String,
-    debugOutput: Option[String],
+    directoryOutput: Option[String],
     region: Regions,
     batchSize: Int,
     cfg: Config
@@ -85,11 +89,12 @@ trait RecoveryJob {
         output,
         failedOutput,
         unrecoverableOutput,
-        debugOutput,
+        directoryOutput,
         region,
         batchSize,
         recovered,
-        new Summary(spark.sparkContext)
+        new Summary(spark.sparkContext),
+        spark
       )
 
     metrics.recovered.inc(summary.successful.value)
@@ -126,29 +131,62 @@ trait RecoveryJob {
   }
 
   def sink(
-    output: String,
+    output: Option[String],
     failedOutput: String,
     unrecoverableOutput: String,
-    debugOutput: Option[String],
+    directoryOutput: Option[String],
     region: Regions,
     batchSize: Int,
     v: Dataset[(Array[Byte], Result)],
-    summary: Summary
-  )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]): Summary = {
+    summary: Summary,
+    spark: SparkSession
+  )(
+    implicit encoder: Encoder[Array[Byte]],
+    resEncoder: Encoder[(Array[Byte], Result)],
+    strEncoder: Encoder[String]
+  ): Summary = {
     val successful    = v.filter(_._2 == Recovered).map(_._1)
     val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
     val failed        = v.filter(_._2 == Failed).map(_._1)
 
-    successful
-      .map { x =>
-        summary.successful.add(1)
-        x
-      }
-      .rdd
-      .sinkToKinesis(streamName = output, region = region, chunk = batchSize)
+    if (output.isDefined) {
+      successful
+        .map { x =>
+          summary.successful.add(1)
+          x
+        }
+        .rdd
+        .sinkToKinesis(streamName = output.get, region = region, chunk = batchSize)
 
-    if (debugOutput.isDefined) {
-      successful.write.mode(SaveMode.Append).text(debugOutput.get)
+    }
+
+    if (directoryOutput.isDefined) {
+      LzoThriftBlockOutputFormat.setClassConf(classOf[CollectorPayload], spark.sparkContext.hadoopConfiguration)
+      successful
+        .rdd
+        .map { x =>
+          (util
+            .thrift
+            .deser(x)
+            .map { cp =>
+              if (!output.isDefined) {
+                summary.successful.add(1)
+              }
+              val thriftWritable = ThriftWritable.newInstance(classOf[CollectorPayload])
+              thriftWritable.set(cp)
+              new LongWritable(0L) -> thriftWritable
+            })
+            .toOption
+        }
+        .filter(_.isDefined)
+        .map(_.get)
+        .saveAsNewAPIHadoopFile(
+          directoryOutput.get,
+          classOf[LongWritable],
+          classOf[ThriftWritable[CollectorPayload]],
+          classOf[LzoThriftBlockOutputFormat[CollectorPayload]],
+          spark.sparkContext.hadoopConfiguration
+        )
     }
 
     if (!failed.isEmpty) {
@@ -181,7 +219,8 @@ case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, 
   def this(sc: SparkContext) =
     this(sc.longAccumulator("recovered"), sc.longAccumulator("unrecoverable"), sc.longAccumulator("failed"))
 
-  override def toString() = s"SUMMARY | RECOVERED: ${successful.value} | FAILED : ${failed.value} | UNRECOVERABLE: ${unrecoverable.value}"
+  override def toString() =
+    s"SUMMARY | RECOVERED: ${successful.value} | FAILED : ${failed.value} | UNRECOVERABLE: ${unrecoverable.value}"
 }
 
 import org.apache.spark.rdd.RDD
