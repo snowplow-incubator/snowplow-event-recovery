@@ -36,10 +36,10 @@ class ThriftSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValue
     "deserialize any collector payload without base64 encoding" in {
       forAll { (cp: CollectorPayload) =>
         val oldCp = new CollectorPayload(cp)
-        val newCp = thrift.serializeNoB64(cp).flatMap(thrift.deser)
+        val newCp = thrift.serializeNoB64(cp).flatMap(util.thrift.deser)
         oldCp shouldEqual newCp.right.value
       }
-    }    
+    }
   }
 
 }

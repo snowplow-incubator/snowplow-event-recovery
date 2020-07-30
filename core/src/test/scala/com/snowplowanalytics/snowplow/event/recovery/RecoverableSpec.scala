@@ -113,7 +113,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val params          = recovered.right.value.querystring.map { case NVP(_, v) => v }.flatten
 
         recovered should be('right)
-        params.filter(_ == fill) should have size (formats.size)
+        params.filter(_.contains(fill)) should have size (formats.size)
       }
     }
     "handle CPFormatViolation when querystring is null" in {
