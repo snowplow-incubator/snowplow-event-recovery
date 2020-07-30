@@ -41,14 +41,15 @@ class RecoveryJobSpec extends SparkSpec {
     }
 
     override def sink(
-      output: String,
+      output: Option[String],
       failedOutput: String,
       unrecoverableOutput: String,
-      debugOutput: Option[String],
+      directoryOutput: Option[String],
       region: Regions,
       batchSize: Int,
       v: Dataset[(Array[Byte], Result)],
-      summary: Summary
+      summary: Summary,
+      spark: SparkSession
     )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]) = {
       recovered ++= v
         .filter(_._2 == Recovered).map(_._1)
@@ -118,7 +119,7 @@ class RecoveryJobSpec extends SparkSpec {
   "RecoveryJob" must {
     "filter" should {
       "should filter based on the criteria passed as arguments" in {
-        RecoveryJobTest.run("input", "output", "failed", "unrecoverable", Some("debug"), Regions.AP_EAST_1, 1, cfg)
+        RecoveryJobTest.run("input", Some("output"), "failed", "unrecoverable", Some("debug"), Regions.AP_EAST_1, 1, cfg)
         RecoveryJobTest.recovered.size == 1
         RecoveryJobTest.recovered should contain(fixed)
         RecoveryJobTest.failed.size == 0
