@@ -1,5 +1,5 @@
 {
-  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/3-0-0",
+  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0",
   "data": {
     "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
       {
