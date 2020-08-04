@@ -15,13 +15,7 @@
 package com.snowplowanalytics.snowplow.event.recovery
 package util
 
-import java.net.{URLDecoder, URLEncoder}
-import java.nio.charset.StandardCharsets.UTF_8
-import cats.implicits._
-import cats.Show
 import atto._, Atto._
-import com.snowplowanalytics.snowplow.badrows.NVP
-import domain._
 
 object parsec {
   val querystring = ((stringOf(noneOf("&=")) <~ char('=')) ~ stringOf(notChar('&'))).sepBy(char('&'))
@@ -29,7 +23,7 @@ object parsec {
 
   object chars {
     val encoded  = (char('%') ~> hexDigit ~ hexDigit).map { case (c1: Char, c2: Char) => QueryChar.Encoded(c1, c2) }
-    val reserved = oneOf("/#@!$&\\*+,;").map(QueryChar.Reserved(_))
+    val reserved = oneOf(":/#[]@!$&'()*+,;=").map(QueryChar.Reserved(_))
     val unreserved = {
       val chars   = (('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9')).mkString
       val special = "-._~"
@@ -43,5 +37,3 @@ object parsec {
     }
   }
 }
-
-

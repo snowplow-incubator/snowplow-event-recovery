@@ -15,8 +15,9 @@
 package com.snowplowanalytics.snowplow
 package event.recovery
 
-import java.net.URLEncoder
+import java.net.{URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets.UTF_8
+import cats.syntax.either._
 import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -37,24 +38,42 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
     }
     "fix known querystring issues" in {
       val issues =
-        "e={ue}&tv=${js}&ue_px={{unknown}}&pv=[pv !@]&er=(aaa,bbb)"
-      val expected = Map("e" -> "%7Bue%7D", "tv" -> "$%7Bjs%7D", "pv" -> "%5Bpv+!@%5D", "ue_px" -> "%7B%7Bunknown%7D%7D", "er" -> "%28aaa,bbb%29")
+        "e={ue}&tv=${js}&ue_px={{unknown}}&pv=[pv !@]&er=(aaa,bbb)&zx=iglu:test&xz='lorem'"
+      val expected = Map(
+        "e"     -> "%7Bue%7D",
+        "tv"    -> "$%7Bjs%7D",
+        "pv"    -> "[pv+!@]",
+        "ue_px" -> "%7B%7Bunknown%7D%7D",
+        "er"    -> "(aaa,bbb)",
+        "zx"    -> "iglu:test",
+        "xz"    -> "'lorem'"
+      )
       val recovered = params(issues).map(_.mapValues(clean)).right.value
       recovered shouldEqual expected
-      recovered.map{case (k,v) => s"$k=$v"}.mkString("&") shouldEqual "e=%7Bue%7D&tv=$%7Bjs%7D&pv=%5Bpv+!@%5D&ue_px=%7B%7Bunknown%7D%7D&er=%28aaa,bbb%29"
+      mkQS(recovered) shouldEqual "e=%7Bue%7D&zx=iglu:test&tv=$%7Bjs%7D&pv=[pv+!@]&xz='lorem'&ue_px=%7B%7Bunknown%7D%7D&er=(aaa,bbb)"
+      javaDecode(mkQS(recovered)) should be('right)
+    }
+    "not manipulate iglu uris" in {
+      val uri = "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0"
+      clean(uri) shouldEqual uri
+      javaDecode(uri) should be('right)
     }
     "fix special characters" in {
-      forAll{ (p: String) =>
-        URLEncoder.encode(p, UTF_8.toString) shouldEqual clean(p)
+      forAll { (p: String) =>
+        javaEncode(p).right.value shouldEqual clean(p)
       }
     }
     "convert strings to lists of NVPs and back" in {
       forAll(querystringGen(validParamGen)) { qs =>
-        params(qs).map(toNVP).map(fromNVP).right.value shouldEqual java.net.URLDecoder.decode(qs, UTF_8.toString)
+        params(qs).map(toNVP).map(fromNVP).right.value shouldEqual javaDecode(qs).right.value
       }
     }
     "produce BadRow for invalid line data" in {
       orBadRow(null, None) should be('left)
     }
   }
+
+  val mkQS: Map[String, String] => String                    = _.map { case (k, v) => s"$k=$v" }.mkString("&")
+  val javaEncode: String        => Either[Throwable, String] = x => Either.catchNonFatal(URLEncoder.encode(x, UTF_8.toString))
+  val javaDecode: String        => Either[Throwable, String] = x => Either.catchNonFatal(URLDecoder.decode(x, UTF_8.toString))
 }
