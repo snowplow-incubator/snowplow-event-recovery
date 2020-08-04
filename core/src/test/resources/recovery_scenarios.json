@@ -3,34 +3,30 @@
   "data": {
     "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
       {
-        "name": "present",
+        "name": "first",
         "conditions": [{
           "op": "Test",
-          "path": "$.payload.querystring",
-          "value": {
-            "size": {
-              "gt": 0
-            }
-          }
+          "path": "$.payload.querystring.[?(@.name=~page)].value",
+          "value": ""
         }],
+        "steps": [{
+          "op": "Replace",
+          "path": "$.querystring.[?(@.name=~page)].value",
+          "value": "FixedQueryParams"
+        }]
+      }      
+    ],
+    "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
+      {
+        "name": "second",
+        "conditions": [],
         "steps": [{
           "op": "Replace",
           "path": "$.querystring",
           "value": [{"name": "e", "value": "pv"},{"name": "page", "value": "DemoPageTitle"}]
         }]
       }      
-    ],
-    "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
-      {
-        "name": "present",
-        "conditions": [],
-        "steps": [{
-          "op": "Replace",
-          "path": "$.querystring",
-          "value": [{"name": "e", "value": "pv"},{"name": "page", "value": "FixedQueryParams"}]
-        }]
-      }      
-    ],
+    ],    
     "iglu:com.snowplowanalytics.snowplow.badrows/enrichment_failures/jsonschema/1-0-*": [
       {
         "name": "main flow making use of most of available features",
