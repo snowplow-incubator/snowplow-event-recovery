@@ -40,23 +40,17 @@ object replace {
     */
   def apply(matcher: Option[String], value: Json)(path: Seq[String])(body: Json): Recovering[Json] = {
     val error = ReplacementFailure(_, matcher, value.noSpaces)
-    transform(replaceFn(matcher, value), transform.top(error), error)(path)(body)    
+    transform(replaceFn(matcher, value), transform.top(error), error)(path)(body)
   }
 
-  private[this] def replaceFn(matcher: Option[String], value: Json): Json => Recovering[Json] = {
-    case v if v.isNumber =>
-      number(value)(v.asNumber.get).map(_.asJson)
-    case v if v.isObject =>
-      jObject(Seq.empty, matcher, value)(v.asObject.get).map(_.asJson)
-    case v if v.isBoolean =>
-      boolean(value)(v.asBoolean.get).map(_.asJson)
-    case v if v.isArray =>
-      array(matcher, value)(v.asArray.get).map(_.asJson)
-    case v if v.isNull =>
-      string(Seq.empty, matcher, value)("").map(_.asJson)
-    case v if v.isString =>
-      string(Seq.empty, matcher, value)(v.asString.get).map(_.asJson)
-  }
+  private[this] def replaceFn(matcher: Option[String], value: Json): Json => Recovering[Json] = _.fold(
+    string(Seq.empty, matcher, value)("").map(_.asJson),
+    v => boolean(value)(v).map(_.asJson),
+    v => number(value)(v).map(_.asJson),
+    v => string(Seq.empty, matcher, value)(v).map(_.asJson),
+    v => array(matcher, value)(v).map(_.asJson),
+    v => jObject(Seq.empty, matcher, value)(v).map(_.asJson)
+  )
 
   private[this] def boolean(value: Json)(x: Boolean): Recovering[Boolean] =
     value.asBoolean.toRight(ReplacementFailure(x.toString, None, value.noSpaces))
