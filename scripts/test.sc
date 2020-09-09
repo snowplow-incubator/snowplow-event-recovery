@@ -3,8 +3,8 @@ interp.repositories() ++= Seq(coursierapi.MavenRepository.of("http://maven.snplo
 
 @
 
-import $url.{`https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/feature/recovery-typeclasses/scripts/Recovery.sc` => Recovery}, Recovery._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.2.0-rc10`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $url.{`https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/master/scripts/Recovery.sc` => Recovery}, Recovery._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.3.1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 
 // ACTUAL TESTS
 // for available functions see [[https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/feature/recovery-typeclasses/scripts/Recovery.sc]]
