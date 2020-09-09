@@ -1,3 +1,8 @@
+Version 0.3.1 (2020-09-10)
+--------------------------
+Use fold for Json replacement (#71)
+Unify Conditions functions (#72)
+
 Version 0.3.0 (2020-08-17)
 --------------------------
 Add a better example for filtring querystrings (#68)
