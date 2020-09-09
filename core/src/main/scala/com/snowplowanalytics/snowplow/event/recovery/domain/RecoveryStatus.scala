@@ -53,6 +53,7 @@ object RecoveryStatus {
       case s: Base64Failure             => Base64Failure.encoder(s)
       case s: UrlCodecFailure           => UrlCodecFailure.encoder(s)
       case s: CastFailure               => CastFailure.encoder(s)
+      case s: ComparisonFailure         => ComparisonFailure.encoder(s)
     }
 }
 
@@ -242,6 +243,18 @@ case class CastFailure(
 
 object CastFailure {
   implicit val encoder: Encoder[CastFailure] = deriveEncoder
+}
+
+case class ComparisonFailure(
+  path: String,
+  matcher: String,
+  data: String
+) extends RecoveryStatus {
+  def message = s"Failed to compare $path in $json through matcher $matcher"
+}
+
+object ComparisonFailure {
+  implicit val encoder: Encoder[ComparisonFailure] = deriveEncoder
 }
 
 /**

@@ -34,43 +34,48 @@ private[inspect] object transform {
     * Runs transformation opreration
     *
     * @param transformFn a function for transforming a JSON structure(s)
+    * @param post a postprocessing hook triggered after transformation is complete
     * @param error an error description message for failed application of [[transformFn]]
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
   def apply(
     transformFn: Json => Recovering[Json],
-    error: String => RecoveryStatus
+    post: ACursor     => ACursor => Recovering[Json],
+    error: String     => RecoveryStatus
   )(
     path: Seq[String]
   )(
     body: Json
   ): Recovering[Json] = {
     @tailrec
-    def run(ap: Json => Recovering[Json])(json: ACursor, path: Seq[String]): Recovering[Json] = path match {
+    def run(
+      ap: Json      => Recovering[Json],
+      post: ACursor => ACursor => Recovering[Json]
+    )(json: ACursor, path: Seq[String]): Recovering[Json] = path match {
       // Base case
       case Seq() =>
-        json.withFocusM(transformFn).flatMap(top(error)(json))
+        json.withFocusM(ap).flatMap(post(json))
 
       // Access field by filter
       case Seq(h, t @ _*) if isFilter(h) =>
         val Some((path, value)) = filter(h)
-        run(ap)(
+        run(ap, post)(
           json.downArray.find(xs => findInArray(xs.hcursor, path, value)),
           t
         )
 
       // Access array item by id
       case Seq(h, t @ _*) if isArrayItem(h) =>
-        run(ap)(json.downN(arrayItem(h).get), t)
+        run(ap, post)(json.downN(arrayItem(h).get), t)
 
       // Top-level Base64 encoded field
       case Seq(h, t @ _*) if isB64Encoded(h) =>
-        json.downField(h).withFocusM(b64Fn(apply(transformFn, error))(t)).flatMap(top(error)(json))
+        json.downField(h).withFocusM(b64Fn(apply(transformFn, post, error))(t)).flatMap(top(error)(json))
 
       // An item in List[NVP] that is not Base64-encoded
       case Seq(h, th, tt @ _*) if isNVPs(h) && !isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
-        run(ap)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
+        run(ap, post)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
 
       // An item in List[NVP] that is Base64-encoded
       case Seq(h, th, tt @ _*) if isNVPs(h) && isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
@@ -78,7 +83,7 @@ private[inspect] object transform {
           .downField(h)
           .downN(indexF(th)(json.downField(h)).get)
           .downField("value")
-          .withFocusM(b64Fn(apply(transformFn, error))(tt))
+          .withFocusM(b64Fn(apply(transformFn, post, error))(tt))
           .flatMap(top(error)(json))
 
       // Falsey item in List[NVP]
@@ -88,16 +93,16 @@ private[inspect] object transform {
           case None    => Left(InvalidDataFormat(None, s"Cannot access field $h in empty cursor."))
         }
 
-      // URL-encoded field encoded field
+      // URL-encoded field
       case Seq(h, t @ _*) if isUrlEncoded(h) =>
-        json.downField(h).withFocusM(urlFn(apply(transformFn, error))(t)).flatMap(top(error)(json))
+        json.downField(h).withFocusM(urlFn(apply(transformFn, post, error))(t)).flatMap(top(error)(json))
 
       // Recursive case
       case Seq(h, t @ _*) =>
-        run(ap)(json.downField(h), t)
+        run(ap, post)(json.downField(h), t)
     }
 
-    run(transformFn)(body.hcursor, path)
+    run(transformFn, post)(body.hcursor, path)
   }
 
   private[this] def b64Fn(
@@ -121,8 +126,8 @@ private[inspect] object transform {
   }
 
   private[this] def encodedFn(
-    decode: String => Recovering[String],
-    encode: Json => Recovering[Json],
+    decode: String     => Recovering[String],
+    encode: Json       => Recovering[Json],
     apply: Seq[String] => Json => Recovering[Json]
   )(path: Seq[String])(body: Json): Recovering[Json] =
     body
@@ -138,7 +143,7 @@ private[inspect] object transform {
 
   private[this] val index = (name: String) => (nvps: List[NVP]) => nvps.indexWhere(_.name == name)
 
-  private[this] def top(err: String => RecoveryStatus)(previous: ACursor): ACursor => Recovering[Json] =
+  private[inspect] def top(err: String => RecoveryStatus)(previous: ACursor): ACursor => Recovering[Json] =
     _.top.toRight(err(previous.history.map(_.toString).mkString))
 
   private[this] def isArrayItem(str: String) = arrayItem(str).isDefined
