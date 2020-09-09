@@ -38,15 +38,10 @@ object replace {
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(matcher: Option[String], value: Json)(path: Seq[String])(body: Json): Recovering[Json] =
-    transform(
-      replaceFn(matcher, value),
-      ReplacementFailure(
-        _,
-        matcher,
-        value.noSpaces
-      )
-    )(path)(body)
+  def apply(matcher: Option[String], value: Json)(path: Seq[String])(body: Json): Recovering[Json] = {
+    val error = ReplacementFailure(_, matcher, value.noSpaces)
+    transform(replaceFn(matcher, value), transform.top(error), error)(path)(body)    
+  }
 
   private[this] def replaceFn(matcher: Option[String], value: Json): Json => Recovering[Json] = {
     case v if v.isNumber =>
