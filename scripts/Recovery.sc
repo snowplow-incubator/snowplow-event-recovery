@@ -11,7 +11,7 @@ val load = (path: String) => read ! os.Path(path, base = os.pwd)
 object codecs {
   def base64Encode(str: String) = util.base64.encode(str)
   def base64Decode(str: String) = util.base64.decode(str)
-  def thriftDecode(str: String) = util.thrift.deserialize(str)
+  def thriftDecode(arr: Array[Byte]) = util.thrift.deser(arr)
 }
 
 // Test basic operations directly without configuration
@@ -21,7 +21,7 @@ object operations {
     parse(badrow).flatMap(inspect.cast(from, to)(json.path(path))).leftMap(_.toString).bimap(println, println)
 
   def replace(badrow: String, path: String, regex: String, newValue: String) =
-    parse(badrow).flatMap(inspect.replace(Some(regex), newValue)(json.path(path))).leftMap(_.toString).bimap(println, println)
+    parse(badrow).flatMap(inspect.replace(Some(regex), parse(newValue).right.get)(json.path(path))).leftMap(_.toString).bimap(println, println)
 }
 
 // Test full json configuration
