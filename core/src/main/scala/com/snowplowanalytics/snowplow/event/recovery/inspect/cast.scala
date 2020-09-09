@@ -42,15 +42,10 @@ object cast {
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(from: CastType, to: CastType)(path: Seq[String])(body: Json): Recovering[Json] =
-    transform(
-      castFn(from, to),
-      CastFailure(
-        _,
-        from,
-        to
-      )
-    )(path)(body)
+  def apply(from: CastType, to: CastType)(path: Seq[String])(body: Json): Recovering[Json] = {
+    val error = CastFailure(_, from, to)
+    transform(castFn(from, to), transform.top(error), error)(path)(body)
+  }
 
   def castFn(from: CastType, to: CastType)(value: Json): Recovering[Json] = (from, to) match {
     case (_, CastType.Array) if !value.isArray => Right(Json.arr(value))
