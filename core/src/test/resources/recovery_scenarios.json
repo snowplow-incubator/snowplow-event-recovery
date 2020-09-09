@@ -1,6 +1,25 @@
 {
   "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0",
   "data": {
+    "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [{
+      "name": "zero",
+      "conditions": [{
+          "op": "Test",
+          "path": "$.payload.querystring.[?(@.name=~schema)].value",
+          "value": {"value": "iglu"}
+        }],
+      "steps": [{
+          "op": "Replace",
+          "path": "$.querystring.[?(@.name=~schema)].value",
+          "value": "iglu:com.snowplowanalytics.snowplow/audio_impression/jsonschema/1-0-0"
+        },
+        {
+          "op": "Replace",
+          "path": "$.querystring.[?(@.name=~app_id)].value",
+          "value": "badcock-furniture-646ed61e-3427-4d2a-9c55-7c5ca9299378"
+        }
+      ]
+    }],    
     "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
       {
         "name": "first",
