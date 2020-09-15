@@ -27,7 +27,7 @@ import config.conditions._
 
 object json {
   def path(str: String): Seq[String] = {
-    val fieldName = "([a-zA-Z0-9]+\\.?)"
+    val fieldName = "([a-zA-Z0-9_-]+\\.?)"
     val arrayId   = "(\\[([0-9]+)\\]\\.?)"
     val filter    = "(\\[\\?\\(@\\.[a-zA-Z0-9.-]+=~(.+)(?!\\b)\\]\\.?)"
     val extractor = s"$fieldName|$arrayId|$filter".r

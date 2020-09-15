@@ -33,11 +33,20 @@ object check {
     * @param path a list describing route to field being transformed
     * @param body JSON structure being transformed
     */
-  def apply(matcher: Matcher)(path: Seq[String])(body: Json): Recovering[Json] =
+  def apply(matcher: Matcher)(path: Seq[String])(body: Json): Recovering[Boolean] =
     transform(
-      json         => Right(matcher.checks(json).asJson), // FIXME toString
+      json => Right(matcher.checks(json).asJson),
       (_: ACursor) => _.focus.toRight(ComparisonFailure(path.mkString("."), matcher.toString, body.toString)),
-      ComparisonFailure(path.mkString("."), matcher.toString, _) // FIXME toString
-    )(path)(body)
+      ComparisonFailure(path.mkString("."), matcher.toString, _)
+    )(path)(body).map { v =>
+      v.fold(
+        false,
+        identity,
+        _ => false,
+        _ == "true",
+        _ => false,
+        _ => false
+      )
+    }
 
 }
