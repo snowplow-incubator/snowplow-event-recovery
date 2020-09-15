@@ -34,7 +34,7 @@ class CheckSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues
       "checking values" in forAll(gens.badRowSizeViolationA.arbitrary) { br =>
         val version = "0.0.0"
         val json    = br.lens(_.processor.version).set(version).asJson
-        check(Compare(version.asJson))(path("processor.version"))(json).right.value should equal(true.asJson)
+        check(Compare(version.asJson))(path("processor.version"))(json).right.value should equal(true)
       }
 
       "using filters" in {
@@ -48,9 +48,7 @@ class CheckSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues
             val json             = br.lens(_.payload.querystring).set(params).asJson
             check(Compare(value.getOrElse("").asJson))(path(s"payload.querystring.[?(@.name=~${name})].value"))(json)
               .right
-              .value should equal(
-              true.asJson
-            )
+              .value should equal(true)
         }
       }
 
