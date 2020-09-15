@@ -70,10 +70,10 @@ private[inspect] object transform {
 
       // Top-level Base64 encoded field
       case Seq(h, t @ _*) if isB64Encoded(h) =>
-        json.downField(h).withFocusM(b64Fn(apply(transformFn, post, error))(t)).flatMap(top(error)(json))
+        json.downField(h).withFocusM(b64Fn(apply(transformFn, post, error))(t)).flatMap(post(json))
 
-      // An item in List[NVP] that is not Base64-encoded
-      case Seq(h, th, tt @ _*) if isNVPs(h) && !isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
+      // An item in List[NVP] that is not Base64-encoded nor url-encoded
+      case Seq(h, th, tt @ _*) if isNVPs(h) && !isB64Encoded(th) && !isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
         run(ap, post)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
 
       // An item in List[NVP] that is Base64-encoded
@@ -83,7 +83,16 @@ private[inspect] object transform {
           .downN(indexF(th)(json.downField(h)).get)
           .downField("value")
           .withFocusM(b64Fn(apply(transformFn, post, error))(tt))
-          .flatMap(top(error)(json))
+          .flatMap(post(json))
+
+      // An item in List[NVP] that is URL-encoded
+      case Seq(h, th, tt @ _*) if isNVPs(h) && isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
+        json
+          .downField(h)
+          .downN(indexF(th)(json.downField(h)).get)
+          .downField("value")
+          .withFocusM(urlFn(apply(transformFn, post, error))(tt))
+          .flatMap(post(json))
 
       // Falsey item in List[NVP]
       case Seq(h, _) if isNVPs(h) =>
@@ -94,7 +103,7 @@ private[inspect] object transform {
 
       // URL-encoded field
       case Seq(h, t @ _*) if isUrlEncoded(h) =>
-        json.downField(h).withFocusM(urlFn(apply(transformFn, post, error))(t)).flatMap(top(error)(json))
+        json.downField(h).withFocusM(urlFn(apply(transformFn, post, error))(t)).flatMap(post(json))
 
       // Recursive case
       case Seq(h, t @ _*) =>

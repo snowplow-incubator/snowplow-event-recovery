@@ -26,5 +26,5 @@ case class Condition(
   path: String,
   value: Matcher
 ) {
-  def check(str: Json): Boolean = inspect.check(value)(json.path(path))(str).flatMap(_.as[Boolean]).getOrElse(false)
+  def check(str: Json): Boolean = inspect.check(value)(json.path(path))(str).getOrElse(false)
 }
