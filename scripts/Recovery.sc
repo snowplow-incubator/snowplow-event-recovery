@@ -1,7 +1,7 @@
 import ammonite.ops._
 import $ivy.`org.typelevel::cats-core:2.0.0`, cats.Id, cats.instances.list._, cats.syntax.traverse._, cats.syntax.either._
 import $ivy.`io.circe::circe-parser:0.11.1`, io.circe._, io.circe.syntax._, io.circe.parser._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.3.1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.3.2-rc2`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 import java.util.concurrent.TimeUnit
 import cats.effect.Clock
 
@@ -27,9 +27,10 @@ object operations {
 // Test full json configuration
 // Useful for quick testing configurations
 object jobs {
-  def test(cfg: String, line: String)               = config.load(cfg).flatMap(execute(_)(line)).flatMap(codecs.thriftDecode).bimap(println, println)
+  def test(cfg: String, line: String)               = config.load(cfg).flatMap(execute(_)(line)).flatMap(codecs.thriftDecode)
   def testMany(cfg: String, lines: List[String])     = lines.toList.map(test(cfg, _))
   def fromFiles(cfgPath: String, linesPath: String) = testMany(load(cfgPath), load(linesPath).split('\n').toList)
+
 }
 
 // Configuration validation
