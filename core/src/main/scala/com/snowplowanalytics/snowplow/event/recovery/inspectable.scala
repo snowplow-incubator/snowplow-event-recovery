@@ -85,6 +85,24 @@ object inspectable {
         inspect
           .cast(from, to)(json.path(path))(a.asJson)
           .flatMap(_.as[A].leftMap(err => InvalidJsonFormat(err.getMessage)))
+
+      /**
+        * A transformation adding JSON values to fields.
+        * Can perform operations on all JSON types.
+        * @param a an instance of Payload to transform
+        * @param path Json Path navigation route ie. raw.vendor
+        * @param value Json object to merge with current value
+        */
+      def add(
+        a: A
+      )(
+        path: Path,
+        value: Json
+      )(
+        implicit e: Encoder[A],
+        d: Decoder[A]
+      ): Recovering[A] =
+        inspect.add(json.path(path), value)(a.asJson).flatMap(_.as[A].leftMap(err => InvalidJsonFormat(err.getMessage)))
     }
 
     def apply[A <: Payload: Decoder: Encoder](implicit i: Inspectable[A]): Inspectable[A] = i
@@ -105,6 +123,11 @@ object inspectable {
           to: CastType
         ) =
           Inspectable[A].cast(a)(path, from, to)
+        def add(
+          path: Path,
+          value: Json
+        ) =
+          Inspectable[A].add(a)(path, value)
       }
     }
 

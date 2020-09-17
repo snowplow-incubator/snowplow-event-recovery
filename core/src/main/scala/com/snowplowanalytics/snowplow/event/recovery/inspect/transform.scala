@@ -40,8 +40,8 @@ private[inspect] object transform {
     */
   def apply(
     transformFn: Json => Recovering[Json],
-    post: ACursor     => ACursor => Recovering[Json],
-    error: String     => RecoveryStatus
+    post: ACursor => ACursor => Recovering[Json],
+    error: String => RecoveryStatus
   )(
     path: Seq[String]
   )(
@@ -49,7 +49,7 @@ private[inspect] object transform {
   ): Recovering[Json] = {
     @tailrec
     def run(
-      ap: Json      => Recovering[Json],
+      ap: Json => Recovering[Json],
       post: ACursor => ACursor => Recovering[Json]
     )(json: ACursor, path: Seq[String]): Recovering[Json] = path match {
       // Base case
@@ -73,7 +73,8 @@ private[inspect] object transform {
         json.downField(h).withFocusM(b64Fn(apply(transformFn, post, error))(t)).flatMap(post(json))
 
       // An item in List[NVP] that is not Base64-encoded nor url-encoded
-      case Seq(h, th, tt @ _*) if isNVPs(h) && !isB64Encoded(th) && !isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
+      case Seq(h, th, tt @ _*)
+          if isNVPs(h) && !isB64Encoded(th) && !isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
         run(ap, post)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
 
       // An item in List[NVP] that is Base64-encoded
@@ -134,8 +135,8 @@ private[inspect] object transform {
   }
 
   private[this] def encodedFn(
-    decode: String     => Recovering[String],
-    encode: Json       => Recovering[Json],
+    decode: String => Recovering[String],
+    encode: Json => Recovering[Json],
     apply: Seq[String] => Json => Recovering[Json]
   )(path: Seq[String])(body: Json): Recovering[Json] =
     body
