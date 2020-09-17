@@ -54,6 +54,7 @@ object RecoveryStatus {
       case s: UrlCodecFailure           => UrlCodecFailure.encoder(s)
       case s: CastFailure               => CastFailure.encoder(s)
       case s: ComparisonFailure         => ComparisonFailure.encoder(s)
+      case s: AdditionFailure           => AdditionFailure.encoder(s)
     }
 }
 
@@ -255,6 +256,18 @@ case class ComparisonFailure(
 
 object ComparisonFailure {
   implicit val encoder: Encoder[ComparisonFailure] = deriveEncoder
+}
+
+case class AdditionFailure(
+  path: String,
+  json: String,
+  data: String
+) extends RecoveryStatus {
+  def message = s"Failed to add $data to path $path on $json"
+}
+
+object AdditionFailure {
+  implicit val encoder: Encoder[AdditionFailure] = deriveEncoder
 }
 
 /**

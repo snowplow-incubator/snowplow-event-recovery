@@ -55,6 +55,8 @@ class Modify[A <: Payload: Inspectable: Encoder: Decoder](config: StepConfig) ex
         a.remove(context, matcher)
       case Casting(_, context, from, to) =>
         a.cast(context, from, to)
+      case Addition(_, context, value) =>
+        a.add(context, value)
       case step =>
         Left(InvalidStep(a, step.getClass.getCanonicalName))
     }

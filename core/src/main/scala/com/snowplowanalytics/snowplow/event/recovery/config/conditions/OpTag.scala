@@ -20,3 +20,4 @@ case object Replace extends OpTag
 case object Remove extends OpTag
 case object Cast extends OpTag
 case object Test extends OpTag
+case object Add extends OpTag

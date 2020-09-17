@@ -39,6 +39,12 @@ object json {
   implicit val flowConfigE: Encoder[FlowConfig] = deriveEncoder
   implicit val flowConfigD: Decoder[FlowConfig] = deriveDecoder
 
+  implicit val addE: Encoder[Add.type] =
+    Encoder.encodeString.contramap[Add.type](_.toString)
+  implicit val addD: Decoder[Add.type] = Decoder.decodeString.emap {
+    case "Add" => Right(Add)
+    case _     => Left("Add")
+  }
   implicit val replaceE: Encoder[Replace.type] =
     Encoder.encodeString.contramap[Replace.type](_.toString)
   implicit val replaceD: Decoder[Replace.type] = Decoder.decodeString.emap {
@@ -117,16 +123,21 @@ object json {
   implicit val castingE: Encoder[Casting] = deriveEncoder
   implicit val castingD: Decoder[Casting] = deriveDecoder
 
+  implicit val additionE: Encoder[Addition] = deriveEncoder
+  implicit val additionD: Decoder[Addition] = deriveDecoder
+
   implicit val stepE: Encoder[StepConfig] = Encoder.instance {
     case r: Replacement => r.asJson
     case r: Removal     => r.asJson
     case r: Casting     => r.asJson
+    case r: Addition    => r.asJson
   }
 
   implicit val stepD: Decoder[StepConfig] = List[Decoder[StepConfig]](
     Decoder[Replacement].widen,
     Decoder[Removal].widen,
-    Decoder[Casting].widen
+    Decoder[Casting].widen,
+    Decoder[Addition].widen
   ).reduceLeft(_.or(_))
 
   implicit val confD: Decoder[Conf] = deriveDecoder
