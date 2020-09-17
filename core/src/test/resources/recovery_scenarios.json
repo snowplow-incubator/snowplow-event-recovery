@@ -32,14 +32,18 @@
           {
             "op": "Test",
             "path": "$.payload.querystring.[?(@.name=~page)].value",
-            "value": {"value": ""}
+            "value": {
+              "value": ""
+            }
           }
         ],
         "steps": [
           {
             "op": "Replace",
             "path": "$.querystring.[?(@.name=~page)].value",
-            "value": {"value": "FixedQueryParams"}
+            "value": {
+              "value": "FixedQueryParams"
+            }
           }
         ]
       },
@@ -176,9 +180,19 @@
         "steps": [
           {
             "op": "Replace",
-            "path": "$.raw.parameters.ue_pr.data.schema",
+            "path": "$.raw.parameters.ue_pr.schema",
             "value": "iglu:com.dataplusmath/video_impression/jsonschema/1-0-0"
-          } 
+          },
+          {
+            "op": "Add",
+            "path": "$.raw.parameters",
+            "value": [
+              {
+                "name": "schema",
+                "value": "iglu:com.dataplusmath/video_impression/jsonschema/1-0-0"
+              }
+            ]
+          }
         ]
       }
     ]

@@ -53,6 +53,18 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
         }
       }
     }
+    "replace arrays" in {
+      forAll(gens.badRowAdapterFailuresA.arbitrary) { br =>
+        def extract(json: Json) = json.hcursor.downField("payload").downField("querystring").as[Vector[NVP]]
+
+        val json     = br.asJson
+        val expected = Vector(NVP("schema", "lorem-ipsum".some))
+        val replaced = replace("(?U)^.*$".some, expected.asJson)(Seq("payload", "querystring"))(json)
+
+        replaced.flatMap(extract).right.value should equal(expected)
+      }
+
+    }
     "replace objects" in {
       forAll(gens.badRowSizeViolationA.arbitrary) { br =>
         def extract(json: Json) = json.hcursor.downField("processor").as[Processor]

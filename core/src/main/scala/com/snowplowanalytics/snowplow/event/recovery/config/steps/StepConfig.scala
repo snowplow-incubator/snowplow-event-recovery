@@ -15,7 +15,7 @@
 
 package com.snowplowanalytics.snowplow.event.recovery.config
 
-import conditions.{Cast, Remove, Replace}
+import conditions.{Add, Cast, Remove, Replace}
 import io.circe.Json
 
 sealed trait StepConfig
@@ -38,4 +38,10 @@ case class Casting(
   path: Path,
   from: CastType,
   to: CastType
+) extends StepConfig
+
+case class Addition(
+  op: Add.type,
+  path: Path,
+  value: Json
 ) extends StepConfig
