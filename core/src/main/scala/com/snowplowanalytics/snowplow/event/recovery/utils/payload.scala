@@ -18,11 +18,13 @@ package util
 
 import scala.collection.JavaConverters._
 import cats.syntax.either._
+import io.circe.parser._
 import domain._
 import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
 import org.joda.time.DateTime
 import java.util.UUID
+import cats.data.EitherT
 
 object payload {
 
@@ -46,7 +48,8 @@ object payload {
       cp.networkUserId = p.networkUserId.map(_.toString).orNull
       cp
     }
-    case Payload.EnrichmentPayload(_, p) => {
+    case e @ Payload.EnrichmentPayload(_, p) => {
+      val urlEncodedPayload = "ue_pr"
       val cp = new CollectorPayload(
         thriftSchema,
         p.ipAddress.orNull,
@@ -54,10 +57,22 @@ object payload {
         p.encoding,
         p.loaderName
       )
-      cp.path          = mkPath(p.vendor, p.version)
-      cp.userAgent     = p.useragent.orNull
-      cp.refererUri    = p.refererUri.orNull
-      cp.querystring   = querystring.fromNVP(p.parameters)
+      cp.path       = mkPath(p.vendor, p.version)
+      cp.userAgent  = p.useragent.orNull
+      cp.refererUri = p.refererUri.orNull
+      cp.querystring = {
+        lazy val err = UncoerciblePayload(e)
+        val parameters = (for {
+          d <- EitherT.fromOption(p.parameters.find(_.name == urlEncodedPayload), err)
+          v <- EitherT.fromOption(d.value, err)
+          p <- EitherT.fromEither(parse(v).map(_.hcursor.downField("data")).leftMap(_ => err))
+          schema <- EitherT.fromEither(
+            p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(_ => err)
+          )
+          nvps <- EitherT.fromEither(p.get[List[NVP]]("data").leftMap(_ => err))
+        } yield (nvps ++ schema)).value.getOrElse(p.parameters)
+        querystring.fromNVP(parameters)
+      }
       cp.hostname      = p.hostname.orNull
       cp.networkUserId = p.userId.map(_.toString).orNull
       cp
