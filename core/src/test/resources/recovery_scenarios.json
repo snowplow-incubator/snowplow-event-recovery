@@ -177,21 +177,11 @@
             }
           }
         ],
-        "steps": [
-          {
-            "op": "Replace",
-            "path": "$.raw.parameters.ue_pr.schema",
-            "value": "iglu:com.dataplusmath/video_impression/jsonschema/1-0-0"
-          },
-          {
-            "op": "Add",
-            "path": "$.raw.parameters",
-            "value": [
-              {
-                "name": "schema",
-                "value": "iglu:com.dataplusmath/video_impression/jsonschema/1-0-0"
-              }
-            ]
+        "steps": [{
+          "op": "Replace",
+          "path": "$.raw.parameters.[?(@.name=~ue_pr)].value",
+          "match": "iglu:0/video_impression/jsonschema/1-0-0",
+          "value": "iglu:com.dpm/v_i/jsonschema/1-0-0"
           }
         ]
       }
