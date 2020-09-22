@@ -63,9 +63,15 @@ object replace {
       case Some(m) if value.isArray =>
         (x.filter(v => m.r.findAllIn(v.noSpaces).isEmpty) ++ value.asArray.getOrElse(Vector.empty)).asRight
       case Some(m) =>
-        x.map(v => m.r.replaceAllIn(v.noSpaces, value.noSpaces))
-          .traverse(parseJson)
-          .leftMap(err => ReplacementFailure(err.toString, None, value.noSpaces))
+        for {
+          s <- string(Seq.empty, m.some, value)(x.asJson.noSpaces)
+          p <- parseJson(s).leftMap(_ => InvalidJsonFormat(s))
+          o <- p
+          .asArray
+          .toRight(
+            ReplacementFailure(x.asJson.noSpaces, matcher, value.noSpaces)
+          )
+        } yield o
       case None if value.isArray =>
         value.as[Vector[Json]].leftMap(err => ReplacementFailure(err.toString, None, value.noSpaces))
       case None => Vector(value).asRight
