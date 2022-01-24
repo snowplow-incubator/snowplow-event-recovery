@@ -84,8 +84,8 @@ object gens {
     } yield {
       val collectorPayload = new CollectorPayload()
       collectorPayload.timestamp = ts
-      collectorPayload.path      = path
-      if (post) collectorPayload.body   = body(json)
+      collectorPayload.path = path
+      if (post) collectorPayload.body = body(json)
       else collectorPayload.querystring = qs(json)
       collectorPayload
     }

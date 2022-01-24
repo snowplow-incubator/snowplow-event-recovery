@@ -30,13 +30,11 @@ import util.querystring._
 
 object recoverable {
 
-  /**
-    * A typeclass that allows applying recovery scenarios.
+  /** A typeclass that allows applying recovery scenarios.
     */
   trait Recoverable[A <: BadRow, B <: Payload] { self =>
 
-    /**
-      * Apply a recovery configuration flow to given `a`.
+    /** Apply a recovery configuration flow to given `a`.
       */
     def recover(a: A)(config: List[StepConfig]): Either[RecoveryStatus, B]
   }
@@ -51,12 +49,14 @@ object recoverable {
         override def recover(a: A)(config: List[StepConfig]): Recovering[B] = r(a)(config)
       }
 
-    /**
-      * Step through configured flow on top of payload.
-      * @param config: recovery configuration
-      * @param flow: a flow which shall be applied
+    /** Step through configured flow on top of payload.
+      * @param config:
+      *   recovery configuration
+      * @param flow:
+      *   a flow which shall be applied
       * @param payload
-      * @param mkStep: a definition of how to turn `StepConfig` to `Step`
+      * @param mkStep:
+      *   a definition of how to turn `StepConfig` to `Step`
       */
     def step[B <: Payload](steps: List[StepConfig], payload: B)(mkStep: StepConfig => Step[B]): Recovering[B] =
       steps.map(c => Kleisli(mkStep(c).recover)).foldLeft(Kleisli(new PassThrough[B]().recover))(_ >>> _)(payload)
@@ -80,9 +80,8 @@ object recoverable {
         case a: SizeViolation             => sizeViolationRecovery.recover(a)
         case a: TrackerProtocolViolations => trackerProtocolViolationsRecovery.recover(a)
         case a: BadRow.RecoveryError      => recoveryErrorRecovery.recover(a)
-        case a: BadRow => { _ =>
-          Left(UnrecoverableBadRowType(a))
-        }
+        case a: BadRow =>
+          _ => Left(UnrecoverableBadRowType(a))
       }
 
     implicit val adapterFailuresRecovery: Recoverable[AdapterFailures, Payload.CollectorPayload] =
@@ -106,9 +105,9 @@ object recoverable {
 
         private[this] def recoverQuery(b: CPFormatViolation) =
           for {
-            msg       <- querystring(b)
-            params    <- params(msg).map(_.mapValues(clean))
-            payload   <- mkPayload(b.payload, params)
+            msg     <- querystring(b)
+            params  <- params(msg).map(_.mapValues(clean))
+            payload <- mkPayload(b.payload, params)
           } yield payload
 
         private[this] def querystring(b: CPFormatViolation) =

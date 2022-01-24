@@ -44,7 +44,7 @@ final case class RecoveryError(
   private[this] def toBadRow(configName: Option[String])(typedRow: SelfDescribingBadRow) =
     BadRow.RecoveryError(
       processor = Processor("snowplow-event-recovery", "0.2.0"),
-      failure   = Failure.RecoveryFailure(status.message, configName),
+      failure = Failure.RecoveryFailure(status.message, configName),
       payload = untyped
         .payload(typedRow.data)
         .map {
@@ -59,8 +59,8 @@ final case class RecoveryError(
       processor = Processor("snowplow-event-recovery", "0.2.0"),
       failure = Failure.CPFormatViolation(
         timestamp = Instant.now(),
-        loader    = "",
-        message   = FailureDetails.CPFormatViolationMessage.Fallback(message)
+        loader = "",
+        message = FailureDetails.CPFormatViolationMessage.Fallback(message)
       ),
       payload = Payload.RawPayload(row)
     )

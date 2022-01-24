@@ -37,14 +37,13 @@ class JsonSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
 
   "path" should {
     "extract path segments for JsonPath" when {
-      "arbitrary JsonPath provided" in forAll(pathGen) {
-        case ((path, segments)) =>
-          json.path(path).size should equal(segments)
+      "arbitrary JsonPath provided" in forAll(pathGen) { case (path, segments) =>
+        json.path(path).size should equal(segments)
       }
       "snake_case fields provided" in {
         val segments = List("payload", "raw", "parameters", "ue_px", "schema")
-        val path = segments.mkString(".")
-        json.path(path) should contain theSameElementsAs(segments)
+        val path     = segments.mkString(".")
+        json.path(path) should contain theSameElementsAs segments
       }
     }
   }
