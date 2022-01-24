@@ -37,24 +37,30 @@ object RecoveryJob extends RecoveryJob
 
 trait RecoveryJob {
 
-  /**
-    * Spark job running the event recovery process on AWS.
-    * It will:
-    * - read the input data from an S3 location
-    * - decode the bad row jsons
-    * - mutate the collector payloads contained in the concerned bad rows according to the specified
-    * recovery scenarios
-    * - write out the fixed payloads to Kinesis
-    * - write failed recoveries to an S3 location
-    * - write unrecoverable bad rows to an S3 location
-    * @param input S3 location to read the bad rows from
-    * @param output Kinesis stream to write the fixed collector payloads to
-    * @param failedOutput S3 location to write the failed recoveries
-    * @param unrecoverableOutput S3 location to write unrecoverble bad rows
-    * @param region Kinesis deployment region
-    * @param batchSize size of event batches sent to Kinesis
-    * @param cfg configuration object containing mappings and recovery flow configurations
-    * @param directoryOutput optionally output successful recoveries into a file
+  /** Spark job running the event recovery process on AWS. It will:
+    *   - read the input data from an S3 location
+    *   - decode the bad row jsons
+    *   - mutate the collector payloads contained in the concerned bad rows according to the specified recovery
+    *     scenarios
+    *   - write out the fixed payloads to Kinesis
+    *   - write failed recoveries to an S3 location
+    *   - write unrecoverable bad rows to an S3 location
+    * @param input
+    *   S3 location to read the bad rows from
+    * @param output
+    *   Kinesis stream to write the fixed collector payloads to
+    * @param failedOutput
+    *   S3 location to write the failed recoveries
+    * @param unrecoverableOutput
+    *   S3 location to write unrecoverble bad rows
+    * @param region
+    *   Kinesis deployment region
+    * @param batchSize
+    *   size of event batches sent to Kinesis
+    * @param cfg
+    *   configuration object containing mappings and recovery flow configurations
+    * @param directoryOutput
+    *   optionally output successful recoveries into a file
     */
   def run(
     input: String,
@@ -140,8 +146,8 @@ trait RecoveryJob {
     v: Dataset[(Array[Byte], Result)],
     summary: Summary,
     spark: SparkSession
-  )(
-    implicit encoder: Encoder[Array[Byte]],
+  )(implicit
+    encoder: Encoder[Array[Byte]],
     resEncoder: Encoder[(Array[Byte], Result)],
     strEncoder: Encoder[String]
   ): Summary = {
@@ -165,7 +171,7 @@ trait RecoveryJob {
       successful
         .rdd
         .map { x =>
-          (util
+          util
             .thrift
             .deser(x)
             .map { cp =>
@@ -175,7 +181,7 @@ trait RecoveryJob {
               val thriftWritable = ThriftWritable.newInstance(classOf[CollectorPayload])
               thriftWritable.set(cp)
               new LongWritable(0L) -> thriftWritable
-            })
+            }
             .toOption
         }
         .filter(_.isDefined)
@@ -231,8 +237,8 @@ object kinesis {
       streamName: String,
       region: Regions,
       credentials: SparkAWSCredentials = DefaultCredentials,
-      chunk: Int                       = recordsMaxCount,
-      endpoint: Option[String]         = None
+      chunk: Int = recordsMaxCount,
+      endpoint: Option[String] = None
     ): Unit =
       if (!rdd.isEmpty)
         rdd

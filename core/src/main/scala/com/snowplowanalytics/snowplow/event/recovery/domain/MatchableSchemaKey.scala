@@ -39,12 +39,10 @@ object MatchableSchemaKey {
     } yield k == d).getOrElse(false)
 }
 
-/**
-  * A loose schema string definition that allows matching parts of schema key wit '*'
+/** A loose schema string definition that allows matching parts of schema key wit '*'
   *
-  * example:
-  * `iglu:com.snowplowanalytics.snowplow.badrows/tracker_protocol_violation/jsonschema/1-*-*`
-  * will match revision and addition version.
+  * example: `iglu:com.snowplowanalytics.snowplow.badrows/tracker_protocol_violation/jsonschema/1-*-*` will match
+  * revision and addition version.
   */
 case class MatchableSchemaKey(
   vendor: String,

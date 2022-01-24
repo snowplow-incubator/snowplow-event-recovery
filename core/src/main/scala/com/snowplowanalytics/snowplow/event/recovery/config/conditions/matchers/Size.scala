@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery.config.conditions
 
 import io.circe.Json
 
-/**
-  */
+/** */
 case class Size(size: Size.Matcher) extends Matcher {
   def checks(j: Json) =
     j.fold(

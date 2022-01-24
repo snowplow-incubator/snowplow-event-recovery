@@ -22,16 +22,16 @@ import io.circe.syntax._
 import domain._
 import com.snowplowanalytics.snowplow.event.recovery.config.conditions.Matcher
 
-/**
-  * A faux transformation checking for specific conditions on JSON types (including Base64-encoded) to others including.
+/** A faux transformation checking for specific conditions on JSON types (including Base64-encoded) to others including.
   */
 object check {
 
-  /**
-    * Runs check operation.
+  /** Runs check operation.
     *
-    * @param path a list describing route to field being transformed
-    * @param body JSON structure being transformed
+    * @param path
+    *   a list describing route to field being transformed
+    * @param body
+    *   JSON structure being transformed
     */
   def apply(matcher: Matcher)(path: Seq[String])(body: Json): Recovering[Boolean] =
     transform(

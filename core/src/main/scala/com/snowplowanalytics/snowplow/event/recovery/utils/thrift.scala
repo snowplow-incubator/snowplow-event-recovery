@@ -31,15 +31,13 @@ object thrift {
 
   /** Serialize a CollectorPayload into a byte array. */
   val serializeNoB64: CollectorPayload => Recovering[Array[Byte]] = cp =>
-    Either
-      .catchNonFatal(new TSerializer().serialize(cp))
-      .leftMap(err => ThriftFailure(err.getMessage))
+    Either.catchNonFatal(new TSerializer().serialize(cp)).leftMap(err => ThriftFailure(err.getMessage))
 
   /** Deserialize a String into a CollectorPayload. */
   val deserializeNoB64: String => Recovering[CollectorPayload] = str => deser(str.getBytes)
 
   /** Deserialize a String into a CollectorPayload. */
-  val deser: Array[Byte] => Recovering[CollectorPayload] =  str => {
+  val deser: Array[Byte] => Recovering[CollectorPayload] = str => {
     val payload = new CollectorPayload
     Either
       .catchNonFatal(new TDeserializer().deserialize(payload, str))

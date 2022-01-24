@@ -29,7 +29,10 @@ import domain._
 
 class SplitByStatusSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues with MockitoSugar {
   implicit val eitherBRorPayload: Gen[Either[RecoveryError, Array[Byte]]] =
-    Gen.either(gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")), gens.nonEmptyString.arbitrary.map(_.getBytes))
+    Gen.either(
+      gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")),
+      gens.nonEmptyString.arbitrary.map(_.getBytes)
+    )
 
   "SplitByStatus" should {
     "separate recovery success from failure" in {
