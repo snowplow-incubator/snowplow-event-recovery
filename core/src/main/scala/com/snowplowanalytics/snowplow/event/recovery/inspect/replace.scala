@@ -23,20 +23,21 @@ import io.circe.parser.{parse => parseJson}
 import transform._
 import domain._
 
-/**
-  * A transformation casting JSON types (including Base64-encoded) to others including.
-  * Can perform operations on all JSON types.
+/** A transformation casting JSON types (including Base64-encoded) to others including. Can perform operations on all
+  * JSON types.
   */
 object replace {
 
-  /**
-    * Runs replace operation.
+  /** Runs replace operation.
     *
-    * @param matcher an optional regex string for matching values
-    *        otherwise full field contents are transformed
-    * @param value a new value to be set for matches
-    * @param path a list describing route to field being transformed
-    * @param body JSON structure being transformed
+    * @param matcher
+    *   an optional regex string for matching values otherwise full field contents are transformed
+    * @param value
+    *   a new value to be set for matches
+    * @param path
+    *   a list describing route to field being transformed
+    * @param body
+    *   JSON structure being transformed
     */
   def apply(matcher: Option[String], value: Json)(path: Seq[String])(body: Json): Recovering[Json] = {
     val error = ReplacementFailure(_, matcher, value.noSpaces)
@@ -67,10 +68,10 @@ object replace {
           s <- string(Seq.empty, m.some, value)(x.asJson.noSpaces)
           p <- parseJson(s).leftMap(_ => InvalidJsonFormat(s))
           o <- p
-          .asArray
-          .toRight(
-            ReplacementFailure(x.asJson.noSpaces, matcher, value.noSpaces)
-          )
+            .asArray
+            .toRight(
+              ReplacementFailure(x.asJson.noSpaces, matcher, value.noSpaces)
+            )
         } yield o
       case None if value.isArray =>
         value.as[Vector[Json]].leftMap(err => ReplacementFailure(err.toString, None, value.noSpaces))

@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery.config.conditions
 
 import io.circe.Json
 
-/**
-  */
+/** */
 case class RegularExpression(regex: String) extends Matcher {
   def checks(j: Json) = compare(j.noSpaces)
 

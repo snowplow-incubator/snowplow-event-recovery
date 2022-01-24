@@ -24,22 +24,26 @@ import domain._
 
 object RecoveryJob {
 
-  /**
-    * Beam job running the event recovery process on GCP.
-    * It will:
-    * - read the input data from a GCS location
-    * - decode the bad row jsons
-    * - mutate the collector payloads contained in the concerned bad rows according to the specified
-    * recovery scenarios
-    * - write out the fixed payloads to PubSub
-    * - write failed recoveries to an GCS location
-    * - write unrecoverable bad rows to an GCS location
-    * @param sc ScioContext necessary to interact with the SCIO/Beam API
-    * @param input GCS location to read the bad rows from
-    * @param output PubSub stream to write the fixed collector payloads to
-    * @param failedOutput GCS location to write the failed recoveries
-    * @param unrecoverableOutput GCS location to write unrecoverble bad rows
-    * @param cfg configuration object containing mappings and recovery flow configurations
+  /** Beam job running the event recovery process on GCP. It will:
+    *   - read the input data from a GCS location
+    *   - decode the bad row jsons
+    *   - mutate the collector payloads contained in the concerned bad rows according to the specified recovery
+    *     scenarios
+    *   - write out the fixed payloads to PubSub
+    *   - write failed recoveries to an GCS location
+    *   - write unrecoverable bad rows to an GCS location
+    * @param sc
+    *   ScioContext necessary to interact with the SCIO/Beam API
+    * @param input
+    *   GCS location to read the bad rows from
+    * @param output
+    *   PubSub stream to write the fixed collector payloads to
+    * @param failedOutput
+    *   GCS location to write the failed recoveries
+    * @param unrecoverableOutput
+    *   GCS location to write unrecoverble bad rows
+    * @param cfg
+    *   configuration object containing mappings and recovery flow configurations
     */
   def run(
     sc: ScioContext,
@@ -55,9 +59,8 @@ object RecoveryJob {
       .map(execute(cfg))
       .withName("partition-by-result")
       .partitionByKey(Result.partitions)(Result.byKey)
-      .foreach {
-        case (k, v) =>
-          sink(output, failedOutput, unrecoverableOutput)(k, v)
+      .foreach { case (k, v) =>
+        sink(output, failedOutput, unrecoverableOutput)(k, v)
       }
 
   private[this] def sink(

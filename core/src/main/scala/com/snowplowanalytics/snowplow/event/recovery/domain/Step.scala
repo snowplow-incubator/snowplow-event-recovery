@@ -24,23 +24,20 @@ import domain._
 import inspectable.Inspectable._
 import inspectable.Inspectable.ops._
 
-/**
-  * A definition of a single recovery process step.
-  * Many subsequent steps form a recovery flow.
-  * The flows are applied to BadRows in recovery process.
-  * @param a type of Payload given Step operates on
+/** A definition of a single recovery process step. Many subsequent steps form a recovery flow. The flows are applied to
+  * BadRows in recovery process.
+  * @param a
+  *   type of Payload given Step operates on
   */
 sealed trait Step[A <: Payload] {
 
-  /**
-    * Defines a process of application of the `Step` to `A`
+  /** Defines a process of application of the `Step` to `A`
     */
   val recover: A => Recovering[A]
 }
 
-/**
-  * A pass-through step used for when no modification is required
-  * and bad row was most likely caused by downstream failure.
+/** A pass-through step used for when no modification is required and bad row was most likely caused by downstream
+  * failure.
   */
 class PassThrough[A <: Payload] extends Step[A] {
   val recover: A => Recovering[A] = a => Right(a)
