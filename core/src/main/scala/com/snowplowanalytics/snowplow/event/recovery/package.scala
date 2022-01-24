@@ -27,10 +27,11 @@ import recovery.util.thrift
 
 package object recovery {
 
-  /**
-    * Executes recovery config for given line.
-    * @param cfg overall flow configuration
-    * @param line a line to be recovered
+  /** Executes recovery config for given line.
+    * @param cfg
+    *   overall flow configuration
+    * @param line
+    *   a line to be recovered
     */
   def execute(cfg: Config)(line: String): Either[RecoveryError, Array[Byte]] =
     parseJson(line).leftMap(_ => InvalidJsonFormat(line).withRow(line)).flatMap(BadRowWithConfig.extract(cfg)).flatMap {
@@ -41,7 +42,7 @@ package object recovery {
   private[this] def recover(
     steps: List[StepConfig],
     b: BadRow
-  )(
-    implicit recoverable: Recoverable[BadRow, Payload]
+  )(implicit
+    recoverable: Recoverable[BadRow, Payload]
   ): Recovering[Payload] = b.recover(steps)
 }

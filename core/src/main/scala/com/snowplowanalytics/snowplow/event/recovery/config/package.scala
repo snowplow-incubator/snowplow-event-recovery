@@ -40,18 +40,20 @@ package object config {
   type Conf                 = SelfDescribingData[Config]
   type SelfDescribingBadRow = SelfDescribingData[BadRow]
 
-  /**
-    * Load recovery configuration from configuration json file
-    * @param configuration json file contents as a String
-    * @return either an error message or a loaded configuration
+  /** Load recovery configuration from configuration json file
+    * @param configuration
+    *   json file contents as a String
+    * @return
+    *   either an error message or a loaded configuration
     */
   def load(cfg: String): Either[String, config.Config] =
     parseJson(cfg).flatMap(_.as[config.Conf]).map(_.data).leftMap(_.show)
 
-  /**
-    * Validate that a configuration conforms to its schema.
-    * @param configuration in json form
-    * @return a failure if the json didn't validate against its schema or a success
+  /** Validate that a configuration conforms to its schema.
+    * @param configuration
+    *   in json form
+    * @return
+    *   a failure if the json didn't validate against its schema or a success
     */
   def validateSchema[F[_]: Monad: InitSchemaCache: InitListCache: Clock: RegistryLookup](
     config: String,

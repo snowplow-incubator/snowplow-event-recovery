@@ -26,9 +26,8 @@ import domain._
 import json._
 import config._
 
-
 class RecoveryJobSpec extends SparkSpec {
-  implicit val session = spark
+  implicit val session                                 = spark
   implicit val resultE: Encoder[(Array[Byte], Result)] = Encoders.kryo
 
   object RecoveryJobTest extends RecoveryJob {
@@ -50,9 +49,14 @@ class RecoveryJobSpec extends SparkSpec {
       v: Dataset[(Array[Byte], Result)],
       summary: Summary,
       spark: SparkSession
-    )(implicit encoder: Encoder[Array[Byte]], resEncoder: Encoder[(Array[Byte], Result)], strEncoder: Encoder[String]) = {
+    )(implicit
+      encoder: Encoder[Array[Byte]],
+      resEncoder: Encoder[(Array[Byte], Result)],
+      strEncoder: Encoder[String]
+    ) = {
       recovered ++= v
-        .filter(_._2 == Recovered).map(_._1)
+        .filter(_._2 == Recovered)
+        .map(_._1)
         .map { r =>
           summary.successful.add(1)
           r
@@ -61,7 +65,8 @@ class RecoveryJobSpec extends SparkSpec {
         .asScala
         .toList
       failed ++= v
-        .filter(_._2 == Failed).map(_._1)
+        .filter(_._2 == Failed)
+        .map(_._1)
         .map { r =>
           summary.failed.add(1)
           r
@@ -70,7 +75,8 @@ class RecoveryJobSpec extends SparkSpec {
         .asScala
         .toList
       unrecoverable ++= v
-        .filter(_._2 == Unrecoverable).map(_._1)
+        .filter(_._2 == Unrecoverable)
+        .map(_._1)
         .map { r =>
           summary.unrecoverable.add(1)
           r
@@ -111,7 +117,7 @@ class RecoveryJobSpec extends SparkSpec {
       "UTF-8",
       "c"
     )
-    c.path        = "/com.snowplowanalytics.snowplow/tp2"
+    c.path = "/com.snowplowanalytics.snowplow/tp2"
     c.querystring = "e=pv&page=DemoPageTitle"
     util.thrift.serializeNoB64(c).right.get
   }
@@ -119,7 +125,16 @@ class RecoveryJobSpec extends SparkSpec {
   "RecoveryJob" must {
     "filter" should {
       "should filter based on the criteria passed as arguments" in {
-        RecoveryJobTest.run("input", Some("output"), "failed", "unrecoverable", Some("debug"), Regions.AP_EAST_1, 1, cfg)
+        RecoveryJobTest.run(
+          "input",
+          Some("output"),
+          "failed",
+          "unrecoverable",
+          Some("debug"),
+          Regions.AP_EAST_1,
+          1,
+          cfg
+        )
         RecoveryJobTest.recovered.size == 1
         RecoveryJobTest.recovered should contain(fixed)
         RecoveryJobTest.failed.size == 0
