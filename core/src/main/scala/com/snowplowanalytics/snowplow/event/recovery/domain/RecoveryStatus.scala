@@ -21,8 +21,7 @@ import com.snowplowanalytics.snowplow.badrows._
 import config._
 import json._
 
-/**
-  * Failure statuses for erroneous recovery cases.
+/** Failure statuses for erroneous recovery cases.
   */
 sealed trait RecoveryStatus {
   def message: String
@@ -58,8 +57,7 @@ object RecoveryStatus {
     }
 }
 
-/**
-  * Signifies that a step configuration to be applied is not supported, does not exist.
+/** Signifies that a step configuration to be applied is not supported, does not exist.
   */
 case class InvalidStep(data: Payload, stepName: String)(implicit val encoder: Encoder[Payload]) extends RecoveryStatus {
   def message =
@@ -70,9 +68,7 @@ object InvalidStep {
   implicit val encoder: Encoder[InvalidStep] = deriveEncoder
 }
 
-/**
-  * Signifies string to JSON parsing case.
-  * Supplied string does not properly resolve to a valid JSON string.
+/** Signifies string to JSON parsing case. Supplied string does not properly resolve to a valid JSON string.
   */
 case class InvalidJsonFormat(data: String) extends RecoveryStatus {
   def message = s"Failed to parse JSON string from $data"
@@ -82,17 +78,15 @@ object InvalidJsonFormat {
   implicit val encoder: Encoder[InvalidJsonFormat] = deriveEncoder
 }
 
-/**
-  * Signifies a generic field format exception.
-  * Data supplied at runtime did not comply expectation.
+/** Signifies a generic field format exception. Data supplied at runtime did not comply expectation.
   */
 case class UnexpectedFieldFormat(
   data: String,
   field: String,
   expected: Option[String] = None,
-  error: Option[String]    = None
+  error: Option[String] = None
 ) extends RecoveryStatus {
-  def message              = s"Supplied data: $data in $field, does not comply expected data format${fmt(expected)}.${raised(error)}"
+  def message = s"Supplied data: $data in $field, does not comply expected data format${fmt(expected)}.${raised(error)}"
   private[this] val fmt    = (expected: Option[String]) => expected.map(v => s" ($v)").getOrElse("")
   private[this] val raised = (error: Option[String]) => error.map(v => s" Raised error: $v").getOrElse("")
 }
@@ -101,8 +95,7 @@ object UnexpectedFieldFormat {
   implicit val encoder: Encoder[UnexpectedFieldFormat] = deriveEncoder
 }
 
-/**
-  * Signifies Base64 encoding/decoding failure.
+/** Signifies Base64 encoding/decoding failure.
   */
 case class Base64Failure(data: String, error: String) extends RecoveryStatus {
   def message = s"Failed to properly transform to/from Base64 string: $data. $error"
@@ -112,8 +105,7 @@ object Base64Failure {
   implicit val encoder: Encoder[Base64Failure] = deriveEncoder
 }
 
-/**
-  * Signifies URL encoding/decoding failure.
+/** Signifies URL encoding/decoding failure.
   */
 case class UrlCodecFailure(data: String, error: String) extends RecoveryStatus {
   def message = s"Failed to properly transform to/from URL-encoded string: $data. $error"
@@ -123,9 +115,7 @@ object UrlCodecFailure {
   implicit val encoder: Encoder[UrlCodecFailure] = deriveEncoder
 }
 
-/**
-  * Signifies SelfDescribingData structural error.
-  * Supplied JSON does not properly resolve to a known data structure.
+/** Signifies SelfDescribingData structural error. Supplied JSON does not properly resolve to a known data structure.
   */
 case class InvalidDataFormat(data: Option[Json], error: String) extends RecoveryStatus {
   def message = s"""Failed to create object from JSON string ${data.map(v => s"in $v.").getOrElse(".")} $error"""
@@ -135,9 +125,8 @@ object InvalidDataFormat {
   implicit val encoder: Encoder[InvalidDataFormat] = deriveEncoder
 }
 
-/**
-  * Signifies that there is no configuration for given Bad Row format.
-  * No mapping between schema key and recovery configuration was found.
+/** Signifies that there is no configuration for given Bad Row format. No mapping between schema key and recovery
+  * configuration was found.
   */
 case class FailedToMatchConfiguration(data: String) extends RecoveryStatus {
   def message =
@@ -148,8 +137,7 @@ object FailedToMatchConfiguration {
   implicit val encoder: Encoder[FailedToMatchConfiguration] = deriveEncoder
 }
 
-/**
-  * Signifies that a field that was supposed to be replaced does not exist in Bad Row.
+/** Signifies that a field that was supposed to be replaced does not exist in Bad Row.
   */
 case class FieldDoesNotExist[+A <: Payload: Encoder](data: A, field: String) extends RecoveryStatus {
   def message = s"Failed to modify $field. Field does not exist in $data"
@@ -157,13 +145,12 @@ case class FieldDoesNotExist[+A <: Payload: Encoder](data: A, field: String) ext
 
 object FieldDoesNotExist {
   implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[FieldDoesNotExist[A]] =
-    Encoder.forProduct2[FieldDoesNotExist[A], Json, String]("data", "reason") {
-      case m @ FieldDoesNotExist(d, _) => (encoder(d), m.message)
+    Encoder.forProduct2[FieldDoesNotExist[A], Json, String]("data", "reason") { case m @ FieldDoesNotExist(d, _) =>
+      (encoder(d), m.message)
     }
 }
 
-/**
-  * Signifies that the supplied bad row type is not known to be recoverable.
+/** Signifies that the supplied bad row type is not known to be recoverable.
   */
 case class UnrecoverableBadRowType[+A <: BadRow](data: A) extends RecoveryStatus {
   def message =
@@ -175,13 +162,12 @@ object UnrecoverableBadRowType {
     Encoder.forProduct2[UnrecoverableBadRowType[A], Json, String](
       "data",
       "reason"
-    ) {
-      case m @ UnrecoverableBadRowType(d) => (encoder(d), m.message)
+    ) { case m @ UnrecoverableBadRowType(d) =>
+      (encoder(d), m.message)
     }
 }
 
-/**
-  * Signifies that the supplied bad row type is not known to be recoverable.
+/** Signifies that the supplied bad row type is not known to be recoverable.
   */
 case class RecoveryThresholdExceeded(data: BadRow.RecoveryError) extends RecoveryStatus {
   def message =
@@ -192,8 +178,7 @@ object RecoveryThresholdExceeded {
   implicit val encoder: Encoder[RecoveryThresholdExceeded] = deriveEncoder
 }
 
-/**
-  * Signifies that recovery process' step application has failed and is unable to proceed.
+/** Signifies that recovery process' step application has failed and is unable to proceed.
   */
 case class RecoveryFailed[+A <: BadRow: Encoder](data: A, steps: List[StepConfig]) extends RecoveryStatus {
   def message =
@@ -202,13 +187,12 @@ case class RecoveryFailed[+A <: BadRow: Encoder](data: A, steps: List[StepConfig
 
 object RecoveryFailed {
   implicit def encoder[A <: BadRow](implicit encoder: Encoder[A]): Encoder[RecoveryFailed[A]] =
-    Encoder.forProduct2[RecoveryFailed[A], Json, String]("data", "reason") {
-      case m @ RecoveryFailed(d, _) => (encoder(d), m.message)
+    Encoder.forProduct2[RecoveryFailed[A], Json, String]("data", "reason") { case m @ RecoveryFailed(d, _) =>
+      (encoder(d), m.message)
     }
 }
 
-/**
-  * Signifies an unsupported step is requested.
+/** Signifies an unsupported step is requested.
   */
 case class UnsupportedStep[+A <: Payload: Encoder](data: A, step: String) extends RecoveryStatus {
   def message =
@@ -217,8 +201,8 @@ case class UnsupportedStep[+A <: Payload: Encoder](data: A, step: String) extend
 
 object UnsupportedStep {
   implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[UnsupportedStep[A]] =
-    Encoder.forProduct2[UnsupportedStep[A], Json, String]("data", "reason") {
-      case m @ UnsupportedStep(d, _) => (encoder(d), m.message)
+    Encoder.forProduct2[UnsupportedStep[A], Json, String]("data", "reason") { case m @ UnsupportedStep(d, _) =>
+      (encoder(d), m.message)
     }
 }
 
@@ -270,8 +254,7 @@ object AdditionFailure {
   implicit val encoder: Encoder[AdditionFailure] = deriveEncoder
 }
 
-/**
-  * Signifies a step has failed during processing.
+/** Signifies a step has failed during processing.
   */
 case class ProcessingFailure[+A <: Payload: Encoder](data: A, reason: String) extends RecoveryStatus {
   def message = s"A processing failure has occured because of $reason"
@@ -279,21 +262,23 @@ case class ProcessingFailure[+A <: Payload: Encoder](data: A, reason: String) ex
 
 object ProcessingFailure {
   implicit def encoder[A <: Payload](implicit encoder: Encoder[A]): Encoder[ProcessingFailure[A]] =
-    Encoder.forProduct2[ProcessingFailure[A], Json, String]("data", "reason") {
-      case m @ ProcessingFailure(d, _) => (encoder(d), m.message)
+    Encoder.forProduct2[ProcessingFailure[A], Json, String]("data", "reason") { case m @ ProcessingFailure(d, _) =>
+      (encoder(d), m.message)
     }
 }
 
-case class UncoerciblePayload(data: Payload) extends RecoveryStatus {
-  def message = s"Unable to coerce payload of type ${data.getClass.getCanonicalName} to CollectorPayload"
+case class UncoerciblePayload(data: Payload, reason: String) extends RecoveryStatus {
+  def message =
+    s"""Unable to coerce payload of type ${data.getClass.getCanonicalName} to CollectorPayload: $reason. Data: $data"""
 }
 
 object UncoerciblePayload {
   implicit val encoder: Encoder[UncoerciblePayload] = deriveEncoder
 }
 
-case class UncocoerciblePayload(data: String) extends RecoveryStatus {
-  def message = s"Unable to cocoerce payload of type CollectorPayload to Payload.CollectorPayload"
+case class UncocoerciblePayload(data: String, reason: String) extends RecoveryStatus {
+  def message =
+    s"""Unable to cocoerce payload of type CollectorPayload to Payload.CollectorPayload: $reason. Data: $data"""
 }
 
 object UncocoerciblePayload {
