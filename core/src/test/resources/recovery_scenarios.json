@@ -184,6 +184,25 @@
           "value": "iglu:com.dpm/v_i/jsonschema/1-0-0"
           }
         ]
+      },
+      {
+        "name": "another",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+            "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.formId",
+            "match": "4MA(\\w+)",
+            "value": "my-form-id"
+          }
+        ]
       }
     ]
   }

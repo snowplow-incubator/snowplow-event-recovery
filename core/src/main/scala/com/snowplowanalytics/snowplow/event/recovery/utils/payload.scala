@@ -28,8 +28,14 @@ import cats.data.EitherT
 
 object payload {
 
-  private[this] val coercePF: PartialFunction[Payload, CollectorPayload] = {
-    case p: Payload.CollectorPayload => {
+  /** A homomorphic transformation from a `Payload` of a known-type to `CollectorPayload`.
+    * @param a
+    *   payload of a bad row
+    * @return
+    *   optionally a derived `CollectorPayload`
+    */
+  val coerce: PartialFunction[Payload, Recovering[CollectorPayload]] = {
+    case p: Payload.CollectorPayload =>
       val cp = new CollectorPayload(
         thriftSchema,
         p.ipAddress.orNull,
@@ -37,81 +43,74 @@ object payload {
         p.encoding,
         p.collector
       )
-      cp.path          = mkPath(p.vendor, p.version)
-      cp.userAgent     = p.useragent.orNull
-      cp.refererUri    = p.refererUri.orNull
-      cp.querystring   = querystring.fromNVP(p.querystring)
-      cp.body          = p.body.orNull
-      cp.headers       = p.headers.asJava
-      cp.contentType   = p.contentType.orNull
-      cp.hostname      = p.hostname.orNull
-      cp.networkUserId = p.networkUserId.map(_.toString).orNull
-      cp
-    }
-    case e @ Payload.EnrichmentPayload(_, p) => {
-      val urlEncodedPayload = "ue_pr"
-      val cp = new CollectorPayload(
-        thriftSchema,
-        p.ipAddress.orNull,
-        p.timestamp.map(_.getMillis).getOrElse(0),
-        p.encoding,
-        p.loaderName
-      )
-      cp.path       = mkPath(p.vendor, p.version)
-      cp.userAgent  = p.useragent.orNull
+      cp.path = mkPath(p.vendor, p.version)
+      cp.userAgent = p.useragent.orNull
       cp.refererUri = p.refererUri.orNull
-      cp.querystring = {
-        lazy val err = UncoerciblePayload(e)
-        val parameters = (for {
-          d <- EitherT.fromOption(p.parameters.find(_.name == urlEncodedPayload), err)
-          v <- EitherT.fromOption(d.value, err)
-          p <- EitherT.fromEither(parse(v).map(_.hcursor.downField("data")).leftMap(_ => err))
-          schema <- EitherT.fromEither(
-            p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(_ => err)
-          )
-          nvps <- EitherT.fromEither(p.get[List[NVP]]("data").leftMap(_ => err))
-        } yield (nvps ++ schema)).value.getOrElse(p.parameters)
-        querystring.fromNVP(parameters)
+      cp.querystring = querystring.fromNVP(p.querystring)
+      cp.body = p.body.orNull
+      cp.headers = p.headers.asJava
+      cp.contentType = p.contentType.orNull
+      cp.hostname = p.hostname.orNull
+      cp.networkUserId = p.networkUserId.map(_.toString).orNull
+      Right(cp)
+    case e @ Payload.EnrichmentPayload(_, p) =>
+      val urlEncodedPayload = "ue_pr"
+      lazy val err          = UncoerciblePayload(e, _)
+      val parameters: Recovering[String] = p.parameters.find(_.name == urlEncodedPayload) match {
+        case Some(d) =>
+          (for {
+            v <- EitherT.fromOption(d.value, err(s"$urlEncodedPayload parameter is empty"))
+            p <- EitherT.fromEither(parse(v).map(_.hcursor.downField("data")).leftMap(e => err(e.toString)))
+            schema <- EitherT.fromEither(
+              p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(e => err(e.toString))
+            )
+            nvps <- EitherT.fromEither(p.get[List[NVP]]("data").leftMap(e => err(e.toString)))
+          } yield querystring.fromNVP(nvps ++ schema)).value
+        case None => Right(querystring.fromNVP(p.parameters))
       }
-      cp.hostname      = p.hostname.orNull
-      cp.networkUserId = p.userId.map(_.toString).orNull
-      cp
-    }
+      parameters.map { querystring =>
+        val cp = new CollectorPayload(
+          thriftSchema,
+          p.ipAddress.orNull,
+          p.timestamp.map(_.getMillis).getOrElse(0),
+          p.encoding,
+          p.loaderName
+        )
+        cp.path = mkPath(p.vendor, p.version)
+        cp.userAgent = p.useragent.orNull
+        cp.refererUri = p.refererUri.orNull
+        cp.hostname = p.hostname.orNull
+        cp.networkUserId = p.userId.map(_.toString).orNull
+        cp.querystring = querystring
+        cp
+      }
+    case p => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
   }
 
   private[this] val mkPath = (vendor: String, version: String) => s"/$vendor/$version"
-
-  /**
-    * A homomorphic transformation from a `Payload` of a known-type to `CollectorPayload`.
-    * @param a payload of a bad row
-    * @return optionally a derived `CollectorPayload`
-    */
-  val coerce: Payload => Recovering[CollectorPayload] =
-    (a: Payload) => coercePF.lift(a).toRight(UncoerciblePayload(a))
 
   private[this] val thriftSchema =
     "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
 
   private[this] val cocoercePF: PartialFunction[CollectorPayload, Payload.CollectorPayload] = {
-    case cp: CollectorPayload => {
+    case cp: CollectorPayload =>
       val vendorVersion = toVendorVersion(cp.path)
       Payload.CollectorPayload(
-        vendor        = vendorVersion.vendor,
-        version       = vendorVersion.version,
-        querystring   = querystring.toNVP(cp.querystring),
-        contentType   = Option(cp.contentType),
-        body          = Option(cp.body),
-        collector     = Option(cp.collector).getOrElse(""),
-        encoding      = Option(cp.encoding).getOrElse(""),
-        hostname      = Option(cp.hostname),
-        timestamp     = Option(cp.timestamp).filterNot(_ == 0L).map(new DateTime(_)),
-        ipAddress     = Option(cp.ipAddress),
-        useragent     = Option(cp.userAgent),
-        refererUri    = Option(cp.refererUri),
-        headers       = Either.catchNonFatal(cp.headers.asScala.toList).getOrElse(List.empty),
+        vendor = vendorVersion.vendor,
+        version = vendorVersion.version,
+        querystring = querystring.toNVP(cp.querystring),
+        contentType = Option(cp.contentType),
+        body = Option(cp.body),
+        collector = Option(cp.collector).getOrElse(""),
+        encoding = Option(cp.encoding).getOrElse(""),
+        hostname = Option(cp.hostname),
+        timestamp = Option(cp.timestamp).filterNot(_ == 0L).map(new DateTime(_)),
+        ipAddress = Option(cp.ipAddress),
+        useragent = Option(cp.userAgent),
+        refererUri = Option(cp.refererUri),
+        headers = Either.catchNonFatal(cp.headers.asScala.toList).getOrElse(List.empty),
         networkUserId = Option(cp.networkUserId).flatMap(n => Either.catchNonFatal(UUID.fromString(n)).toOption)
       )
-    }
   }
 
   private[this] case class VendorVersion(vendor: String, version: String)
@@ -129,5 +128,5 @@ object payload {
     Option(path).map(split).getOrElse(Empty)
   }
   val cocoerce: CollectorPayload => Recovering[Payload.CollectorPayload] =
-    (a: CollectorPayload) => cocoercePF.lift(a).toRight(UncocoerciblePayload(a.toString))
+    (a: CollectorPayload) => cocoercePF.lift(a).toRight(UncocoerciblePayload(a.toString, "Unsupported request format"))
 }
