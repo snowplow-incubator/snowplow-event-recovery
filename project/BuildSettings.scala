@@ -30,6 +30,7 @@ import sbtassembly.AssemblyKeys.{assembly, assemblyJarName, assemblyMergeStrateg
 object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
+    maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
     scalaVersion := "2.12.11"
   )
 

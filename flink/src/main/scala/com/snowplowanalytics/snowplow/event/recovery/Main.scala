@@ -26,7 +26,7 @@ import config._
 
 object Main
     extends CommandIOApp(
-      name   = "snowplow-event-recovery-job",
+      name = "snowplow-event-recovery-job",
       header = "Snowplow event recovery job"
     ) {
   override def main: Opts[IO[ExitCode]] = {

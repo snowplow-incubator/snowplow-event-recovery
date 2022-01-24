@@ -26,18 +26,19 @@ import json._
 import domain._
 import domain.MatchableSchemaKey.matchSchema
 
-/**
-  * Defines a bad row and its corresponding, resolved recovery steps.
+/** Defines a bad row and its corresponding, resolved recovery steps.
   */
 case class BadRowWithConfig(badRow: BadRow, steps: List[StepConfig])
 
 object BadRowWithConfig {
 
-  /**
-    * Extract Bad Row with applicable config from string.
-    * @param config: recovery configuration
-    * @param line: string of a self describing json
-    * @return either a successfully decoded string or a failure
+  /** Extract Bad Row with applicable config from string.
+    * @param config:
+    *   recovery configuration
+    * @param line:
+    *   string of a self describing json
+    * @return
+    *   either a successfully decoded string or a failure
     */
   def extract(config: Config)(line: Json): Either[RecoveryError, BadRowWithConfig] =
     (for {
