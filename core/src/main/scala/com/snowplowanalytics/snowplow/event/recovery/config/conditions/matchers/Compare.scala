@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery.config.conditions
 
 import io.circe.Json
 
-/**
-  *  A matcher allowing comparing data against Value.
+/** A matcher allowing comparing data against Value.
   */
 case class Compare(value: Json) extends Matcher {
   def checks(j: Json) =

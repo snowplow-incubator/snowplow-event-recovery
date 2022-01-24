@@ -36,7 +36,7 @@ class PayloadSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
     "cocoerce payloads with invalid UUIDs" in {
       forAll { (cp: CollectorPayload, str: String) =>
         cp.networkUserId = str
-        payload.cocoerce(cp) should be ('right)
+        payload.cocoerce(cp) should be('right)
       }
     }
     "coerce the collector payload" in {
