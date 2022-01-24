@@ -18,7 +18,7 @@ import java.util.Properties
 import org.slf4j.LoggerFactory
 import cats.syntax.either._
 import org.apache.flink.core.fs.Path
-import org.apache.flink.api.common.serialization.{SimpleStringEncoder, SerializationSchema}
+import org.apache.flink.api.common.serialization.{SerializationSchema, SimpleStringEncoder}
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.kinesis._
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
@@ -32,21 +32,24 @@ import util.paths._
 
 object RecoveryJob {
 
-  /**
-    * Flink job running the event recovery process on AWS.
-    * It will:
-    * - read the input data from an S3 location
-    * - decode the bad row jsons
-    * - mutate the collector payloads contained in the concerned bad rows according to the specified
-    * recovery scenarios
-    * - write out the fixed payloads to Kinesis
-    * - write failed recoveries to an S3 location
-    * - write unrecoverable bad rows to an S3 location
-    * @param input S3 location to read the bad rows from
-    * @param output Kinesis stream to write the fixed collector payloads to
-    * @param failedOutput S3 location to write the failed recoveries
-    * @param unrecoverableOutput S3 location to write unrecoverble bad rows
-    * @param cfg configuration object containing mappings and recovery flow configurations
+  /** Flink job running the event recovery process on AWS. It will:
+    *   - read the input data from an S3 location
+    *   - decode the bad row jsons
+    *   - mutate the collector payloads contained in the concerned bad rows according to the specified recovery
+    *     scenarios
+    *   - write out the fixed payloads to Kinesis
+    *   - write failed recoveries to an S3 location
+    *   - write unrecoverable bad rows to an S3 location
+    * @param input
+    *   S3 location to read the bad rows from
+    * @param output
+    *   Kinesis stream to write the fixed collector payloads to
+    * @param failedOutput
+    *   S3 location to write the failed recoveries
+    * @param unrecoverableOutput
+    *   S3 location to write unrecoverble bad rows
+    * @param cfg
+    *   configuration object containing mappings and recovery flow configurations
     */
   def run(
     input: String,

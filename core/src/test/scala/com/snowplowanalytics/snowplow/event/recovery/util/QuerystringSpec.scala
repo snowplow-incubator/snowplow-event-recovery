@@ -50,7 +50,9 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
       )
       val recovered = params(issues).map(_.mapValues(clean)).right.value
       recovered shouldEqual expected
-      mkQS(recovered) shouldEqual "e=%7Bue%7D&zx=iglu:test&tv=$%7Bjs%7D&pv=[pv+!@]&xz='lorem'&ue_px=%7B%7Bunknown%7D%7D&er=(aaa,bbb)"
+      mkQS(
+        recovered
+      ) shouldEqual "e=%7Bue%7D&zx=iglu:test&tv=$%7Bjs%7D&pv=[pv+!@]&xz='lorem'&ue_px=%7B%7Bunknown%7D%7D&er=(aaa,bbb)"
       javaDecode(mkQS(recovered)) should be('right)
     }
     "not manipulate iglu uris" in {
@@ -73,7 +75,7 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
     }
   }
 
-  val mkQS: Map[String, String] => String                    = _.map { case (k, v) => s"$k=$v" }.mkString("&")
-  val javaEncode: String        => Either[Throwable, String] = x => Either.catchNonFatal(URLEncoder.encode(x, UTF_8.toString))
-  val javaDecode: String        => Either[Throwable, String] = x => Either.catchNonFatal(URLDecoder.decode(x, UTF_8.toString))
+  val mkQS: Map[String, String] => String             = _.map { case (k, v) => s"$k=$v" }.mkString("&")
+  val javaEncode: String => Either[Throwable, String] = x => Either.catchNonFatal(URLEncoder.encode(x, UTF_8.toString))
+  val javaDecode: String => Either[Throwable, String] = x => Either.catchNonFatal(URLDecoder.decode(x, UTF_8.toString))
 }

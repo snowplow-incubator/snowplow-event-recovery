@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery.config.conditions
 
 import io.circe.Json
 
-/**
-  */
+/** */
 trait Matcher {
   def checks(j: Json): Boolean
 }

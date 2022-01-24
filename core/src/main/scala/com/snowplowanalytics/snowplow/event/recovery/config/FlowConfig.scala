@@ -17,8 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery.config
 
 import conditions.Condition
 
-/**
-  * Defines a flow configuration for given schema key pattern.
+/** Defines a flow configuration for given schema key pattern.
   */
 case class FlowConfig(
   name: String,

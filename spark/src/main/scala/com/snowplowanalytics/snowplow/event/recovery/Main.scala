@@ -32,7 +32,7 @@ import config._
 /** Entry point for the Spark recovery job */
 object Main
     extends CommandIOApp(
-      name   = "snowplow-event-recovery-job",
+      name = "snowplow-event-recovery-job",
       header = "Snowplow event recovery job"
     ) {
   override def main: Opts[IO[ExitCode]] = {
@@ -40,10 +40,12 @@ object Main
       "input",
       help = "Input S3 path"
     )
-    val output = Opts.option[String](
-      "output",
-      help = "Output Kinesis topic"
-    ).orNone
+    val output = Opts
+      .option[String](
+        "output",
+        help = "Output Kinesis topic"
+      )
+      .orNone
     val failedOutput = Opts
       .option[String](
         "failedOutput",
@@ -99,18 +101,17 @@ object Main
     ).mapN { (i, o, f, u, d, r, b, c) =>
       IO.fromEither(
         c.map(
-            RecoveryJob.run(
-              i,
-              o,
-              f.getOrElse(failedPath(i)),
-              u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
-              d,              
-              Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
-              b.getOrElse(recordsMaxDataSize),
-              _
-            )
+          RecoveryJob.run(
+            i,
+            o,
+            f.getOrElse(failedPath(i)),
+            u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
+            d,
+            Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
+            b.getOrElse(recordsMaxDataSize),
+            _
           )
-          .map(_ => ExitCode.Success)
+        ).map(_ => ExitCode.Success)
           .leftMap(new RuntimeException(_))
       )
     }
