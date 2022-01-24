@@ -69,7 +69,6 @@ class IntegrationSpec extends WordSpec with Inspectors {
     }
   }""".stripMargin
 
-
   val enrichmentsConfig =
     """{"schema": "iglu:com.snowplowanalytics.snowplow/enrichments/jsonschema/1-0-0", "data": []}"""
 
@@ -96,10 +95,7 @@ class IntegrationSpec extends WordSpec with Inspectors {
       Source.fromResource("recovery_scenarios_greedy.json").mkString
     ).right.get.data
 
-    val enriched = List(
-      Source
-      .fromResource("bad_rows_greedy.json")
-      .mkString.filter(_ >= ' '))
+    val enriched = List(Source.fromResource("bad_rows_greedy.json").mkString.filter(_ >= ' '))
       .map(recoveryExecute(conf))
       .map(_.leftMap(_.badRow))
       .map {
