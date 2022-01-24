@@ -23,10 +23,11 @@ import domain.{Base64Failure, Recovering}
 
 object base64 {
 
-  /**
-    * Decode a base64-encoded string.
-    * @param encoded base64-encoded string
-    * @return either a successfully decoded string or a failure
+  /** Decode a base64-encoded string.
+    * @param encoded
+    *   base64-encoded string
+    * @return
+    *   either a successfully decoded string or a failure
     */
   def decodeBytes(encoded: String): Recovering[Array[Byte]] = decode(encoded, identity)
 
@@ -36,10 +37,11 @@ object base64 {
       .map(fn)
       .leftMap(e => Base64Failure(encoded, s"Configuration is not properly base64-encoded: ${e.getMessage}"))
 
-  /**
-    * Decode a base64-encoded string.
-    * @param encoded base64-encoded string
-    * @return either a successfully decoded string or a failure
+  /** Decode a base64-encoded string.
+    * @param encoded
+    *   base64-encoded string
+    * @return
+    *   either a successfully decoded string or a failure
     */
   def encode(str: String): Recovering[String] = encode(str.getBytes(UTF_8))
   def encode(str: Array[Byte]): Recovering[String] =

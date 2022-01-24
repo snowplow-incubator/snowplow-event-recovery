@@ -32,27 +32,27 @@ private[inspect] object transform {
   /** Runs transformation opreration
     *
     * @param transformFn
-    * a function for transforming a JSON structure(s)
+    *   a function for transforming a JSON structure(s)
     * @param error
-    * an error description message for failed application of [[transformFn]]
+    *   an error description message for failed application of [[transformFn]]
     * @param post
-    *  Continuation-passing style(CPS) style function. Call on it with post(oldCursor)(newCursor) to record the
-    *  transformation. Neutral element is post(cursor)(cursor) where cursor == cursor
+    *   Continuation-passing style(CPS) style function. Call on it with post(oldCursor)(newCursor) to record the
+    *   transformation. Neutral element is post(cursor)(cursor) where cursor == cursor
     * @param path
-    * a list describing route to field being transformed
+    *   a list describing route to field being transformed
     * @param body
-    * JSON structure being transformed
+    *   JSON structure being transformed
     */
   def apply(
-             transformFn: Json => Recovering[Json],
-             post: ACursor => ACursor => Recovering[Json],
-             error: String => RecoveryStatus,
-             prevHistory: Seq[String] = Seq.empty[String]
-           )(
-             path: Seq[String]
-           )(
-             body: Json
-           ): Recovering[Json] = {
+    transformFn: Json => Recovering[Json],
+    post: ACursor => ACursor => Recovering[Json],
+    error: String => RecoveryStatus,
+    prevHistory: Seq[String] = Seq.empty[String]
+  )(
+    path: Seq[String]
+  )(
+    body: Json
+  ): Recovering[Json] = {
     @tailrec
     def run(
       ap: Json => Recovering[Json],
@@ -62,26 +62,27 @@ private[inspect] object transform {
       case Seq() =>
         json.withFocusM(ap).flatMap(post(json))
 
-
       // Access field by filter
-      case Seq(h, t@_*) if isFilter(h) =>
+      case Seq(h, t @ _*) if isFilter(h) =>
         val Some((path, value)) = filter(h)
 
         def go(thisCur: ACursor, lastGoodCur: ACursor): Recovering[Json] =
           thisCur match {
             case _: HCursor =>
               // apply transformation to the matched element
-              thisCur.withFocusM(apply(transformFn, post, error, prev :+ h)(t))
+              thisCur
+                .withFocusM(apply(transformFn, post, error, prev :+ h)(t))
                 // go to the next matching element.
                 .flatMap(newJson => go(newJson.rightAt(xs => findInArray(xs.hcursor, path, value)), newJson))
                 // record the transformation
                 .flatMap(newJson => post(thisCur)(newJson.hcursor))
 
             // _ means that thisCur failed - no more matching elements.
-            case _ => if (thisCur == lastGoodCur)
+            case _ =>
+              if (thisCur == lastGoodCur)
                 // first call to go, allow errored thisCur to propagate
                 post(lastGoodCur)(thisCur)
-            else
+              else
                 // subsequent call to go. It will end up here every time when array doesn't have any more matching
                 // elements. Record empty transformation.
                 post(lastGoodCur)(lastGoodCur)
@@ -89,8 +90,10 @@ private[inspect] object transform {
 
         // Initialize by finding first matched element. If no element is found both will be Failed
         // cursors.
-        go(json.downAt(xs => findInArray(xs.hcursor, path, value)), json.downAt(xs => findInArray(xs.hcursor, path, value)))
-
+        go(
+          json.downAt(xs => findInArray(xs.hcursor, path, value)),
+          json.downAt(xs => findInArray(xs.hcursor, path, value))
+        )
 
       // Access array item by id
       case Seq(h, t @ _*) if isArrayItem(h) =>
@@ -135,7 +138,7 @@ private[inspect] object transform {
       case Seq(h, _) if isNVPs(h, prev) =>
         json.focus match {
           case Some(j) => Left(InvalidDataFormat(j.some, s"Cannot access field $h"))
-          case None => Left(InvalidDataFormat(None, s"Cannot access field $h in empty arrNext."))
+          case None    => Left(InvalidDataFormat(None, s"Cannot access field $h in empty arrNext."))
         }
 
       // URL-encoded field
@@ -151,8 +154,8 @@ private[inspect] object transform {
   }
 
   private[inspect] def b64Fn(
-                           apply: Seq[String] => Json => Recovering[Json]
-                         )(path: Seq[String])(body: Json): Recovering[Json] = {
+    apply: Seq[String] => Json => Recovering[Json]
+  )(path: Seq[String])(body: Json): Recovering[Json] = {
     def decode(str: String): Recovering[String] =
       util.base64.decode(str)
 
@@ -163,8 +166,8 @@ private[inspect] object transform {
   }
 
   private[inspect] def urlFn(
-                           apply: Seq[String] => Json => Recovering[Json]
-                         ): Seq[String] => Json => Recovering[Json] = {
+    apply: Seq[String] => Json => Recovering[Json]
+  ): Seq[String] => Json => Recovering[Json] = {
     def decode(str: String) = str.asRight
 
     def encode(json: Json) = Json.fromString(json.noSpaces).asRight
@@ -173,10 +176,10 @@ private[inspect] object transform {
   }
 
   private[this] def encodedFn(
-                               decode: String => Recovering[String],
-                               encode: Json => Recovering[Json],
-                               apply: Seq[String] => Json => Recovering[Json]
-                             )(path: Seq[String])(body: Json): Recovering[Json] =
+    decode: String => Recovering[String],
+    encode: Json => Recovering[Json],
+    apply: Seq[String] => Json => Recovering[Json]
+  )(path: Seq[String])(body: Json): Recovering[Json] =
     body
       .as[String]
       .leftMap(err => InvalidJsonFormat(err.message))
@@ -199,14 +202,14 @@ private[inspect] object transform {
     val extractor = "^\\[([0-9]+)\\]".r
     str match {
       case extractor(id) => Either.catchNonFatal(id.toInt).toOption
-      case _ => None
+      case _             => None
     }
   }
 
   @tailrec
   private[inspect] def findInArray(cursor: ACursor, path: Seq[String], value: Regex): Boolean = path match {
-    case Seq() => cursor.focus.flatMap(v => value.findFirstIn(v.noSpaces)).isDefined
-    case Seq(h, t@_*) => findInArray(cursor.downField(h), t, value)
+    case Seq()          => cursor.focus.flatMap(v => value.findFirstIn(v.noSpaces)).isDefined
+    case Seq(h, t @ _*) => findInArray(cursor.downField(h), t, value)
   }
 
   private[inspect] def isFilter(str: String) = filter(str).isDefined
@@ -215,7 +218,7 @@ private[inspect] object transform {
     val extractor = ("^\\[\\?\\(@\\." + "([a-zA-Z0-9.]+)" + "=~" + "(.+)\\)\\]$").r
     str match {
       case extractor(path, value) => Some((path.split('.'), value.r))
-      case _ => None
+      case _                      => None
     }
   }
 

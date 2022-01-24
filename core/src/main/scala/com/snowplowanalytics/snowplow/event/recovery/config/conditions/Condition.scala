@@ -18,8 +18,7 @@ package config.conditions
 
 import io.circe.Json
 
-/**
-  * Defines a condition used for matching against data to check whether to apply given set of steps in FlowConfig.
+/** Defines a condition used for matching against data to check whether to apply given set of steps in FlowConfig.
   */
 case class Condition(
   op: Test.type,

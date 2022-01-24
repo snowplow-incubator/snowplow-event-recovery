@@ -33,7 +33,7 @@ class QueryCharSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
 
   "QueryChar" should {
     "normalize query parameter string" when {
-      "encoded characters supplied" in forAll(percentGen) { case ((c1: Char, c2: Char)) =>
+      "encoded characters supplied" in forAll(percentGen) { case (c1: Char, c2: Char) =>
         normalize(Encoded(c1, c2)) shouldEqual s"%$c1$c2"
       }
       "bracketed characters supplied" in { (s: String) =>
@@ -41,7 +41,7 @@ class QueryCharSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
       }
       "invalid characters supplied" in { (c: Char) =>
         normalize(Invalid(c)) shouldEqual jEncode(c.toString)
-      }      
+      }
     }
   }
 
