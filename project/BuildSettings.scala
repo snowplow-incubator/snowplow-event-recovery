@@ -13,13 +13,10 @@
  * limitations there under.
  */
 
-// sbt
 import sbt._
 import Keys._
 
-// Bintray plugin
-import bintray.BintrayPlugin._
-import bintray.BintrayKeys._
+import sbtdynver.DynVerPlugin.autoImport._
 
 // Docker
 import com.typesafe.sbt.packager.docker.DockerPlugin.autoImport._
@@ -33,8 +30,14 @@ import sbtassembly.AssemblyKeys.{assembly, assemblyJarName, assemblyMergeStrateg
 object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
-    version := "0.3.1",
-    scalaVersion := "2.12.11"
+    maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
+    scalaVersion := "2.12.11",
+    licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0"))
+  )
+
+  lazy val dynVerSettings = Seq(
+    ThisBuild / dynverVTagPrefix := false, // Otherwise git tags required to have v-prefix
+    ThisBuild / dynverSeparator := "-"     // to be compatible with docker
   )
 
   lazy val coreProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
@@ -52,26 +55,6 @@ object BuildSettings {
   lazy val sparkProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
     name := "snowplow-event-recovery-spark",
     description := "Apache Spark recovery job"
-  )
-
-  // Make package (build) metadata available within source code.
-  lazy val scalifiedSettings: Seq[sbt.Setting[_]] = Seq(
-    sourceGenerators in Compile += Def.task {
-      val file = (sourceManaged in Compile).value / "settings.scala"
-      IO.write(
-        file,
-        """package com.snowplowanalytics.snowplow.event.recovery
-          |object ProjectSettings {
-          |  val organization = "%s"
-          |  val name = "%s"
-          |  val version = "%s"
-          |  val scalaVersion = "%s"
-          |  val description = "%s"
-          |}
-          |""".stripMargin.format(organization.value, name.value, version.value, scalaVersion.value, description.value)
-      )
-      Seq(file)
-    }.taskValue
   )
 
   lazy val compilerSettings = Seq[Setting[_]](
@@ -127,46 +110,40 @@ object BuildSettings {
     )
   )
 
-  lazy val publishSettings: Seq[sbt.Setting[_]] = bintraySettings ++ Seq(
-    publishMavenStyle := true,
-    publishArtifact := true,
-    publishArtifact in Test := false,
-    licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html")),
-    bintrayOrganization := Some("snowplow"),
-    bintrayRepository := "snowplow-maven",
-    pomIncludeRepository := { _ =>
-      false
-    },
+  lazy val publishSettings = Seq[Setting[_]](
+    pomIncludeRepository := { _ => false },
+    ThisBuild / dynverVTagPrefix := false, // Otherwise git tags required to have v-prefix
     homepage := Some(url("http://snowplowanalytics.com")),
     scmInfo := Some(
       ScmInfo(
-        url("https://github.com/snowplow-incibator/snowplow-event-recovery"),
-        """scm:git@github.com:snowplow-incubator/snowplow-event-recovery.git"""
+        url("https://github.com/snowplow-incubator/snowplow-event-recovery"),
+        "scm:git@github.com:snowplow-incubator/snowplow-event-recovery.git"
       )
     ),
-    pomExtra := (<developers>
-        <developer>
-          <name>Snowplow Analytics Ltd</name>
-          <email>support@snowplowanalytics.com</email>
-          <organization>Snowplow Analytics Ltd</organization>
-          <organizationUrl>http://snowplowanalytics.com</organizationUrl>
-        </developer>
-      </developers>)
+    publishArtifact := true,
+    Test / publishArtifact := false,
+    developers := List(
+      Developer(
+        "Snowplow Analytics Ltd",
+        "Snowplow Analytics Ltd",
+        "support@snowplowanalytics.com",
+        url("https://snowplowanalytics.com")
+      )
+    )
   )
 
   lazy val dockerSettings: Seq[sbt.Setting[_]] = Seq(
     // Use single entrypoint script for all apps
     sourceDirectory in Universal := new java.io.File((baseDirectory in LocalRootProject).value, "docker"),
-    dockerRepository := Some("snowplow-docker-registry.bintray.io"),
     dockerUsername := Some("snowplow"),
-    dockerBaseImage := "snowplow-docker-registry.bintray.io/snowplow/k8s-dataflow:0.1.1",
+    dockerBaseImage := "snowplow/k8s-dataflow:0.1.1",
     maintainer in Docker := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
     daemonUser in Docker := "snowplow"
   )
 
   lazy val assemblySettings: Boolean => Seq[sbt.Setting[_]] = includeScala =>
     Seq(
-      assemblyJarName in assembly := { name.value + "-" + version.value + ".jar" },
+      assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
       assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = includeScala),
       assemblyMergeStrategy in assembly := {
         case x if x.startsWith("META-INF")                           => MergeStrategy.discard
@@ -182,13 +159,12 @@ object BuildSettings {
       }
     )
 
-  lazy val commonBuildSettings
-    : Seq[sbt.Setting[_]] = compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ scalifiedSettings
+  lazy val commonBuildSettings: Seq[sbt.Setting[_]] =
+    compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings
 
-  lazy val coreBuildSettings: Seq[sbt.Setting[_]] = coreProjectSettings ++ commonBuildSettings
+  lazy val coreBuildSettings: Seq[sbt.Setting[_]] = coreProjectSettings ++ commonBuildSettings ++ publishSettings
 
-  lazy val beamBuildSettings
-    : Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings // ++ macroSettings
+  lazy val beamBuildSettings: Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings
 
   lazy val flinkBuildSettings: Seq[sbt.Setting[_]] = flinkProjectSettings ++ commonBuildSettings ++ assemblySettings(
     false
