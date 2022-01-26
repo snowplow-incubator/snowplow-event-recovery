@@ -39,6 +39,7 @@ lazy val core = project
 lazy val beam = project
   .dependsOn(core % "compile->compile;test->test")
   .enablePlugins(JavaAppPackaging)
+  .settings(dynVerSettings)
   .settings(beamBuildSettings)
   .settings(
     libraryDependencies ++= Seq(

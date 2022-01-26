@@ -1,7 +1,7 @@
-import ammonite.ops._
+import $ivy.`com.lihaoyi::ammonite-ops:2.4.1`, ammonite.ops._
 import $ivy.`org.typelevel::cats-core:2.0.0`, cats.Id, cats.instances.list._, cats.syntax.traverse._, cats.syntax.either._
 import $ivy.`io.circe::circe-parser:0.11.1`, io.circe._, io.circe.syntax._, io.circe.parser._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.3.1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.4.0-rc1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 import java.util.concurrent.TimeUnit
 import cats.effect.Clock
 
@@ -34,9 +34,9 @@ object jobs {
 
 // Configuration validation
 object configs {
-  def validate(cfg: String) = config.validateSchema[Id](cfg, resolverConfig).value.bimap(println, _ => println(s"Config valid"))
-  def fromFile(cfgPath: String) = validate(load(cfgPath))
-
+  def validate(cfg: String) = validateB(cfg).bimap(println, _ => println(s"Config valid"))
+  def fromFile(cfgPath: String) = validateB(load(cfgPath))
+  private[this] def validateB(cfg: String) = config.validateSchema[Id](cfg, resolverConfig).value
   private[this] val resolverConfig =
     """{"schema":"iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1","data":{"cacheSize":0,"repositories":[{"name": "Iglu Central","priority": 0,"vendorPrefixes": [ "com.snowplowanalytics" ],"connection": {"http":{"uri":"http://iglucentral.com"}}},{"name":"Priv","priority":0,"vendorPrefixes":["com.snowplowanalytics"],"connection":{"http":{"uri":"http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/release/r114"}}}]}}"""
 
