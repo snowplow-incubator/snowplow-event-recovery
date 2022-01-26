@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Scala
+        uses: olafurpg/setup-scala@v10
+      - name: Build core
+        run: |
+          sbt core/assembly
+      - name: Build beam
+        run: |
+          sbt "beam/docker:publishLocal;beam/universal:packageBin"
+      - name: Build spark
+        run: |
+          sbt spark/assembly
+      - name: Deploy hosted-assets
+        env:
+          TAG: ${{github.ref_name}}
+          BUCKET: snowplow-hosted-assets
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          aws --region="eu-west-1" s3 cp spark/target/scala-2.12/snowplow-event-recovery-spark-$TAG.jar s3://$BUCKET/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-$TAG.jar
+          for aws_region in "us-east-1" "us-west-1" "us-west-2" "sa-east-1" "eu-central-1" "ap-southeast-1" "ap-southeast-2" "ap-northeast-1" "ap-south-1" "us-east-2" "ca-central-1" "eu-west-2" "ap-northeast-2"; do aws --region="${aws_region}" s3 cp spark/target/scala-2.12/snowplow-event-recovery-spark-$TAG.jar s3://$BUCKET-${aws_region}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-$TAG.jar; done
+      - name: Docker login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Publish Docker
+        env:
+          REPOSITORY: snowplow/snowplow-event-recovery-beam
+          TAG: ${{github.ref_name}}
+        run: docker push $REPOSITORY:$TAG
+      - name: Deploy common on Maven Central
+        run: sbt "project core" ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.SONA_PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.SONA_PGP_SECRET }}
+          SONATYPE_USERNAME: ${{ secrets.SONA_USER }}
+          SONATYPE_PASSWORD: ${{ secrets.SONA_PASS }}
+      - name: Write changelog
+        run: |
+          nbNewCommits=$(echo "$(git log --pretty=format:%s | grep -n -m1 "Prepare for .* release" | cut -d':' -f1) - 1" | bc)
+          newCommits=$(git log --pretty=format:%s|head -n${nbNewCommits:-0}|sed 's/close #/#/;s/closes #/#/')
+          headLine="Version ${{github.ref_name}} ($(date +%Y-%m-%d))"
+          nbDashes=$(expr length "$headLine")
+          dashes=$(printf "%0.s-" $(seq 1 $nbDashes))
+          echo 'CHANGELOG<<EOF' >> $GITHUB_ENV
+          echo -e "$headLine\n\n$dashes\n$newCommits\n" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'rc-')
+        env:
+          TAG: ${{github.ref_name}}
+        with:
+          body: ${{ env.CHANGELOG }}
+          draft: true
+          name: Version ${{github.ref_name}}
+          tag_name: ${{github.ref_name}}
+          files: |
+            - "core/target/scala-2.12/snowplow-event-recovery-core-$TAG.jar"
+            - "beam/target/universal/snowplow-event-recovery-beam-$TAG.zip"
+            - "spark/target/scala-2.12/snowplow-event-recovery-spark-$TAG.jar"
