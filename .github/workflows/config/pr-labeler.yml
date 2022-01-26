@@ -1,0 +1,7 @@
+enhancement: ['enhancement/*', 'feature/*', 'f/*']
+breaking-change: ['breaking/*', 'break/*']
+documentation: ['docs/*', 'doc/*']
+bug: ['bug/*', 'fix/*']
+tests: ['test/*', 'tests/*']
+dependency-update: ['dep/*', 'dependency/*', 'dependency-update/*']
+snyk: ['update/*']
