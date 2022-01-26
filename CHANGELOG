@@ -1,3 +1,13 @@
+Version 0.4.0 (2022-01-31)
+--------------------------
+Bump sbt-native-packager to 1.7.6 (#89)
+Bump beam base image to 0.2.0 (#88)
+Bump scalafmt to 1.6.1 (#85)
+Use github actions for CI (#87)
+Raise instead of not modifying when querystring invalid (#86)
+Coerce `ue_pr` to `CollectorPayload` from `RawEvent` (#81)
+Add `Add` step (#80)
+
 Version 0.3.1 (2020-09-10)
 --------------------------
 Use fold for Json replacement (#71)
