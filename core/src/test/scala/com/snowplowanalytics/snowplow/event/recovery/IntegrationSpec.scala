@@ -34,8 +34,41 @@ import com.snowplowanalytics.snowplow.badrows.Processor
 import org.joda.time.DateTime
 
 class IntegrationSpec extends WordSpec with Inspectors {
-  val resolverConfig =
-    """{"schema":"iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1","data":{"cacheSize":0,"repositories":[{"name": "Iglu Central","priority": 0,"vendorPrefixes": [ "com.snowplowanalytics" ],"connection": {"http":{"uri":"http://iglucentral.com"}}},{"name":"Priv","priority":0,"vendorPrefixes":["com.snowplowanalytics"],"connection":{"http":{"uri":"https://raw.githubusercontent.com/peel/schemas/master"}}}]}}"""
+  private val resolverConfig = """{
+    "schema": "iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1",
+    "data": {
+      "cacheSize": 500,
+      "repositories": [
+        {
+          "name": "Embedded src/test/resources",
+          "priority": 100,
+          "vendorPrefixes": [ "com.snowplowanalytics" ],
+          "connection": {
+            "embedded": {
+              "path": "/iglu-schemas"
+            }
+          }
+        },
+        {
+          "name": "Iglu Central",
+          "priority": 0,
+          "vendorPrefixes": [ "com.snowplowanalytics" ],
+          "connection": {
+            "http": {
+              "uri": "http://iglucentral.com"
+            }
+          }
+        },
+       {
+         "name":"Priv",
+         "priority":0,
+         "vendorPrefixes":["com.snowplowanalytics"],
+         "connection":{"http":{"uri":"https://raw.githubusercontent.com/peel/schemas/master"}}
+       }
+      ]
+    }
+  }""".stripMargin
+
 
   val enrichmentsConfig =
     """{"schema": "iglu:com.snowplowanalytics.snowplow/enrichments/jsonschema/1-0-0", "data": []}"""
@@ -56,6 +89,41 @@ class IntegrationSpec extends WordSpec with Inspectors {
   )
   val enrichments = enrichmentsRes.toEither.right.get
   val registry    = EnrichmentRegistry.build[Id](enrichments).value.right.get
+
+  "GreedyArrayMatcherIntegrationSpec" in {
+
+    val conf = decode[Conf](
+      Source.fromResource("recovery_scenarios_greedy.json").mkString
+    ).right.get.data
+
+    val enriched = List(
+      Source
+      .fromResource("bad_rows_greedy.json")
+      .mkString.filter(_ >= ' '))
+      .map(recoveryExecute(conf))
+      .map(_.leftMap(_.badRow))
+      .map {
+        _.flatMap { bytes =>
+          ThriftLoader.toCollectorPayload(bytes, Processor("recovery", "0.0.0")).toEither.leftMap(_.head)
+        }
+      }
+      .flatMap { p =>
+        EtlPipeline
+          .processEvents[Id](
+            new AdapterRegistry(),
+            registry,
+            client,
+            Processor("recovery", "0.0.0"),
+            new DateTime(1500000000L),
+            p.toValidatedNel
+          )
+          .map(_.toEither)
+      }
+
+    forAll(enriched) { r =>
+      r should be('right)
+    }
+  }
 
   "IntegrationSpec" in {
 

@@ -1,0 +1,23 @@
+{
+  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0",
+  "data": {
+    "iglu:com.snowplowanalytics.snowplow.badrows/schema_violations/jsonschema/2-0-*": [
+      {
+        "name": "mainflow",
+        "conditions": [{
+          "op": "Test",
+          "path": "$.payload.enriched.contexts",
+          "value": { "regex": "iglu:de.heyjobs/job_search_result_context/jsonschema/1-0-3" }
+        }],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.raw.parameters.cx.data.[?(@.schema=~iglu:de.heyjobs/job_search_result_context/jsonschema/1-0-3)].schema",
+            "match": "iglu:de.heyjobs/job_search_result_context/jsonschema/1-0-3",
+            "value": "iglu:de.heyjobs/job_search_result_context/jsonschema/1-0-4"
+          }
+        ]
+      }
+    ]
+  }
+}
