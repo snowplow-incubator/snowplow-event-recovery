@@ -25,60 +25,95 @@ import domain._
 import com.snowplowanalytics.snowplow.badrows.NVP
 import scala.util.matching.Regex
 
-/**
-  * A blueprint for transformation operations on JSON objects
+/** A blueprint for transformation operations on JSON objects
   */
 private[inspect] object transform {
 
-  /**
-    * Runs transformation opreration
+  /** Runs transformation opreration
     *
-    * @param transformFn a function for transforming a JSON structure(s)
-    * @param error an error description message for failed application of [[transformFn]]
-    * @param path a list describing route to field being transformed
-    * @param body JSON structure being transformed
+    * @param transformFn
+    * a function for transforming a JSON structure(s)
+    * @param error
+    * an error description message for failed application of [[transformFn]]
+    * @param post
+    *  Continuation-passing style(CPS) style function. Call on it with post(oldCursor)(newCursor) to record the
+    *  transformation. Neutral element is post(cursor)(cursor) where cursor == cursor
+    * @param path
+    * a list describing route to field being transformed
+    * @param body
+    * JSON structure being transformed
     */
   def apply(
-    transformFn: Json => Recovering[Json],
-    post: ACursor => ACursor => Recovering[Json],
-    error: String => RecoveryStatus
-  )(
-    path: Seq[String]
-  )(
-    body: Json
-  ): Recovering[Json] = {
+             transformFn: Json => Recovering[Json],
+             post: ACursor => ACursor => Recovering[Json],
+             error: String => RecoveryStatus
+           )(
+             path: Seq[String]
+           )(
+             body: Json
+           ): Recovering[Json] = {
     @tailrec
     def run(
-      ap: Json => Recovering[Json],
-      post: ACursor => ACursor => Recovering[Json]
-    )(json: ACursor, path: Seq[String]): Recovering[Json] = path match {
+             ap: Json => Recovering[Json],
+             post: ACursor => ACursor => Recovering[Json]
+           )(json: ACursor, path: Seq[String], prev: Seq[String]): Recovering[Json] = path match {
       // Base case
       case Seq() =>
         json.withFocusM(ap).flatMap(post(json))
 
+
       // Access field by filter
-      case Seq(h, t @ _*) if isFilter(h) =>
+      case Seq(h, t@_*) if isFilter(h) =>
         val Some((path, value)) = filter(h)
-        run(ap, post)(
-          json.downArray.find(xs => findInArray(xs.hcursor, path, value)),
-          t
-        )
+
+
+        def go(thisCur: ACursor, lastGoodCur: ACursor): Recovering[Json] =
+          thisCur match {
+            case _: HCursor =>
+              // apply transformation to the matched element
+              thisCur.withFocusM(apply(transformFn, post, error)(t))
+                // go to the next matching element.
+                .flatMap(newJson => go(newJson.rightAt(xs => findInArray(xs.hcursor, path, value)), newJson))
+                // record the transformation
+                .flatMap(newJson => post(thisCur)(newJson.hcursor))
+
+            // _ means that thisCur failed - no more matching elements.
+            case _ => if (thisCur == lastGoodCur)
+                // first call to go, allow errored thisCur to propagate
+                post(lastGoodCur)(thisCur)
+            else
+                // subsequent call to go. It will end up here every time when array doesn't have any more matching
+                // elements. Record empty transformation.
+                post(lastGoodCur)(lastGoodCur)
+          }
+
+        // Initialize by finding first matched element. If no element is found both will be Failed
+        // cursors.
+        go(json.downAt(xs => findInArray(xs.hcursor, path, value)), json.downAt(xs => findInArray(xs.hcursor, path, value)))
+
 
       // Access array item by id
-      case Seq(h, t @ _*) if isArrayItem(h) =>
-        run(ap, post)(json.downN(arrayItem(h).get), t)
+      case Seq(h, t@_*) if isArrayItem(h) =>
+        run(ap, post)(json.downN(arrayItem(h).get), t, prev :+ h)
 
       // Top-level Base64 encoded field
-      case Seq(h, t @ _*) if isB64Encoded(h) =>
+      case Seq(h, t@_*) if isB64Encoded(h, prev) =>
         json.downField(h).withFocusM(b64Fn(apply(transformFn, post, error))(t)).flatMap(post(json))
 
       // An item in List[NVP] that is not Base64-encoded nor url-encoded
-      case Seq(h, th, tt @ _*)
-          if isNVPs(h) && !isB64Encoded(th) && !isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
-        run(ap, post)(json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"), tt)
+      case Seq(h, th, tt@_*)
+        if isNVPs(h, prev) && !isB64Encoded(th, prev) && !isUrlEncoded(th, prev) && indexF(th)(
+          json.downField(h)
+        ).isDefined =>
+        run(ap, post)(
+          json.downField(h).downN(indexF(th)(json.downField(h)).get).downField("value"),
+          tt,
+          prev :+ h :+ th
+        )
 
       // An item in List[NVP] that is Base64-encoded
-      case Seq(h, th, tt @ _*) if isNVPs(h) && isB64Encoded(th) && indexF(th)(json.downField(h)).isDefined =>
+      case Seq(h, th, tt@_*)
+        if isNVPs(h, prev) && isB64Encoded(th, prev) && indexF(th)(json.downField(h)).isDefined =>
         json
           .downField(h)
           .downN(indexF(th)(json.downField(h)).get)
@@ -87,7 +122,8 @@ private[inspect] object transform {
           .flatMap(post(json))
 
       // An item in List[NVP] that is URL-encoded
-      case Seq(h, th, tt @ _*) if isNVPs(h) && isUrlEncoded(th) && indexF(th)(json.downField(h)).isDefined =>
+      case Seq(h, th, tt@_*)
+        if isNVPs(h, prev) && isUrlEncoded(th, prev) && indexF(th)(json.downField(h)).isDefined =>
         json
           .downField(h)
           .downN(indexF(th)(json.downField(h)).get)
@@ -96,29 +132,30 @@ private[inspect] object transform {
           .flatMap(post(json))
 
       // Falsey item in List[NVP]
-      case Seq(h, _) if isNVPs(h) =>
+      case Seq(h, _) if isNVPs(h, prev) =>
         json.focus match {
           case Some(j) => Left(InvalidDataFormat(j.some, s"Cannot access field $h"))
-          case None    => Left(InvalidDataFormat(None, s"Cannot access field $h in empty cursor."))
+          case None => Left(InvalidDataFormat(None, s"Cannot access field $h in empty arrNext."))
         }
 
       // URL-encoded field
-      case Seq(h, t @ _*) if isUrlEncoded(h) =>
+      case Seq(h, t@_*) if isUrlEncoded(h, prev) =>
         json.downField(h).withFocusM(urlFn(apply(transformFn, post, error))(t)).flatMap(post(json))
 
       // Recursive case
-      case Seq(h, t @ _*) =>
-        run(ap, post)(json.downField(h), t)
+      case Seq(h, t@_*) =>
+        run(ap, post)(json.downField(h), t, prev :+ h)
     }
 
-    run(transformFn, post)(body.hcursor, path)
+    run(transformFn, post)(body.hcursor, path, Seq.empty)
   }
 
   private[this] def b64Fn(
-    apply: Seq[String] => Json => Recovering[Json]
-  )(path: Seq[String])(body: Json): Recovering[Json] = {
+                           apply: Seq[String] => Json => Recovering[Json]
+                         )(path: Seq[String])(body: Json): Recovering[Json] = {
     def decode(str: String): Recovering[String] =
       util.base64.decode(str)
+
     def encode(json: Json): Recovering[Json] =
       util.base64.encode(json.noSpaces).map(_.asJson)
 
@@ -126,19 +163,20 @@ private[inspect] object transform {
   }
 
   private[this] def urlFn(
-    apply: Seq[String] => Json => Recovering[Json]
-  ): Seq[String] => Json => Recovering[Json] = {
+                           apply: Seq[String] => Json => Recovering[Json]
+                         ): Seq[String] => Json => Recovering[Json] = {
     def decode(str: String) = str.asRight
-    def encode(json: Json)  = Json.fromString(json.noSpaces).asRight
+
+    def encode(json: Json) = Json.fromString(json.noSpaces).asRight
 
     encodedFn(decode, encode, apply)
   }
 
   private[this] def encodedFn(
-    decode: String => Recovering[String],
-    encode: Json => Recovering[Json],
-    apply: Seq[String] => Json => Recovering[Json]
-  )(path: Seq[String])(body: Json): Recovering[Json] =
+                               decode: String => Recovering[String],
+                               encode: Json => Recovering[Json],
+                               apply: Seq[String] => Json => Recovering[Json]
+                             )(path: Seq[String])(body: Json): Recovering[Json] =
     body
       .as[String]
       .leftMap(err => InvalidJsonFormat(err.message))
@@ -156,37 +194,44 @@ private[inspect] object transform {
     _.top.toRight(err(previous.history.map(_.toString).mkString))
 
   private[this] def isArrayItem(str: String) = arrayItem(str).isDefined
+
   private[this] def arrayItem(str: String): Option[Int] = {
-    val extractor = ("^\\[([0-9]+)\\]").r
+    val extractor = "^\\[([0-9]+)\\]".r
     str match {
       case extractor(id) => Either.catchNonFatal(id.toInt).toOption
-      case _             => None
+      case _ => None
     }
   }
 
   @tailrec
   private[this] def findInArray(cursor: ACursor, path: Seq[String], value: Regex): Boolean = path match {
-    case Seq()          => cursor.focus.flatMap(v => value.findFirstIn(v.noSpaces)).isDefined
-    case Seq(h, t @ _*) => findInArray(cursor.downField(h), t, value)
+    case Seq() => cursor.focus.flatMap(v => value.findFirstIn(v.noSpaces)).isDefined
+    case Seq(h, t@_*) => findInArray(cursor.downField(h), t, value)
   }
 
   private[this] def isFilter(str: String) = filter(str).isDefined
+
   private[inspect] def filter(str: String): Option[(Seq[String], Regex)] = {
     val extractor = ("^\\[\\?\\(@\\." + "([a-zA-Z0-9.]+)" + "=~" + "(.+)\\)\\]$").r
     str match {
       case extractor(path, value) => Some((path.split('.'), value.r))
-      case _                      => None
+      case _ => None
     }
   }
 
-  private[inspect] def isNVPs(str: String) =
-    Seq("parameters", "querystring").contains(str.toLowerCase)
+  // TODO these are all pretty naive ways of figuring out the underlying format
+  //      we should be able to better infer these types using ie. parsec
+  private[inspect] def isNVPs(str: String, prev: Seq[String] = Seq.empty) =
+    isSpecial(Seq("parameters", "querystring"))(str, prev)
 
-  private[inspect] def isUrlEncoded(str: String) =
-    Seq("co", "ue_pr", "contexts", "derived_contexts").contains(str.toLowerCase)
+  private[inspect] def isUrlEncoded(str: String, prev: Seq[String] = Seq.empty) =
+    isSpecial(Seq("co", "ue_pr", "contexts", "derived_contexts"))(str, prev)
 
-  private[inspect] def isB64Encoded(str: String) =
-    Seq("cx", "ue_px").contains(str.toLowerCase)
+  private[inspect] def isB64Encoded(str: String, prev: Seq[String] = Seq.empty) =
+    isSpecial(Seq("cx", "ue_px"))(str, prev)
+
+  private[inspect] def isSpecial(xs: Seq[String])(str: String, prevs: Seq[String] = Seq.empty) =
+    xs.contains(str.toLowerCase) || prevs.exists(p => xs.exists(p.contains))
 
   private[inspect] def parse(data: String): Recovering[Json] =
     parseJson(data).leftMap(err => InvalidJsonFormat(err.message))
