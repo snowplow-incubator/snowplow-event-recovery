@@ -133,10 +133,8 @@ object BuildSettings {
   )
 
   lazy val dockerSettings: Seq[sbt.Setting[_]] = Seq(
-    // Use single entrypoint script for all apps
-    sourceDirectory in Universal := new java.io.File((baseDirectory in LocalRootProject).value, "docker"),
     dockerUsername := Some("snowplow"),
-    dockerBaseImage := "snowplow/k8s-dataflow:0.2.0",
+    dockerBaseImage := "eclipse-temurin:8-jre-focal",
     maintainer in Docker := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
     daemonUser in Docker := "snowplow"
   )
