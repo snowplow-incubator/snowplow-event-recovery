@@ -35,7 +35,7 @@ object Dependencies {
     val spark           = "2.4.4"
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.10.0"
-    val scio            = "0.8.4"
+    val scio            = "0.11.5"
     val beam            = "2.19.0"
     val decline         = "0.5.0"
     val declineEffect   = "1.0.0"
