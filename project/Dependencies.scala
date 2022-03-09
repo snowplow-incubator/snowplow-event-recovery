@@ -36,7 +36,7 @@ object Dependencies {
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.10.0"
     val scio            = "0.11.5"
-    val beam            = "2.19.0"
+    val beam            = "2.36.0"
     val decline         = "0.5.0"
     val declineEffect   = "1.0.0"
     val scalaMacros     = "2.1.0"
@@ -77,6 +77,7 @@ object Dependencies {
   ).map("io.circe" %% _ % V.circe) :+ ("io.circe" %% "circe-optics" % V.circeOptics)
   val monocle = "com.github.julien-truffaut" %% "monocle-macro"                          % V.monocle
   val scio    = "com.spotify"                %% "scio-core"                              % V.scio
+  val scioGCP = "com.spotify"                %% "scio-google-cloud-platform"             % V.scio
   val beam    = "org.apache.beam"            % "beam-runners-google-cloud-dataflow-java" % V.beam
   val decline =
     Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map {

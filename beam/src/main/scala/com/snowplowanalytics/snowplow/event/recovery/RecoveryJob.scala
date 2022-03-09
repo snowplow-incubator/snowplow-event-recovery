@@ -17,6 +17,9 @@ package com.snowplowanalytics.snowplow.event.recovery
 import com.spotify.scio.{ScioContext, ScioMetrics}
 import com.spotify.scio.coders.Coder
 import com.spotify.scio.values.SCollection
+import com.spotify.scio.pubsub._
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage
 import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
@@ -77,8 +80,11 @@ object RecoveryJob {
           count("recovered")
           r.right.get
         }
-        .withName("sink-recovered")
-        .saveAsPubsub(output)
+        .withName("to-pubsub-message")
+        .map { bytes =>
+          new PubsubMessage(bytes, null)
+        }
+        .saveAsCustomOutput("sink-recovered", PubsubIO.writeMessages().to(output))
     case Failed =>
       v.withName("count-failed")
         .map { r =>
