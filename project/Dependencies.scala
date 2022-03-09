@@ -22,7 +22,7 @@ object Dependencies {
     val thriftSchema = "0.0.0"
     val elephantBird = "4.17"
     val mockito      = "1.9.0"
-    val slf4j        = "1.7.25"
+    val slf4j        = "1.7.36"
     val hadoopLzo    = "0.4.20"
 
     // Scala third-party
