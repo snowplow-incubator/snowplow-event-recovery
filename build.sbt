@@ -44,6 +44,7 @@ lazy val beam = project
   .settings(
     libraryDependencies ++= Seq(
       Dependencies.scio,
+      Dependencies.scioGCP,
       Dependencies.beam,
       Dependencies.scioTest,
       Dependencies.slf4jSimple

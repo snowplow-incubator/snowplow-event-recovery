@@ -17,10 +17,12 @@ package event.recovery
 
 import java.util.Base64
 
-import com.spotify.scio.io.{PubsubIO, TextIO}
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage
+import com.spotify.scio.io.TextIO
 import com.spotify.scio.testing._
 
 import CollectorPayload.thrift.model1.CollectorPayload
+import com.spotify.scio.io.CustomIO
 
 class RecoveryJobSpec extends PipelineSpec {
   val recoveryScenarios =
@@ -81,9 +83,9 @@ class RecoveryJobSpec extends PipelineSpec {
       .output(TextIO("failed/com.snowplowanalytics.snowplow.badrows.recovery_error")) { s =>
         s should haveSize(0)
       }
-      .output(PubsubIO.readCoder[Array[Byte]]("out")) { s =>
+      .output(CustomIO[PubsubMessage]("sink-recovered")) { s =>
         s should haveSize(1)
-        s should containInAnyOrder(fixed)
+        s.map(_.getPayload()) should containInAnyOrder(fixed)
       }
       .run()
   }
