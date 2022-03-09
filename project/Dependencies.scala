@@ -19,11 +19,12 @@ object Dependencies {
 
   object V {
     // Java
-    val thriftSchema = "0.0.0"
-    val elephantBird = "4.17"
-    val mockito      = "1.9.0"
-    val slf4j        = "1.7.36"
-    val hadoopLzo    = "0.4.20"
+    val thriftSchema    = "0.0.0"
+    val elephantBird    = "4.17"
+    val mockito         = "1.9.0"
+    val slf4j           = "1.7.36"
+    val hadoopLzo       = "0.4.20"
+    val jacksonDatabind = "2.10.5.1"
 
     // Scala third-party
     val atto            = "0.8.0"
@@ -59,7 +60,7 @@ object Dependencies {
   val thriftSchema = "com.snowplowanalytics"      % "collector-payload-1" % V.thriftSchema
   val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"        % V.slf4j
   val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"       % V.slf4j
-  val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"    % "2.6.7.3"
+  val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"    % V.jacksonDatabind
   val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"  % V.elephantBird
   val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"          % V.hadoopLzo
 
