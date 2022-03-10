@@ -44,7 +44,7 @@ object Dependencies {
 
     // Scala first-party
     val badRows    = "1.0.0-M2"
-    val igluClient = "0.6.1"
+    val igluClient = "1.1.1"
 
     // Testing
     val scalatest           = "3.0.6"

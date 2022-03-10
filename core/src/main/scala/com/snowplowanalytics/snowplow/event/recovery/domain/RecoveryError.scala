@@ -20,7 +20,7 @@ import cats.implicits._
 import io.circe.parser._
 import io.circe.syntax._
 import com.snowplowanalytics.snowplow.badrows._
-import com.snowplowanalytics.iglu.core.circe.instances._
+import com.snowplowanalytics.iglu.core.circe.implicits._
 import config._
 import json._
 

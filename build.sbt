@@ -25,6 +25,7 @@ lazy val core = project
       Dependencies.badRows,
       Dependencies.atto,
       Dependencies.catsCore,
+      Dependencies.catsEffect,
       Dependencies.monocle,
       Dependencies.scalatest,
       Dependencies.scalaCheck,

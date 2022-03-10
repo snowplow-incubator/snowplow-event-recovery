@@ -27,7 +27,7 @@ import com.snowplowanalytics.iglu.core.SelfDescribingData
 import com.snowplowanalytics.iglu.client.resolver.{InitListCache, InitSchemaCache}
 import com.snowplowanalytics.iglu.client.resolver.registries.RegistryLookup
 import com.snowplowanalytics.iglu.client.Client
-import com.snowplowanalytics.iglu.core.circe.instances._
+import com.snowplowanalytics.iglu.core.circe.implicits._
 import com.snowplowanalytics.snowplow.badrows.BadRow
 import json._
 
