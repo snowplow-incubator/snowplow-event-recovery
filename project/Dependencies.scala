@@ -30,7 +30,7 @@ object Dependencies {
     val atto            = "0.8.0"
     val catsCore        = "2.6.1"
     val catsEffect      = "2.5.3"
-    val circe           = "0.11.1"
+    val circe           = "0.14.1"
     val circeOptics     = "0.10.0"
     val monocle         = "2.1.0"
     val spark           = "3.1.2"
