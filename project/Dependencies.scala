@@ -33,7 +33,7 @@ object Dependencies {
     val circe           = "0.11.1"
     val circeOptics     = "0.10.0"
     val monocle         = "1.5.0-cats"
-    val spark           = "2.4.4"
+    val spark           = "3.1.2"
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.10.0"
     val scio            = "0.11.5"
