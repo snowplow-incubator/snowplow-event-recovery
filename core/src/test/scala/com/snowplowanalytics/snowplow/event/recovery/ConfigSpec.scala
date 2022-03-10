@@ -18,6 +18,8 @@ import org.scalatest.{Inspectors, WordSpec}
 import org.scalatest.Matchers._
 import org.scalatest.EitherValues._
 import org.scalatestplus.scalacheck._
+
+import cats.Id
 import io.circe.parser.decode
 
 import config._
@@ -84,18 +86,18 @@ class ConfigSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks 
       implicit val noShrink: Shrink[String] = Shrink.shrinkAny
       forAll(configGen) { config =>
         val schemed = schema(schemaKey, config)
-        validateSchema(schemed, resolverConfig).value shouldEqual Right(())
+        validateSchema[Id](schemed, resolverConfig).value shouldEqual Right(())
       }
     }
     "fail when validating something that is not json" in {
-      validateSchema("abc", "abc").value.left.value should include(
+      validateSchema[Id]("abc", "abc").value.left.value should include(
         "ParsingFailure: expected json value got 'abc' (line 1, column 1)"
       )
     }
     "fail when validating something that is not following schema" in {
       val badConfig =
         """{"schema":"iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/2-0-0","data":{}}"""
-      validateSchema(badConfig, resolverConfig).value.left.value should include(
+      validateSchema[Id](badConfig, resolverConfig).value.left.value should include(
         "Instance is not valid against its schema"
       )
     }
