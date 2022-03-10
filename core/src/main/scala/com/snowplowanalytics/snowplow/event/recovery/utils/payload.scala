@@ -24,7 +24,6 @@ import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
 import org.joda.time.DateTime
 import java.util.UUID
-import cats.data.EitherT
 
 object payload {
 
@@ -60,16 +59,14 @@ object payload {
       val parameters: Recovering[String] = {
         if (p.vendor == igluWebhookVendor) {
           (for {
-            v <- EitherT.fromOption(
+            v <- Either.fromOption(
               p.parameters.find(_.name == urlEncodedPayload).flatMap(_.value),
               err(s"$urlEncodedPayload parameter is empty")
             )
-            p <- EitherT.fromEither(parse(v).map(_.hcursor.downField("data")).leftMap(e => err(e.toString)))
-            schema <- EitherT.fromEither(
-              p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(e => err(e.toString))
-            )
-            nvps <- EitherT.fromEither(p.get[List[NVP]]("data").leftMap(e => err(e.toString)))
-          } yield querystring.fromNVP(nvps ++ schema)).value
+            p      <- parse(v).map(_.hcursor.downField("data")).leftMap(e => err(e.toString))
+            schema <- p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(e => err(e.toString))
+            nvps   <- p.get[List[NVP]]("data").leftMap(e => err(e.toString))
+          } yield querystring.fromNVP(nvps ++ schema))
         } else {
           Right(querystring.fromNVP(p.parameters))
         }
