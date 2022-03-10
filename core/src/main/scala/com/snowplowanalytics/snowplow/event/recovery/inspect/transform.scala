@@ -73,7 +73,16 @@ private[inspect] object transform {
               thisCur
                 .withFocusM(apply(transformFn, post, error, prev :+ h)(t))
                 // go to the next matching element.
-                .flatMap(newJson => go(newJson.rightAt(xs => findInArray(xs.hcursor, path, value)), newJson))
+                .flatMap { newJson =>
+                  go(
+                    newJson
+                      .right
+                      .success
+                      .map(_.find(json => !findInArr(path, value)(json).isNull))
+                      .getOrElse(newJson.right),
+                    newJson
+                  )
+                }
                 // record the transformation
                 .flatMap(newJson => post(thisCur)(newJson.hcursor))
 
@@ -91,8 +100,8 @@ private[inspect] object transform {
         // Initialize by finding first matched element. If no element is found both will be Failed
         // cursors.
         go(
-          json.downAt(xs => findInArray(xs.hcursor, path, value)),
-          json.downAt(xs => findInArray(xs.hcursor, path, value))
+          json.downArray.success.map(_.find(!findInArr(path, value)(_).isNull)).getOrElse(json),
+          json.downArray.success.map(_.find(!findInArr(path, value)(_).isNull)).getOrElse(json)
         )
 
       // Access array item by id
@@ -204,6 +213,12 @@ private[inspect] object transform {
       case extractor(id) => Either.catchNonFatal(id.toInt).toOption
       case _             => None
     }
+  }
+
+  @tailrec
+  private[inspect] def findInArr(path: Seq[String], value: Regex)(json: Json): Json = path match {
+    case Seq()          => value.findFirstIn(json.noSpaces).asJson
+    case Seq(h, t @ _*) => findInArr(t, value)(json.hcursor.downField(h).focus.getOrElse(Json.Null))
   }
 
   @tailrec

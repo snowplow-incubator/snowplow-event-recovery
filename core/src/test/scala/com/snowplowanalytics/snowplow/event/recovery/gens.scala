@@ -70,8 +70,8 @@ object gens {
   val jsonGen: EitherT[Id, String, Gen[Json]] = for {
     r <- EitherT.right(Resolver.init[Id](0, None, Registry.IgluCentral))
     schemaKey = SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema", SchemaVer.Full(1, 0, 1))
-    schemaJson   <- EitherT(IgluSchemas.lookup[Id](r, schemaKey))
-    schemaObject <- EitherT.fromEither(IgluSchemas.parseSchema(schemaJson))
+    schemaJson   <- EitherT.fromEither[Id](IgluSchemas.lookup[Id](r, schemaKey))
+    schemaObject <- EitherT.fromEither[Id](IgluSchemas.parseSchema(schemaJson))
   } yield JsonGenSchema.json(schemaObject)
 
   implicit val collectorPayloadArb: Arbitrary[CollectorPayload] = Arbitrary {

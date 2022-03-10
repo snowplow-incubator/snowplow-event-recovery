@@ -24,7 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis._
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 import io.circe.syntax._
 import com.snowplowanalytics.snowplow.badrows._
-import com.snowplowanalytics.iglu.core.circe.instances._
+import com.snowplowanalytics.iglu.core.circe.implicits._
 import config._
 import domain._
 import typeinfo._
