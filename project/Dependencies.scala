@@ -43,7 +43,7 @@ object Dependencies {
     val scalaMacros     = "2.1.0"
 
     // Scala first-party
-    val badRows    = "1.0.0-M2"
+    val badRows    = "2.1.1"
     val igluClient = "1.1.1"
 
     // Testing
