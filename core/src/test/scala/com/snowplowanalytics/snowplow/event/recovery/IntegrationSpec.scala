@@ -32,6 +32,7 @@ import gens.idClock
 import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
 import com.snowplowanalytics.snowplow.badrows.Processor
 import org.joda.time.DateTime
+import com.snowplowanalytics.snowplow.enrich.common.utils.BlockerF
 
 class IntegrationSpec extends WordSpec with Inspectors {
   private val resolverConfig = """{
@@ -87,7 +88,7 @@ class IntegrationSpec extends WordSpec with Inspectors {
     true
   )
   val enrichments = enrichmentsRes.toEither.right.get
-  val registry    = EnrichmentRegistry.build[Id](enrichments).value.right.get
+  val registry    = EnrichmentRegistry.build[Id](enrichments, BlockerF.noop[Id]).value.right.get
 
   "GreedyArrayMatcherIntegrationSpec" in {
 
@@ -111,7 +112,9 @@ class IntegrationSpec extends WordSpec with Inspectors {
             client,
             Processor("recovery", "0.0.0"),
             new DateTime(1500000000L),
-            p.toValidatedNel
+            p.toValidatedNel,
+            true,
+            ()
           )
           .map(_.toEither)
       }
@@ -146,7 +149,9 @@ class IntegrationSpec extends WordSpec with Inspectors {
             client,
             Processor("recovery", "0.0.0"),
             new DateTime(1500000000L),
-            p.toValidatedNel
+            p.toValidatedNel,
+            true,
+            ()
           )
           .map(_.toEither)
       }
