@@ -21,7 +21,7 @@ import io.circe.syntax._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.generic.extras.semiauto.{deriveEnumerationDecoder, deriveEnumerationEncoder}
 import com.snowplowanalytics.snowplow.badrows._
-import com.snowplowanalytics.iglu.core.circe.instances._
+import com.snowplowanalytics.iglu.core.circe.implicits._
 import config._
 import config.conditions._
 
