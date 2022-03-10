@@ -65,7 +65,7 @@ object Main {
         )
       decoded  <- base64.decode(config).leftMap(_.message)
       resolver <- resolverConfig
-      _        <- validateSchema(decoded, resolver).value
+      _        <- validateSchema[Id](decoded, resolver).value
       cfg      <- load(decoded)
     } yield cfg).toValidatedNel
     (input, output, failedOutput, unrecoverableOutput, config).tupled match {

@@ -31,7 +31,7 @@ object Dependencies {
     val catsCore        = "2.6.1"
     val catsEffect      = "2.5.3"
     val circe           = "0.14.1"
-    val circeOptics     = "0.10.0"
+    val circeOptics     = "0.14.1"
     val monocle         = "2.1.0"
     val spark           = "3.1.2"
     val awsKinesisSpark = "0.0.12"
@@ -53,7 +53,7 @@ object Dependencies {
     val scalaCheckToolBox   = "0.3.1"
     val scalaCheckSchema    = "0.2.0-M1"
     val scalaCheckShapeless = "1.2.3"
-    val scalaCommonEnrich   = "1.1.0-M2"
+    val scalaCommonEnrich   = "3.1.2"
   }
 
   // Java

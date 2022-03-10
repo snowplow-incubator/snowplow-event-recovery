@@ -66,7 +66,7 @@ class TransformSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
       )
     )
     "recurse on json transformations" in forAll(rec) { (_, jsonStr, path, outputStr) =>
-      val eval = for {
+      for {
         json   <- parse(jsonStr)
         output <- outputStr.asRight
         res <- transform(
@@ -78,8 +78,6 @@ class TransformSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
           path
         )(json)
       } yield res should equal(output)
-      println(eval)
-      eval.right.value
     }
 
     val special = Table(

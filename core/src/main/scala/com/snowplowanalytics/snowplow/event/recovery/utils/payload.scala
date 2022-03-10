@@ -85,7 +85,6 @@ object payload {
         cp.hostname = p.hostname.orNull
         cp.networkUserId = p.userId.map(_.toString).orNull
         cp.querystring = querystring
-        println(cp)
         cp
       }
     case p => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
