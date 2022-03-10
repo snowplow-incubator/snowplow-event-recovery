@@ -111,12 +111,12 @@ object recoverable {
           } yield payload
 
         private[this] def querystring(b: CPFormatViolation) =
-          orBadRow(b.payload.line, "nullified payload line".some)
+          orBadRow(b.payload.event, "nullified payload line".some)
             .flatMap(thrift.deserialize)
             .flatMap(v => orBadRow(v.querystring, "nullified querystring".some))
 
         private[this] def mkPayload(p: Payload.RawPayload, params: Map[String, String]) =
-          thrift.deserialize(p.line).flatMap(cocoerce).map(_.copy(querystring = toNVP(params)))
+          thrift.deserialize(p.event).flatMap(cocoerce).map(_.copy(querystring = toNVP(params)))
       }
 
     implicit val recoveryErrorRecovery: Recoverable[BadRow.RecoveryError, Payload] =
