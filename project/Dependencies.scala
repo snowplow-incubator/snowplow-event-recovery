@@ -32,7 +32,7 @@ object Dependencies {
     val catsEffect      = "1.4.1"
     val circe           = "0.11.1"
     val circeOptics     = "0.10.0"
-    val monocle         = "1.5.0-cats"
+    val monocle         = "2.1.0"
     val spark           = "3.1.2"
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.10.0"
