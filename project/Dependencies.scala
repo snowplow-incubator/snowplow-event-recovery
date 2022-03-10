@@ -28,7 +28,7 @@ object Dependencies {
 
     // Scala third-party
     val atto            = "0.8.0"
-    val catsCore        = "1.6.1"
+    val catsCore        = "2.6.1"
     val catsEffect      = "1.4.1"
     val circe           = "0.11.1"
     val circeOptics     = "0.10.0"
