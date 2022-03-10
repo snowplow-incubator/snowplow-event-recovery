@@ -23,6 +23,7 @@ lazy val core = project
     libraryDependencies ++= Seq(
       Dependencies.thriftSchema,
       Dependencies.badRows,
+      Dependencies.igluClient,
       Dependencies.atto,
       Dependencies.catsCore,
       Dependencies.catsEffect,
