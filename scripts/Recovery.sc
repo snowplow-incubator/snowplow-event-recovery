@@ -1,7 +1,7 @@
 import $ivy.`com.lihaoyi::ammonite-ops:2.4.1`, ammonite.ops._
 import $ivy.`org.typelevel::cats-core:2.0.0`, cats.Id, cats.instances.list._, cats.syntax.traverse._, cats.syntax.either._
 import $ivy.`io.circe::circe-parser:0.11.1`, io.circe._, io.circe.syntax._, io.circe.parser._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.4.0-rc1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.4.1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 import java.util.concurrent.TimeUnit
 import cats.effect.Clock
 
