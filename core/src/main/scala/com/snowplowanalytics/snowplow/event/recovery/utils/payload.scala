@@ -55,18 +55,24 @@ object payload {
       Right(cp)
     case e @ Payload.EnrichmentPayload(_, p) =>
       val urlEncodedPayload = "ue_pr"
+      val igluWebhookVendor = "com.snowplowanalytics.iglu"
       lazy val err          = UncoerciblePayload(e, _)
-      val parameters: Recovering[String] = p.parameters.find(_.name == urlEncodedPayload) match {
-        case Some(d) =>
+      val parameters: Recovering[String] = {
+        if (p.vendor == igluWebhookVendor) {
           (for {
-            v <- EitherT.fromOption(d.value, err(s"$urlEncodedPayload parameter is empty"))
+            v <- EitherT.fromOption(
+              p.parameters.find(_.name == urlEncodedPayload).flatMap(_.value),
+              err(s"$urlEncodedPayload parameter is empty")
+            )
             p <- EitherT.fromEither(parse(v).map(_.hcursor.downField("data")).leftMap(e => err(e.toString)))
             schema <- EitherT.fromEither(
               p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(e => err(e.toString))
             )
             nvps <- EitherT.fromEither(p.get[List[NVP]]("data").leftMap(e => err(e.toString)))
           } yield querystring.fromNVP(nvps ++ schema)).value
-        case None => Right(querystring.fromNVP(p.parameters))
+        } else {
+          Right(querystring.fromNVP(p.parameters))
+        }
       }
       parameters.map { querystring =>
         val cp = new CollectorPayload(
@@ -82,6 +88,7 @@ object payload {
         cp.hostname = p.hostname.orNull
         cp.networkUserId = p.userId.map(_.toString).orNull
         cp.querystring = querystring
+        println(cp)
         cp
       }
     case p => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
