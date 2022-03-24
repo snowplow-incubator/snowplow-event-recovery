@@ -203,7 +203,20 @@
             "value": "my-form-id"
           }
         ]
-      }
+      },
+      {
+        "name": "review-event-and-action-on-review-4",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": []
+       }
     ]
   }
 }
