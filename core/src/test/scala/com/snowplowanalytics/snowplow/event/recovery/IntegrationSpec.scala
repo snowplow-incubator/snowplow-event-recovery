@@ -15,25 +15,30 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.io.Source
+
 import cats.Id
-import cats.syntax.either._
+import cats.implicits._
+import io.circe.Json
 import io.circe.parser._
-import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
+
+import org.joda.time.DateTime
 import org.scalatest.{Inspectors, WordSpec}
 import org.scalatest.Matchers._
+
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
+import com.snowplowanalytics.snowplow.enrich.common.outputs.EnrichedEvent
+import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
 import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
 import com.snowplowanalytics.snowplow.enrich.common.loaders.ThriftLoader
 import com.snowplowanalytics.iglu.client.Client
-
+import com.snowplowanalytics.snowplow.badrows.Processor
 import config._
 import json.confD
 import gens.idClock
-import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
-import com.snowplowanalytics.snowplow.badrows.Processor
-import org.joda.time.DateTime
+
 import com.snowplowanalytics.snowplow.enrich.common.utils.BlockerF
 
+import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
 class IntegrationSpec extends WordSpec with Inspectors {
   private val resolverConfig = """{
     "schema": "iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1",
@@ -156,9 +161,14 @@ class IntegrationSpec extends WordSpec with Inspectors {
           .map(_.toEither)
       }
 
-    forAll(enriched) { r =>
-      r should be('right)
-    }
+    val expected: List[Json] = decode[List[Json]](Source.fromResource("expected_payloads.json").mkString)
+      .sequence
+      .flatMap(_.toList)
+      .flatMap(removeFields)
+    val loaded: List[Json] = enriched.flatMap(_.flatMap(EnrichedEvent.toAtomic).toList).flatMap(removeFields)
+
+    loaded should contain theSameElementsAs expected
   }
 
+  val removeFields: Json => List[Json] = _.hcursor.downField("event_id").delete.up.downField("v_etl").delete.top.toList
 }
