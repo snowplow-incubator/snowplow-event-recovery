@@ -8,8 +8,8 @@
 # in
 let
   spkgs = rec {
-    jdk = pkgs.openjdk.override{enableJavaFX = false;};
-    jre = pkgs.openjdk17_headless;
+    jdk = pkgs.openjdk11;
+    jre = pkgs.openjdk11;
     scala = pkgs.scala.override{inherit jre;};
     sbt = pkgs.sbt.override{inherit jre;};
     coursier = pkgs.coursier.override{inherit jre;};
@@ -20,6 +20,7 @@ in pkgs.mkShell {
     metals
     sbt
     pkgs.entr
+    pkgs.awscli
   ];
   shellHook = ''
   '';
