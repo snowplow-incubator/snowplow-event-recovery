@@ -24,8 +24,8 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 import com.typesafe.sbt.packager.Keys.{daemonUser, maintainer}
 
 // Assembly
-import sbtassembly.{MergeStrategy, PathList}
-import sbtassembly.AssemblyKeys.{assembly, assemblyJarName, assemblyMergeStrategy, assemblyOption}
+import sbtassembly.{MergeStrategy, PathList, ShadeRule}
+import sbtassembly.AssemblyKeys.{assembly, assemblyJarName, assemblyMergeStrategy, assemblyOption, assemblyShadeRules}
 
 object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
@@ -136,15 +136,15 @@ object BuildSettings {
   lazy val dockerSettings: Seq[sbt.Setting[_]] = Seq(
     dockerUsername := Some("snowplow"),
     dockerBaseImage := "eclipse-temurin:8-jre-focal",
-    maintainer in Docker := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
-    daemonUser in Docker := "snowplow"
+    Docker / maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
+    Docker / daemonUser := "snowplow"
   )
 
   lazy val assemblySettings: Boolean => Seq[sbt.Setting[_]] = includeScala =>
     Seq(
-      assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
-      assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = includeScala),
-      assemblyMergeStrategy in assembly := {
+      assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
+      assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = includeScala),
+      assembly / assemblyMergeStrategy := {
         case x if x.startsWith("META-INF")                           => MergeStrategy.discard
         case x if x.endsWith(".html")                                => MergeStrategy.discard
         case x if x.endsWith("ProjectSettings$.class")               => MergeStrategy.first
@@ -153,8 +153,15 @@ object BuildSettings {
         case PathList("org", "apache", "spark", "unused", tail @ _*) => MergeStrategy.first
         case "build.properties"                                      => MergeStrategy.first
         case x =>
-          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
+      },
+      assembly / assemblyShadeRules := {
+        val shadePackage = "com.snowplowanalytics.snowplow.event.recovery.shaded"
+        Seq(
+          ShadeRule.rename("shapeless.**" -> s"$shadePackage.shapeless.@1").inAll,
+          ShadeRule.rename("cats.kernel.**" -> s"$shadePackage.cats.kernel.@1").inAll
+        )
       }
     )
 

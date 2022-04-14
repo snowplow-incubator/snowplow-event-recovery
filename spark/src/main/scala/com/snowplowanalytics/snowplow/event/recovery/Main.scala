@@ -17,7 +17,6 @@ package com.snowplowanalytics.snowplow.event.recovery
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import com.amazonaws.regions.Regions
 
-import cats.Id
 import cats.implicits._
 import cats.effect._
 
@@ -28,6 +27,7 @@ import jp.co.bizreach.kinesis.recordsMaxDataSize
 import util.paths._
 import util.base64
 import config._
+import cats.data.EitherT
 
 /** Entry point for the Spark recovery job */
 object Main
@@ -87,7 +87,9 @@ object Main
       )
       .mapValidated(base64.decode(_).leftMap(_.message).toValidatedNel)
 
-    val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
+    val validatedConfig = (resolver, config).mapN((r, c) =>
+      validateSchema[IO](c, r).map(_ => c).flatMap(v => EitherT.fromEither(load(v))).value
+    )
 
     (
       input,
@@ -99,28 +101,19 @@ object Main
       batchSize,
       validatedConfig
     ).mapN { (i, o, f, u, d, r, b, c) =>
-      IO.fromEither(
-        c.map(
-          RecoveryJob.run(
-            i,
-            o,
-            f.getOrElse(failedPath(i)),
-            u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
-            d,
-            Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
-            b.getOrElse(recordsMaxDataSize),
-            _
-          )
-        ).map(_ => ExitCode.Success)
-          .leftMap(new RuntimeException(_))
-      )
-    }
-  }
+      c.map(v =>
+        RecoveryJob.run(
+          i,
+          o,
+          f.getOrElse(failedPath(i)),
+          u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
+          d,
+          Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
+          b.getOrElse(recordsMaxDataSize),
+          v.right.get //FIXME
+        )
+      ).map(_ => ExitCode.Success)
 
-  implicit val catsClockIdInstance: Clock[Id] = new Clock[Id] {
-    override def realTime(unit: TimeUnit): Id[Long] =
-      unit.convert(System.nanoTime(), NANOSECONDS)
-    override def monotonic(unit: TimeUnit): Id[Long] =
-      unit.convert(System.currentTimeMillis(), MILLISECONDS)
+    }
   }
 }
