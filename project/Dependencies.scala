@@ -27,9 +27,9 @@ object Dependencies {
     val jacksonDatabind = "2.10.5.1"
 
     // Scala third-party
-    val atto            = "0.8.0"
-    val catsCore        = "2.6.1"
-    val catsEffect      = "2.5.3"
+    val atto            = "0.9.5"
+    val catsCore        = "2.7.0"
+    val catsEffect      = "2.5.4"
     val circe           = "0.14.1"
     val circeOptics     = "0.14.1"
     val monocle         = "2.1.0"
@@ -38,8 +38,8 @@ object Dependencies {
     val flink           = "1.10.0"
     val scio            = "0.11.5"
     val beam            = "2.36.0"
-    val decline         = "0.5.0"
-    val declineEffect   = "1.0.0"
+    val decline         = "1.4.0"
+    val declineEffect   = "1.4.0"
     val scalaMacros     = "2.1.0"
 
     // Scala first-party
