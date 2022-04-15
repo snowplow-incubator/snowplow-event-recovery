@@ -20,6 +20,26 @@ Change Docker base image to eclipse-temurin:11-jre-focal (#93)
 
 Version 0.4.1 (2022-03-25)
 --------------------------
+Bump cats to 2.7.0 (#112)
+Bump circe-optics to 0.14.1 (#109)
+Bump circe to 0.14.1 (#108)
+Bump cats-effect to 2.5.3 (#107)
+Bump monocle-macro to 2.1.0 (#106)
+Bump cats-core to 2.6.1 (#105)
+Bump snowplow-badrows to 2.1.1 (#104)
+Bump iglu-scala-client to 1.1.1 (#103)
+Bump spark to 3.1.2 (#102)
+Bump jackson-databind to 2.10.5.1 (#101)
+Bump slf4j to 1.7.36 (#100)
+Bump beam-runners-google-cloud-dataflow-java to 2.36.0 (#99)
+Bump scio to 0.11.5 (#98)
+Add tag for beam sink (#115)
+Add bootstrap script for EMR (#118)
+Add detailed check for integration spec (#110)
+Change Docker base image to eclipse-temurin:11-jre-focal (#93)
+
+Version 0.4.1 (2022-03-25)
+--------------------------
 Only extract iglu-webhook messages to top-level event (#96)
 
 Version 0.4.0 (2022-02-03)
