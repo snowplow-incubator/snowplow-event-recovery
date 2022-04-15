@@ -168,7 +168,8 @@ object BuildSettings {
   lazy val commonBuildSettings: Seq[sbt.Setting[_]] =
     compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings
 
-  lazy val coreBuildSettings: Seq[sbt.Setting[_]] = coreProjectSettings ++ commonBuildSettings ++ publishSettings
+  lazy val coreBuildSettings: Seq[sbt.Setting[_]] =
+    coreProjectSettings ++ commonBuildSettings ++ publishSettings ++ assemblySettings(false)
 
   lazy val beamBuildSettings: Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings
 
