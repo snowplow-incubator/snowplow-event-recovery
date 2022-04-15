@@ -14,6 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
+import collection.JavaConverters._
 import com.spotify.scio.{ScioContext, ScioMetrics}
 import com.spotify.scio.coders.Coder
 import com.spotify.scio.values.SCollection
@@ -82,7 +83,7 @@ object RecoveryJob {
         }
         .withName("to-pubsub-message")
         .map { bytes =>
-          new PubsubMessage(bytes, null)
+          new PubsubMessage(bytes, Map("recovered" -> output).asJava)
         }
         .saveAsCustomOutput("sink-recovered", PubsubIO.writeMessages().to(output))
     case Failed =>
