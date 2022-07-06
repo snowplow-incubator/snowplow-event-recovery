@@ -16,12 +16,13 @@ package com.snowplowanalytics.snowplow.event.recovery
 package domain
 
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck._
 import gens._
 import org.scalacheck.Gen
 
-class MatchableSchemaKeySpec extends WordSpec with ScalaCheckPropertyChecks with OptionValues {
+class MatchableSchemaKeySpec extends AnyWordSpec with ScalaCheckPropertyChecks with OptionValues {
   "MatchableSchemaKey" should {
     "should be able to parse uri" in {
       forAll(igluUriGen) { uri =>

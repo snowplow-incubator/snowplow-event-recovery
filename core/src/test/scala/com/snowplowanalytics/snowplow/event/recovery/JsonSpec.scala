@@ -15,13 +15,15 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.util.Random
-import org.scalatest.{Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.Inspectors
+import org.scalatest.wordspec.AnyWordSpec
+
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck._
 
 import org.scalacheck._
 
-class JsonSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
+class JsonSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks {
 
   implicit val noShrink: Shrink[String] = Shrink.shrinkAny
 

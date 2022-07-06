@@ -18,7 +18,8 @@ package event.recovery
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import shapeless.syntax.sized._
@@ -26,7 +27,7 @@ import shapeless.syntax.sized._
 import util.QueryChar._
 import org.scalacheck.Shrink
 
-class QueryCharSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class QueryCharSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
   implicit val noShrink: Shrink[String] = Shrink.shrinkAny
 
   val percentGen: Gen[(Char, Char)] = Gen.listOfN(2, Gen.hexChar).map(_.sized(2).map(_.tupled)).map(_.get)

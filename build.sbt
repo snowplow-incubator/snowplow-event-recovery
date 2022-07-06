@@ -28,14 +28,13 @@ lazy val core = project
       Dependencies.catsCore,
       Dependencies.catsEffect,
       Dependencies.monocle,
-      Dependencies.scalatest,
       Dependencies.scalaCheck,
       Dependencies.scalaCheckShapeless,
       Dependencies.scalaCheckToolbox,
       Dependencies.scalaCheckSchema,
       Dependencies.scalaCommonEnrich,
       Dependencies.slf4jLog4j
-    ) ++ Dependencies.circe
+    ) ++ Dependencies.circe ++ Dependencies.scalatest ++ SecurityOverrides.dependencies
   )
 
 lazy val beam = project

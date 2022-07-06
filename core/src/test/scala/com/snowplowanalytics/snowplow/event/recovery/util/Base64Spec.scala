@@ -16,12 +16,13 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import util.base64
 
-class Base64Spec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class Base64Spec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "decodeBase64" should {
     "successfully decode base64" in {

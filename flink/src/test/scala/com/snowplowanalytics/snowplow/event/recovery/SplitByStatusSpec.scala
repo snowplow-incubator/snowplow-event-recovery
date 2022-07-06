@@ -15,7 +15,8 @@
 package com.snowplowanalytics.snowplow
 package event.recovery
 
-import org.scalatest.{EitherValues, WordSpec}
+import org.scalatest.EitherValues
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
@@ -27,7 +28,7 @@ import typeinfo._
 import org.mockito.Mockito._
 import domain._
 
-class SplitByStatusSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues with MockitoSugar {
+class SplitByStatusSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues with MockitoSugar {
   implicit val eitherBRorPayload: Gen[Either[RecoveryError, Array[Byte]]] =
     Gen.either(
       gens.invalidJsonFormatA.arbitrary.map(i => RecoveryError(i, "{}")),
