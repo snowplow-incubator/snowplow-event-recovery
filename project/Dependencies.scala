@@ -15,45 +15,76 @@
 
 import sbt._
 
+object SecurityOverrides {
+  object V {
+    val libthrift             = "0.16.0"
+    val fastjson              = "1.2.83"
+    val guava                 = "30.0-jre"
+    val protobuf              = "3.16.1"
+    val oauthClient           = "1.33.3"
+    val commonsCodec          = "1.13"
+    val jawnParser            = "1.4.0"
+    val jacksonDataformatCbor = "2.12.3"
+    val netty                 = "4.1.77.Final"
+    val bcprov                = "1.69"
+    val springExpression      = "5.3.17"
+  }
+
+  val dependencies = Seq(
+    "org.apache.thrift"                % "libthrift"               % V.libthrift,
+    "com.alibaba"                      % "fastjson"                % V.fastjson,
+    "com.google.guava"                 % "guava"                   % V.guava,
+    "com.google.protobuf"              % "protobuf-java"           % V.protobuf,
+    "com.google.oauth-client"          % "google-oauth-client"     % V.oauthClient,
+    "commons-codec"                    % "commons-codec"           % V.commonsCodec,
+    "org.typelevel"                    % "jawn-parser_2.12"        % V.jawnParser,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % V.jacksonDataformatCbor,
+    "io.netty"                         % "netty-common"            % V.netty,
+    "org.bouncycastle"                 % "bcprov-jdk15on"          % V.bcprov,
+    "org.springframework"              % "spring-expression"       % V.springExpression
+  )
+
+}
+
 object Dependencies {
 
   object V {
     // Java
     val thriftSchema    = "0.0.0"
     val elephantBird    = "4.17"
-    val mockito         = "1.9.0"
+    val mockito         = "1.10.19"
     val slf4j           = "1.7.36"
     val hadoopLzo       = "0.4.20"
-    val jacksonDatabind = "2.10.5.1"
+    val jacksonDatabind = "2.12.6"
 
     // Scala third-party
     val atto            = "0.9.5"
-    val catsCore        = "2.7.0"
-    val catsEffect      = "2.5.4"
-    val circe           = "0.14.1"
+    val catsCore        = "2.8.0"
+    val catsEffect      = "2.5.5"
     val circeOptics     = "0.14.1"
+    val circe           = "0.14.2"
     val monocle         = "2.1.0"
-    val spark           = "3.1.2"
+    val spark           = "3.2.1"
     val awsKinesisSpark = "0.0.12"
-    val flink           = "1.10.0"
-    val scio            = "0.11.5"
-    val beam            = "2.36.0"
+    val flink           = "1.10.3"
+    val scio            = "0.11.9"
+    val beam            = "2.40.0"
     val decline         = "1.4.0"
     val declineEffect   = "1.4.0"
     val scalaMacros     = "2.1.0"
 
     // Scala first-party
-    val badRows    = "2.1.1"
+    val badRows    = "2.2.0"
     val igluClient = "1.1.1"
 
     // Testing
-    val scalatest           = "3.0.6"
-    val scalaCheckMinor     = "1.14"
-    val scalaCheck          = s"$scalaCheckMinor.1"
-    val scalaCheckToolBox   = "0.3.1"
-    val scalaCheckSchema    = "0.2.0-M1"
-    val scalaCheckShapeless = "1.2.3"
-    val scalaCommonEnrich   = "3.1.2"
+    val scalatest           = "3.2.11"
+    val scalaCheckMinor     = "1.15"
+    val scalaCheck          = s"$scalaCheckMinor.4"
+    val scalaCheckToolBox   = "0.6.0"
+    val scalaCheckSchema    = "0.2.1"
+    val scalaCheckShapeless = "1.3.0"
+    val scalaCommonEnrich   = "3.2.1"
   }
 
   // Java
@@ -76,13 +107,13 @@ object Dependencies {
     "circe-shapes",
     "circe-literal"
   ).map("io.circe" %% _ % V.circe) :+ ("io.circe" %% "circe-optics" % V.circeOptics)
-  val monocle = "com.github.julien-truffaut" %% "monocle-macro"                          % V.monocle
-  val scio    = "com.spotify"                %% "scio-core"                              % V.scio
-  val scioGCP = "com.spotify"                %% "scio-google-cloud-platform"             % V.scio
-  val beam    = "org.apache.beam"            % "beam-runners-google-cloud-dataflow-java" % V.beam
+  val monocle = "com.github.julien-truffaut" %% "monocle-macro"                           % V.monocle
+  val scio    = "com.spotify"                %% "scio-core"                               % V.scio
+  val scioGCP = "com.spotify"                %% "scio-google-cloud-platform"              % V.scio
+  val beam    = "org.apache.beam"             % "beam-runners-google-cloud-dataflow-java" % V.beam
   val decline =
-    Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map {
-      case (pkg, version) => "com.monovore" %% pkg % version
+    Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map { case (pkg, version) =>
+      "com.monovore" %% pkg % version
     }
   val flink = Seq("flink-scala", "flink-streaming-scala", "flink-connector-kinesis").map(
     "org.apache.flink" %% _ % V.flink % Provided
@@ -95,13 +126,15 @@ object Dependencies {
   val igluClient = "com.snowplowanalytics" %% "iglu-scala-client" % V.igluClient
 
   // Testing
-  val scalatest           = "org.scalatest"              %% "scalatest"                                  % V.scalatest           % Test
-  val scalaCheck          = "org.scalacheck"             %% "scalacheck"                                 % V.scalaCheck          % Test
-  val scalaCheckSchema    = "com.snowplowanalytics"      %% "scalacheck-schema"                          % V.scalaCheckSchema    % Test
-  val scalaCheckShapeless = "com.github.alexarchambault" %% s"scalacheck-shapeless_${V.scalaCheckMinor}" % V.scalaCheckShapeless % Test
-  val scalaCheckToolbox   = "com.47deg"                  %% "scalacheck-toolbox-datetime"                % V.scalaCheckToolBox   % Test
+  val scalatest = Seq("scalatest", "scalatest-wordspec").map("org.scalatest" %% _ % V.scalatest % Test) :+
+    ("org.scalatestplus" %% "scalacheck-1-15" % s"${V.scalatest}.0" % Test)
+  val scalaCheck       = "org.scalacheck"        %% "scalacheck"        % V.scalaCheck       % Test
+  val scalaCheckSchema = "com.snowplowanalytics" %% "scalacheck-schema" % V.scalaCheckSchema % Test
+  val scalaCheckShapeless =
+    "com.github.alexarchambault" %% s"scalacheck-shapeless_${V.scalaCheckMinor}" % V.scalaCheckShapeless % Test
+  val scalaCheckToolbox = "com.47deg" %% "scalacheck-toolbox-datetime" % V.scalaCheckToolBox % Test
   val scalaCommonEnrich = ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich % Test)
     .exclude("com.maxmind.geoip2", "geoip2")
-  val scioTest = "com.spotify" %% "scio-test"  % V.scio    % Test
-  val mockito  = "org.mockito" % "mockito-all" % V.mockito % Test
+  val scioTest = "com.spotify"       %% "scio-test"   % V.scio              % Test
+  val mockito  = "org.scalatestplus" %% "mockito-4-2" % s"${V.scalatest}.0" % Test
 }

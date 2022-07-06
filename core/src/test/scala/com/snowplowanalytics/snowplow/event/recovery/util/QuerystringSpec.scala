@@ -19,21 +19,22 @@ import java.net.{URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets.UTF_8
 import cats.syntax.either._
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import gens._
 
 import util.querystring._
 import org.scalacheck.Shrink
 
-class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class QuerystringSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
   implicit val noShrink: Shrink[String] = Shrink.shrinkAny
 
   "querystring" should {
     "extract params from string" in {
       forAll(querystringGen(paramGen)) { qs =>
         val p = params(qs)
-        p.right.value.size shouldEqual qs.split("&").size
+        p.value.size shouldEqual qs.split("&").size
       }
     }
     "fix known querystring issues" in {
@@ -48,7 +49,7 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
         "zx"    -> "iglu:test",
         "xz"    -> "'lorem'"
       )
-      val recovered = params(issues).map(_.mapValues(clean)).right.value
+      val recovered = params(issues).map(_.mapValues(clean)).value
       recovered shouldEqual expected
       mkQS(
         recovered
@@ -62,12 +63,12 @@ class QuerystringSpec extends WordSpec with ScalaCheckPropertyChecks with Either
     }
     "fix special characters" in {
       forAll { (p: String) =>
-        javaEncode(p).right.value shouldEqual clean(p)
+        javaEncode(p).value shouldEqual clean(p)
       }
     }
     "convert strings to lists of NVPs and back" in {
       forAll(querystringGen(validParamGen)) { qs =>
-        params(qs).map(toNVP).map(fromNVP).right.value shouldEqual javaDecode(qs).right.value
+        params(qs).map(toNVP).map(fromNVP).value shouldEqual javaDecode(qs).value
       }
     }
     "produce BadRow for invalid line data" in {

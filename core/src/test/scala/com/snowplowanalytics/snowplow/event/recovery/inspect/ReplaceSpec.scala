@@ -19,7 +19,8 @@ import cats.syntax.either._
 import cats.syntax.option._
 import cats.instances.either._
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.circe.syntax._
 import io.circe.parser.parse
@@ -27,7 +28,7 @@ import com.snowplowanalytics.snowplow.badrows._
 import Data._
 import io.circe.Json
 
-class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class ReplaceSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "replace" should {
     "replace values" when {
@@ -40,7 +41,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
           val expected = "com.lorem.ipsum.dolor"
           val replaced = replace("(?U)^.*$".some, expected.asJson)(Seq("processor", "artifact"))(json)
 
-          replaced.flatMap(extract).right.value should equal(expected)
+          replaced.flatMap(extract).value should equal(expected)
         }
       }
       "no matcher supplied" in {
@@ -49,7 +50,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
           val expected = "com.lorem.ipsum.dolor"
           val replaced = replace(None, expected.asJson)(Seq("processor", "artifact"))(json)
 
-          replaced.flatMap(extract).right.value should equal(expected)
+          replaced.flatMap(extract).value should equal(expected)
         }
       }
     }
@@ -61,7 +62,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
         val expected = Vector(NVP("schema", "lorem-ipsum".some))
         val replaced = replace("(?U)^.*$".some, expected.asJson)(Seq("payload", "querystring"))(json)
 
-        replaced.flatMap(extract).right.value should equal(expected)
+        replaced.flatMap(extract).value should equal(expected)
       }
 
     }
@@ -73,7 +74,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
         val expected = Processor("lorem", "ipsum")
         val replaced = replace("(?U)^.*$".some, expected.asJson)(Seq("processor"))(json)
 
-        replaced.flatMap(extract).right.value should equal(expected)
+        replaced.flatMap(extract).value should equal(expected)
       }
     }
     "handle base64" when {
@@ -118,7 +119,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
           Seq("payload", "raw", "parameters", "cx", "schema")
         )(base64Field)
 
-        replaced.flatMap(extract).right.value should equal(expected)
+        replaced.flatMap(extract).value should equal(expected)
       }
       "replace array base64-encoded values" in {
         val expected = 1
@@ -135,7 +136,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
           )
         )(base64Array)
 
-        replaced.flatMap(extractArray).right.value should equal(expected)
+        replaced.flatMap(extractArray).value should equal(expected)
       }
       "replace filtered base 64-encoded values" in {
         val expected = 1
@@ -152,7 +153,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
           )
         )(base64Array)
 
-        replaced.flatMap(extractArray).right.value should equal(expected)
+        replaced.flatMap(extractArray).value should equal(expected)
       }
     }
 
@@ -178,7 +179,7 @@ class ReplaceSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
       expected
     )(Seq("payload", "enriched", "contexts", "data", "[1]", "data", "loadEventEnd"))(base64Field)
 
-    replaced.flatMap(extract).right.value should equal(expected)
+    replaced.flatMap(extract).value should equal(expected)
   }
 
 }

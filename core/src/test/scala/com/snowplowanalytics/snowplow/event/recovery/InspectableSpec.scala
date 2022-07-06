@@ -15,8 +15,9 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import cats.syntax.option._
-import org.scalatest.{Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.Inspectors
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.EitherValues._
 import org.scalatest.OptionValues._
 import org.scalatestplus.scalacheck._
@@ -26,7 +27,7 @@ import inspectable.Inspectable.ops._
 import gens._
 import io.circe.syntax._
 
-class InspectableSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
+class InspectableSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$".some
   val prefix    = "replacement"
 
@@ -37,8 +38,8 @@ class InspectableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val replacement = s"$prefix${field.name}"
         val replaced    = payload.replace(field.name, anyString, replacement.asJson)
         replaced should be('right)
-        replaced.right.value should not be equal(payload)
-        val reverted = replaced.right.value.replace(field.name, anyString, field.strValue.asJson)
+        replaced.value should not be equal(payload)
+        val reverted = replaced.value.replace(field.name, anyString, field.strValue.asJson)
         reverted should be('right)
         Field.extract(payload, field.name).map(_.value).value should equal(field.value)
       }
@@ -48,7 +49,7 @@ class InspectableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val field    = Field(payload)
         val replaced = payload.remove(s"${field.name}", anyString)
         replaced should be('right)
-        replaced.right.value should not be equal(payload)
+        replaced.value should not be equal(payload)
         Field.extract(payload, field.name).map(_.value).value should equal(field.value)
       }
     }

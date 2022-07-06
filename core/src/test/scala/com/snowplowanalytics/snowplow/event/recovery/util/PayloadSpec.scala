@@ -16,7 +16,8 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import badrows.{NVP, Payload}
 import CollectorPayload.thrift.model1.CollectorPayload
@@ -24,7 +25,7 @@ import gens._
 
 import util.payload
 
-class PayloadSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class PayloadSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "co/coerce" should {
     "cocoerce the payload" in {
@@ -48,9 +49,9 @@ class PayloadSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValu
     "coerce and cocoerce the payload" in {
       forAll { (p: Payload.CollectorPayload) =>
         val cp          = payload.coerce(p)
-        val newP        = payload.cocoerce(cp.right.value)
+        val newP        = payload.cocoerce(cp.value)
         val unifiedP    = unify(p)
-        val unifiedNewP = unify(newP.right.value)
+        val unifiedNewP = unify(newP.value)
         unifiedP shouldEqual unifiedNewP
       }
     }

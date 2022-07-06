@@ -17,9 +17,10 @@ package com.snowplowanalytics.snowplow.event.recovery
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-import org.scalatest.{BeforeAndAfterAll, WordSpec}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpec
 
-trait SparkSpec extends WordSpec with BeforeAndAfterAll {
+trait SparkSpec extends AnyWordSpec with BeforeAndAfterAll {
   // local[1] means the tests will run locally on one thread
   val conf = new SparkConf().setMaster("local[1]")
   var spark: SparkSession =

@@ -17,11 +17,14 @@ let
   };
 in pkgs.mkShell {
   buildInputs = with spkgs; [
+    jdk
     metals
     sbt
     pkgs.entr
     pkgs.awscli
+    pkgs.nodePackages.snyk
   ];
   shellHook = ''
+   snyk auth 07ae1257-1d69-40c7-8134-8be65003ef74
   '';
 }

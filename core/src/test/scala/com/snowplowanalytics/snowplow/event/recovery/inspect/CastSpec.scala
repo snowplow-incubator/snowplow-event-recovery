@@ -17,7 +17,8 @@ package inspect
 
 import cats.implicits._
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.circe.syntax._
 import io.circe.parser.parse
@@ -26,7 +27,7 @@ import com.snowplowanalytics.snowplow.badrows.{BadRow, NVP}
 import config._
 import Data._
 
-class CastSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class CastSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "cast" should {
     "cast values" in {
@@ -34,20 +35,14 @@ class CastSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues 
         val artifact = "lorem-ipsum"
         val json     = br.lens(_.processor.artifact).set(artifact).asJson
 
-        cast(CastType.String, CastType.Array)(Seq("processor", "artifact"))(json)
-          .flatMap {
-            _.hcursor.downField("processor").downField("artifact").focus.get.asArray.get.asRight
-          }
-          .right
-          .value should contain(artifact.asJson)
+        cast(CastType.String, CastType.Array)(Seq("processor", "artifact"))(json).flatMap {
+          _.hcursor.downField("processor").downField("artifact").focus.get.asArray.get.asRight
+        }.value should contain(artifact.asJson)
       }
 
-      cast(CastType.String, CastType.Numeric)(Seq("payload", "enriched", "br_colordepth"))(base64Field)
-        .flatMap {
-          _.hcursor.downField("payload").downField("enriched").downField("br_colordepth").as[Int]
-        }
-        .right
-        .value should equal(24)
+      cast(CastType.String, CastType.Numeric)(Seq("payload", "enriched", "br_colordepth"))(base64Field).flatMap {
+        _.hcursor.downField("payload").downField("enriched").downField("br_colordepth").as[Int]
+      }.value should equal(24)
 
     }
     "raise cast failure for undefined casting rules" in {
@@ -62,30 +57,27 @@ class CastSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues 
         CastType.Array
       )(Seq("payload", "raw", "parameters", "cx", "schema"))(base64Field)
 
-      casted
-        .flatMap {
-          _.hcursor
-            .downField("payload")
-            .downField("raw")
-            .downField("parameters")
-            .downN(6)
-            .focus
-            .get
-            .as[NVP]
-            .map(_.value)
-            .map(_.get)
-            .flatMap(
-              util
-                .base64
-                .decode(_)
-                .flatMap(parse)
-                .map(
-                  _.hcursor.downField("schema").focus.get.asArray.get
-                )
-            )
-        }
-        .right
-        .value should contain(expected.asJson)
+      casted.flatMap {
+        _.hcursor
+          .downField("payload")
+          .downField("raw")
+          .downField("parameters")
+          .downN(6)
+          .focus
+          .get
+          .as[NVP]
+          .map(_.value)
+          .map(_.get)
+          .flatMap(
+            util
+              .base64
+              .decode(_)
+              .flatMap(parse)
+              .map(
+                _.hcursor.downField("schema").focus.get.asArray.get
+              )
+          )
+      }.value should contain(expected.asJson)
     }
   }
   "cast array base64-encoded values" in {
@@ -102,30 +94,27 @@ class CastSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues 
         "domComplete"
       )
     )(base64Array)
-    casted
-      .flatMap {
-        _.hcursor
-          .downField("payload")
-          .downField("raw")
-          .downField("parameters")
-          .downN(6)
-          .focus
-          .get
-          .as[NVP]
-          .map(_.value)
-          .map(_.get)
-          .flatMap(
-            util
-              .base64
-              .decode(_)
-              .flatMap(parse)
-              .map(
-                _.hcursor.downField("data").downN(1).downField("data").downField("domComplete").focus.get.asBoolean.get
-              )
-          )
-      }
-      .right
-      .value should equal(expected)
+    casted.flatMap {
+      _.hcursor
+        .downField("payload")
+        .downField("raw")
+        .downField("parameters")
+        .downN(6)
+        .focus
+        .get
+        .as[NVP]
+        .map(_.value)
+        .map(_.get)
+        .flatMap(
+          util
+            .base64
+            .decode(_)
+            .flatMap(parse)
+            .map(
+              _.hcursor.downField("data").downN(1).downField("data").downField("domComplete").focus.get.asBoolean.get
+            )
+        )
+    }.value should equal(expected)
   }
   "cast filtered base64-encoded values" in {
     val expected = true
@@ -141,51 +130,45 @@ class CastSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues 
         "domComplete"
       )
     )(base64Array)
-    casted
-      .flatMap {
-        _.hcursor
-          .downField("payload")
-          .downField("raw")
-          .downField("parameters")
-          .downN(6)
-          .focus
-          .get
-          .as[NVP]
-          .map(_.value)
-          .map(_.get)
-          .flatMap(
-            util
-              .base64
-              .decode(_)
-              .flatMap(parse)
-              .map(
-                _.hcursor.downField("data").downN(1).downField("data").downField("domComplete").focus.get.asBoolean.get
-              )
-          )
-      }
-      .right
-      .value should equal(expected)
+    casted.flatMap {
+      _.hcursor
+        .downField("payload")
+        .downField("raw")
+        .downField("parameters")
+        .downN(6)
+        .focus
+        .get
+        .as[NVP]
+        .map(_.value)
+        .map(_.get)
+        .flatMap(
+          util
+            .base64
+            .decode(_)
+            .flatMap(parse)
+            .map(
+              _.hcursor.downField("data").downN(1).downField("data").downField("domComplete").focus.get.asBoolean.get
+            )
+        )
+    }.value should equal(expected)
   }
 
   "cast url-encoded values" in {
     val replaced = cast(CastType.Numeric, CastType.String)(
       Seq("payload", "enriched", "contexts", "data", "[1]", "data", "loadEventEnd")
     )(base64Field)
-    replaced
-      .flatMap {
-        _.hcursor
-          .downField("payload")
-          .downField("enriched")
-          .downField("contexts")
-          .withFocusM(
-            _.as[String]
-              .flatMap(parse)
-              .flatMap(_.hcursor.downField("data").downN(1).downField("data").get[io.circe.Json]("loadEventEnd"))
-          )
-          .flatMap(_.focus.toRight("empty focus"))
-      }
-      .right
-      .value should equal("0".asJson)
+    replaced.flatMap {
+      _.hcursor
+        .downField("payload")
+        .downField("enriched")
+        .downField("contexts")
+        .withFocusM(
+          _.as[String]
+            .flatMap(parse)
+            .flatMap(_.hcursor.downField("data").downN(1).downField("data").get[io.circe.Json]("loadEventEnd"))
+        )
+        .flatMap(_.focus.toRight("empty focus"))
+    }.value should equal("0".asJson)
   }
 
 }

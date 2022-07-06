@@ -17,7 +17,8 @@ package inspect
 
 import cats.implicits._
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.circe.syntax._
 import monocle.macros.syntax.lens._
@@ -26,7 +27,7 @@ import config.conditions._
 import json.path
 import com.snowplowanalytics.snowplow.event.recovery.util.querystring
 
-class CheckSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class CheckSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "check" should {
     "apply matchers to values" when {
@@ -34,7 +35,7 @@ class CheckSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues
       "checking values" in forAll(gens.badRowSizeViolationA.arbitrary) { br =>
         val version = "0.0.0"
         val json    = br.lens(_.processor.version).set(version).asJson
-        check(Compare(version.asJson))(path("processor.version"))(json).right.value should equal(true)
+        check(Compare(version.asJson))(path("processor.version"))(json).value should equal(true)
       }
 
       "using filters" in {
