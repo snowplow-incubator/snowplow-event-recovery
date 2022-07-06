@@ -22,8 +22,9 @@ import io.circe.Json
 import io.circe.parser._
 
 import org.joda.time.DateTime
-import org.scalatest.{Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.Inspectors
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 
 import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
 import com.snowplowanalytics.snowplow.enrich.common.outputs.EnrichedEvent
@@ -39,7 +40,7 @@ import gens.idClock
 import com.snowplowanalytics.snowplow.enrich.common.utils.BlockerF
 
 import com.snowplowanalytics.snowplow.event.recovery.{execute => recoveryExecute}
-class IntegrationSpec extends WordSpec with Inspectors {
+class IntegrationSpec extends AnyWordSpec with Inspectors {
   private val resolverConfig = """{
     "schema": "iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1",
     "data": {
@@ -118,7 +119,7 @@ class IntegrationSpec extends WordSpec with Inspectors {
             Processor("recovery", "0.0.0"),
             new DateTime(1500000000L),
             p.toValidatedNel,
-            true,
+            EtlPipeline.FeatureFlags(acceptInvalid = true, legacyEnrichmentOrder = true),
             ()
           )
           .map(_.toEither)
@@ -155,7 +156,7 @@ class IntegrationSpec extends WordSpec with Inspectors {
             Processor("recovery", "0.0.0"),
             new DateTime(1500000000L),
             p.toValidatedNel,
-            true,
+            EtlPipeline.FeatureFlags(acceptInvalid = true, legacyEnrichmentOrder = true),
             ()
           )
           .map(_.toEither)

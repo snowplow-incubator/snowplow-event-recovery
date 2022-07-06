@@ -16,7 +16,8 @@ package com.snowplowanalytics.snowplow
 package event.recovery
 
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import com.snowplowanalytics.snowplow.badrows.Schemas
 
@@ -24,7 +25,7 @@ import gens._
 
 import util.paths
 
-class PathsSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class PathsSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "path" should {
     "provide a standard path for bad rows" in {

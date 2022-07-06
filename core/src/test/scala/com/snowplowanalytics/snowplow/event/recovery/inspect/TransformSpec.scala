@@ -17,14 +17,15 @@ package inspect
 
 import cats.implicits._
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.circe.parser.parse
 import io.circe.Json
 import com.snowplowanalytics.snowplow.event.recovery.domain.InvalidJsonFormat
 import domain._
 
-class TransformSpec extends WordSpec with ScalaCheckPropertyChecks with EitherValues {
+class TransformSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValues {
 
   "transform" should {
 
@@ -154,7 +155,7 @@ class TransformSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
         (path: Seq[String]) =>
           (j: Json) =>
             j.hcursor.downField(path.head).set(Json.fromString("replaced")).top.toRight(InvalidJsonFormat("boom"))
-      transform.urlFn(fn)(Seq("nested"))(escapedJsonString).right.value should equal(expected)
+      transform.urlFn(fn)(Seq("nested"))(escapedJsonString).value should equal(expected)
     }
 
     "apply a function to b64-encoded data" in {
@@ -164,7 +165,7 @@ class TransformSpec extends WordSpec with ScalaCheckPropertyChecks with EitherVa
         (path: Seq[String]) =>
           (j: Json) =>
             j.hcursor.downField(path.head).set(Json.fromString("replaced")).top.toRight(InvalidJsonFormat("boom"))
-      transform.b64Fn(fn)(Seq("nested"))(escapedJsonString).right.value should equal(expected)
+      transform.b64Fn(fn)(Seq("nested"))(escapedJsonString).value should equal(expected)
     }
   }
 

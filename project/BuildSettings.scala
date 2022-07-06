@@ -31,7 +31,7 @@ object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
     maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
-    scalaVersion := "2.12.11",
+    scalaVersion := "2.12.16",
     licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0"))
   )
 
