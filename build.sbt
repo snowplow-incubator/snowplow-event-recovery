@@ -20,15 +20,16 @@ lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(
 lazy val core = project
   .settings(coreBuildSettings)
   .settings(
-    libraryDependencies ++= Seq(
-      Dependencies.thriftSchema,
-      Dependencies.badRows,
+    libraryDependencies ++= (Seq(
+      Dependencies.thriftSchema.excludeAll(ExclusionRule(organization = "commons-logging")),
+      Dependencies
+        .badRows
+        .excludeAll(ExclusionRule(organization = "com.snowplowanalytics", name = "iglu-scala-client-data_2.12")),
       Dependencies.igluClient,
       Dependencies.atto,
       Dependencies.catsCore,
       Dependencies.catsEffect,
       Dependencies.monocle,
-      Dependencies.scalatest,
       Dependencies.scalaCheck,
       Dependencies.scalaCheckShapeless,
       Dependencies.scalaCheckToolbox,
@@ -36,6 +37,8 @@ lazy val core = project
       Dependencies.scalaCommonEnrich,
       Dependencies.slf4jLog4j
     ) ++ Dependencies.circe
+      ++ Dependencies.scalatest
+      ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
   )
 
 lazy val beam = project
@@ -72,6 +75,7 @@ lazy val spark =
         Dependencies.awsKinesisSpark,
         Dependencies.elephantBird,
         Dependencies.hadoopLzo
-      ) ++ Dependencies.spark ++ Dependencies.decline,
+      ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
+        ++ Dependencies.spark ++ Dependencies.decline,
       dependencyOverrides += Dependencies.jackson
     )

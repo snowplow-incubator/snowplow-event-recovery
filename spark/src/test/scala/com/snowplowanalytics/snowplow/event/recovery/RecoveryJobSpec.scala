@@ -21,7 +21,7 @@ import org.apache.spark.sql.{Dataset, Encoder, Encoders, SparkSession}
 import scala.collection.JavaConverters._
 import shapeless.syntax.sized._
 import io.circe.parser.decode
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
 import domain._
 import json._
 import config._

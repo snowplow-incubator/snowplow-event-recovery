@@ -14,8 +14,9 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import org.scalatest.{Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.Inspectors
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.EitherValues._
 import org.scalatestplus.scalacheck._
 
@@ -27,7 +28,7 @@ import json._
 import org.scalacheck._
 import gens._
 
-class ConfigSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
+class ConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks {
 
   val data = (badRowType: String, conditions: String, steps: String) =>
     s"""{"iglu:com.snowplowanalytics.snowplow.badrows/$badRowType/jsonschema/1-0-0":[{"name":"lorem-ipsum","conditions": $conditions,"steps":$steps}]}"""
@@ -64,7 +65,7 @@ class ConfigSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks 
       forAll(configGen) { config =>
         val schemed = schema(schemaKey, config)
         val conf    = decode[Conf](schemed)
-        conf.right.value.schema.toSchemaUri should equal(schemaKey)
+        conf.value.schema.toSchemaUri should equal(schemaKey)
       }
     }
     "be a proper JSON" in {
@@ -72,7 +73,7 @@ class ConfigSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks 
         val schemed = schema(schemaKey, config)
         val conf    = decode[Conf](schemed)
 
-        conf.right.value.schema.toSchemaUri should equal(schemaKey)
+        conf.value.schema.toSchemaUri should equal(schemaKey)
       }
     }
   }

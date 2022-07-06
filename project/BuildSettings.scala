@@ -31,7 +31,7 @@ object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
     maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
-    scalaVersion := "2.12.11",
+    scalaVersion := "2.12.16",
     licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0"))
   )
 
@@ -150,6 +150,8 @@ object BuildSettings {
         case x if x.endsWith("ProjectSettings$.class")               => MergeStrategy.first
         case x if x.endsWith("package-info.class")                   => MergeStrategy.first
         case x if x.endsWith("module-info.class")                    => MergeStrategy.first
+        case x if x.endsWith("nowarn.class")                         => MergeStrategy.first
+        case x if x.endsWith("nowarn$.class")                        => MergeStrategy.first
         case PathList("org", "apache", "spark", "unused", tail @ _*) => MergeStrategy.first
         case "build.properties"                                      => MergeStrategy.first
         case x =>

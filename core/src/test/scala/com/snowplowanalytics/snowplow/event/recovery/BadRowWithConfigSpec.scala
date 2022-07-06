@@ -15,8 +15,9 @@
 package com.snowplowanalytics.snowplow.event.recovery
 package config
 
-import org.scalatest.{EitherValues, Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.{EitherValues, Inspectors}
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck._
 
 import com.snowplowanalytics.iglu.core.SelfDescribingData
@@ -26,7 +27,7 @@ import gens._
 import conditions._
 import io.circe.syntax._
 
-class BadRowWithConfigSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks with EitherValues {
+class BadRowWithConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks with EitherValues {
 
   val mkCfg = (conditions: List[Condition]) => FlowConfig("default", conditions, List.empty)
   "BadRowWithConfig" should {
@@ -35,7 +36,7 @@ class BadRowWithConfigSpec extends WordSpec with Inspectors with ScalaCheckPrope
         val cfg            = mkCfg(List.empty)
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
-        BadRowWithConfig.find(config, badRow).right.value should equal(cfg)
+        BadRowWithConfig.find(config, badRow).value should equal(cfg)
       }
     }
     "handle direct comparison matchers" in {
@@ -46,7 +47,7 @@ class BadRowWithConfigSpec extends WordSpec with Inspectors with ScalaCheckPrope
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
         val res            = BadRowWithConfig.find(config, badRow)
-        res.right.value should equal(cfg)
+        res.value should equal(cfg)
       }
     }
     "handle size matchers on arrays" in {
@@ -56,7 +57,7 @@ class BadRowWithConfigSpec extends WordSpec with Inspectors with ScalaCheckPrope
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
 
-        BadRowWithConfig.find(config, badRow).right.value should equal(cfg)
+        BadRowWithConfig.find(config, badRow).value should equal(cfg)
       }
     }
   }

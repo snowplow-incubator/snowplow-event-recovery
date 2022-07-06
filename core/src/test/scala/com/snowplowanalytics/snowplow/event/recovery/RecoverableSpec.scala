@@ -15,8 +15,9 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import cats.implicits._
-import org.scalatest.{Inspectors, WordSpec}
-import org.scalatest.Matchers._
+import org.scalatest.Inspectors
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.EitherValues._
 import org.scalatestplus.scalacheck._
 
@@ -31,7 +32,7 @@ import util.thrift
 import gens._
 import io.circe.syntax._
 
-class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyChecks {
+class RecoverableSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks {
   val anyString = "(?U)^.*$".some
   val prefix    = "payload.replacement"
 
@@ -45,11 +46,11 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
 
         val recovered = b.recover(conf(replacement))
         recovered should be('right)
-        recovered.right.value.vendor should equal(replacement)
+        recovered.value.vendor should equal(replacement)
 
         val reverted = b.recover(conf(value))
         reverted should be('right)
-        reverted.right.value.vendor should equal(value)
+        reverted.value.vendor should equal(value)
       }
     }
     "allow matcher-based field content removal" in {
@@ -59,7 +60,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val recovered = b.recover(conf)
 
         recovered should be('right)
-        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).right.value match {
+        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).value match {
           case Some(v) => v shouldEqual ""
           case None    => true
           case v       => v shouldEqual ""
@@ -78,7 +79,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
           )
         val recovered = b.recover(conf)
         recovered should be('right)
-        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).right.value match {
+        recovered.flatMap(v => Field.extract(v, field.name).map(_.value).toRight("value missing")).value match {
           case Some(v) => v shouldEqual prefix
           case None    => true
           case v       => v shouldEqual prefix
@@ -96,7 +97,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
       }
       forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
         val withoutQuerystring = withQS(b, Map.empty, cp)
-        withoutQuerystring.right.value.recover(List.empty) should be('left)
+        withoutQuerystring.value.recover(List.empty) should be('left)
       }
     }
     "handle composite bad row" in {
@@ -110,7 +111,7 @@ class RecoverableSpec extends WordSpec with Inspectors with ScalaCheckPropertyCh
         val formats         = Seq(s"[$fill]", s"{{$fill}}", s"{$fill}", s"$${$fill}")
         val withQuerystring = withQS(b, Stream.from(1).map(_.toString).zip(formats).toMap, cp)
         val recovered       = withQuerystring.getOrElse(b).recover(List.empty)
-        val params          = recovered.right.value.querystring.map { case NVP(_, v) => v }.flatten
+        val params          = recovered.value.querystring.map { case NVP(_, v) => v }.flatten
 
         recovered should be('right)
         params.filter(_.contains(fill)) should have size (formats.size)
