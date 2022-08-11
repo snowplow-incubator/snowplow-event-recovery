@@ -1,3 +1,8 @@
+Version 0.5.1 (2022-08-11)
+--------------------------
+Bump framework dependencies (close #121)
+Fix Snyk github action (close #119)
+
 Version 0.5.0 (2022-04-15)
 --------------------------
 Bump cats to 2.7.0 (#112)
