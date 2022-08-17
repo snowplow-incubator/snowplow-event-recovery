@@ -167,6 +167,24 @@
     ],
     "iglu:com.snowplowanalytics.snowplow.badrows/schema_violations/jsonschema/*-*-*": [
       {
+        "name": "uepx",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_px.data.schema",
+            "value": {
+              "value": "iglu:com.genially/payment_processed_successfully/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+            "path": "$.raw.userId",
+            "value": "6cd98e85-e52e-4c69-be20-7f1e4fd6f8e8"
+          }
+        ]
+      },
+      {
         "name": "first",
         "conditions": [
           {

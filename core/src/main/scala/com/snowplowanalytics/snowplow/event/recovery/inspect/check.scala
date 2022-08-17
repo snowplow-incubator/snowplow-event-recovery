@@ -43,7 +43,7 @@ object check {
         false,
         identity,
         _ => false,
-        _ == "true",
+        str => str == "true" || util.base64.encode("true").map(_ == str).toOption.getOrElse(false),
         _ => false,
         _ => false
       )
