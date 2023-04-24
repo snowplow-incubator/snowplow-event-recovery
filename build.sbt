@@ -19,6 +19,8 @@ lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(
 
 lazy val core = project
   .settings(coreBuildSettings)
+  .configs(IntegrationTest)
+  .settings(Defaults.itSettings)
   .settings(
     libraryDependencies ++= (Seq(
       Dependencies.thriftSchema.excludeAll(ExclusionRule(organization = "commons-logging")),
@@ -59,13 +61,20 @@ lazy val beam = project
 lazy val spark =
   project
     .dependsOn(core % "compile->compile;test->test")
+    .configs(IntegrationTest)
+    .settings(Defaults.itSettings)
     .settings(sparkBuildSettings)
     .settings(
       libraryDependencies ++= Seq(
         Dependencies.awsKinesisSpark,
         Dependencies.elephantBird,
-        Dependencies.hadoopLzo
+        Dependencies.hadoopLzo,
+        Dependencies.cloudwatch
       ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
-        ++ Dependencies.spark ++ Dependencies.decline,
+        ++ Dependencies.spark
+        ++ Dependencies.decline
+        ++ Dependencies.testContainers
+        ++ Dependencies.scalatestIT
+        :+ Dependencies.catsRetry,
       dependencyOverrides += Dependencies.jackson
     )
