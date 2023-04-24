@@ -216,7 +216,14 @@
           }
         ],
         "steps": []
-       }
+      }
+    ],
+    "iglu:com.snowplowanalytics.snowplow.badrows/collector_payload_format_violation/jsonschema/1-0-0": [
+      {
+        "name": "passthrough",
+        "conditions": [],
+        "steps": []
+      }
     ]
   }
 }
