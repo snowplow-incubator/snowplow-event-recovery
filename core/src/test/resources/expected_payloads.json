@@ -169,5 +169,26 @@
     "event_name": "submit_form",
     "event_format": "jsonschema",
     "event_version": "1-0-0"
+  },
+  {
+    "event_id": "2dfeb9b7-5a87-4214-8a97-a8b23176856b",
+    "v_etl": "recovery-0.0.0-common-3.1.2",
+    "etl_tstamp": "1970-01-18T08:40:00",
+    "collector_tstamp": "2023-04-24T09:10:16.76",
+    "event": "page_view",
+    "v_collector": "stream-collector-2.8.0",
+    "user_ipaddress": "10.10.10.10",
+    "page_url": "https://lorem.com/",
+    "page_title": "DemoPageTitle",
+    "page_urlscheme": "https",
+    "page_urlhost": "lorem.com",
+    "page_urlport": 443,
+    "page_urlpath": "/",
+    "useragent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36",
+    "derived_tstamp": "2023-04-24T09:10:16.76",
+    "event_vendor": "com.snowplowanalytics.snowplow",
+    "event_name": "page_view",
+    "event_format": "jsonschema",
+    "event_version": "1-0-0"
   }
 ]
