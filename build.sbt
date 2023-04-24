@@ -15,7 +15,7 @@
 
 import BuildSettings._
 
-lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink, spark)
+lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, spark)
 
 lazy val core = project
   .settings(coreBuildSettings)
@@ -54,16 +54,6 @@ lazy val beam = project
       Dependencies.scioTest,
       Dependencies.slf4jSimple
     )
-  )
-
-lazy val flink = project
-  .dependsOn(core % "compile->compile;test->test")
-  .settings(flinkBuildSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      Dependencies.mockito
-    ) ++ Dependencies.decline ++ Dependencies.flink ++ Dependencies.circe,
-    dependencyOverrides += Dependencies.jackson
   )
 
 lazy val spark =
