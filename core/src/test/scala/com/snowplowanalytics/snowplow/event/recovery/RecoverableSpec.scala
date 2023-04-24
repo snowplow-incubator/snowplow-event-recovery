@@ -14,6 +14,8 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
+import java.time.Instant
+
 import cats.implicits._
 import org.scalatest.Inspectors
 import org.scalatest.wordspec.AnyWordSpec
@@ -28,7 +30,7 @@ import recoverable.Recoverable.ops._
 import config._
 import config.conditions._
 import domain._
-import util.thrift
+import util._
 import gens._
 import io.circe.syntax._
 
@@ -122,6 +124,17 @@ class RecoverableSpec extends AnyWordSpec with Inspectors with ScalaCheckPropert
         cp.querystring = null
         val badRow = thrift.serialize(cp).map(p => b.copy(payload = RawPayload(p)))
         badRow.flatMap(_.recover(List.empty)) should be('left)
+      }
+    }
+    "handle CPFormatViolation when body is double Base64-encoded" in {
+      forAll{ (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
+        val base64cp: String = thrift.serialize(cp).flatMap(base64.encode).right.get
+        val bad = b.copy(payload = Payload.RawPayload(base64cp), failure = Failure.CPFormatViolation(Instant.ofEpochMilli(0), "some-loader-1.0.0", FailureDetails.CPFormatViolationMessage.Fallback("error deserializing raw event: Unrecognized type 67")))
+        val recovered: Recovering[Payload.CollectorPayload] = bad.recover(List.empty)
+
+        val original = payload.cocoerce(cp)
+        recovered should be ('right)
+        recovered.value shouldEqual(original.value)
       }
     }
   }
