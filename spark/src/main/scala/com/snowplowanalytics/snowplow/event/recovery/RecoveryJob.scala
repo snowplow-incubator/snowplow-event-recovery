@@ -32,6 +32,7 @@ import util.paths._
 import util.base64
 import domain._
 import kinesis._
+import cats.effect.SyncIO
 
 object RecoveryJob extends RecoveryJob
 
@@ -61,6 +62,8 @@ trait RecoveryJob {
     *   configuration object containing mappings and recovery flow configurations
     * @param directoryOutput
     *   optionally output successful recoveries into a file
+    * @param cloudwatch
+    *   a CloudWatch reporter instance. Relies upon specific type because we need to do impure things in Spark runtime
     */
   def run(
     input: String,
@@ -70,7 +73,8 @@ trait RecoveryJob {
     directoryOutput: Option[String],
     region: Regions,
     batchSize: Int,
-    cfg: Config
+    cfg: Config,
+    cloudwatch: Cloudwatch[SyncIO]
   ): Unit = {
     implicit val spark: SparkSession = init()
 
@@ -107,8 +111,16 @@ trait RecoveryJob {
     metrics.unrecoverable.inc(summary.unrecoverable.value)
     metrics.failed.inc(summary.failed.value)
 
-    println(summary)
+    (for {
+      r1 <- cloudwatch.report(summary.successful.name.getOrElse("recovered"), summary.successful.value)
+      r2 <- cloudwatch.report(summary.unrecoverable.name.getOrElse("failed"), summary.unrecoverable.value)
+      r3 <- cloudwatch.report(summary.failed.name.getOrElse("failed"), summary.failed.value)
+    } yield (r1, r2, r3)).use(SyncIO.pure).attempt.unsafeRunSync() match {
+      case Left(err) => println(s"Couldn't report metric values. Error: ${err.getMessage()}")
+      case Right(_)  => println("Metric values successfully reported.")
+    }
 
+    println(summary)
     SparkEnv.get.metricsSystem.report
   }
 
