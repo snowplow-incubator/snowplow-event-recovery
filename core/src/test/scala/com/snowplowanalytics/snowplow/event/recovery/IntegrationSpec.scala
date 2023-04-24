@@ -168,6 +168,8 @@ class IntegrationSpec extends AnyWordSpec with Inspectors {
       .flatMap(removeFields)
     val loaded: List[Json] = enriched.flatMap(_.flatMap(EnrichedEvent.toAtomic).toList).flatMap(removeFields)
 
+    enriched.sequence should be('right)
+
     loaded should contain theSameElementsAs expected
   }
 
