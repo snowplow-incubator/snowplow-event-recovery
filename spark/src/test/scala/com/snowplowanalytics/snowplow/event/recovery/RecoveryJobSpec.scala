@@ -25,6 +25,7 @@ import org.scalatest.matchers.should.Matchers._
 import domain._
 import json._
 import config._
+import cats.effect.SyncIO
 
 class RecoveryJobSpec extends SparkSpec {
   implicit val session                                 = spark
@@ -133,7 +134,8 @@ class RecoveryJobSpec extends SparkSpec {
           Some("debug"),
           Regions.AP_EAST_1,
           1,
-          cfg
+          cfg,
+          Cloudwatch.init[SyncIO](None)
         )
         RecoveryJobTest.recovered.size == 1
         RecoveryJobTest.recovered should contain(fixed)

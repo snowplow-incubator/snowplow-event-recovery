@@ -56,6 +56,7 @@ object Dependencies {
     val slf4j           = "1.7.36"
     val hadoopLzo       = "0.4.20"
     val jacksonDatabind = "2.12.6"
+    val aws             = "1.12.261"
 
     // Scala third-party
     val atto            = "0.9.5"
@@ -85,15 +86,18 @@ object Dependencies {
     val scalaCheckSchema    = "0.2.1"
     val scalaCheckShapeless = "1.3.0"
     val scalaCommonEnrich   = "3.2.1"
+    val testContainers      = "0.40.15"
+    val catsRetry           = "2.1.0"
   }
 
   // Java
-  val thriftSchema = "com.snowplowanalytics"      % "collector-payload-1" % V.thriftSchema
-  val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"        % V.slf4j
-  val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"       % V.slf4j
-  val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"    % V.jacksonDatabind
-  val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"  % V.elephantBird
-  val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"          % V.hadoopLzo
+  val thriftSchema = "com.snowplowanalytics"      % "collector-payload-1"     % V.thriftSchema
+  val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"            % V.slf4j
+  val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"           % V.slf4j
+  val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"        % V.jacksonDatabind
+  val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"      % V.elephantBird
+  val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"              % V.hadoopLzo
+  val cloudwatch   = "com.amazonaws"              % "aws-java-sdk-cloudwatch" % V.aws
 
   // Scala third-party
   val atto       = "org.tpolecat"  %% "atto-core"   % V.atto
@@ -128,6 +132,10 @@ object Dependencies {
   // Testing
   val scalatest = Seq("scalatest", "scalatest-wordspec").map("org.scalatest" %% _ % V.scalatest % Test) :+
     ("org.scalatestplus" %% "scalacheck-1-15" % s"${V.scalatest}.0" % Test)
+  val scalatestIT = Seq("scalatest", "scalatest-wordspec").map(
+    "org.scalatest" %% _ % V.scalatest % IntegrationTest
+  ) :+
+    ("org.scalatestplus" %% "scalacheck-1-15" % s"${V.scalatest}.0" % IntegrationTest)
   val scalaCheck       = "org.scalacheck"        %% "scalacheck"        % V.scalaCheck       % Test
   val scalaCheckSchema = "com.snowplowanalytics" %% "scalacheck-schema" % V.scalaCheckSchema % Test
   val scalaCheckShapeless =
@@ -137,4 +145,8 @@ object Dependencies {
     .exclude("com.maxmind.geoip2", "geoip2")
   val scioTest = "com.spotify"       %% "scio-test"   % V.scio              % Test
   val mockito  = "org.scalatestplus" %% "mockito-4-2" % s"${V.scalatest}.0" % Test
+  val testContainers = Seq("testcontainers-scala-scalatest", "testcontainers-scala-localstack").map(
+    "com.dimafeng" %% _ % V.testContainers % Seq(Test, IntegrationTest).mkString(",")
+  )
+  val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
 }
