@@ -14,7 +14,6 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import com.amazonaws.regions.Regions
 
 import cats.implicits._
@@ -28,6 +27,7 @@ import util.paths._
 import util.base64
 import config._
 import cats.data.EitherT
+import cats.data.Validated
 
 /** Entry point for the Spark recovery job */
 object Main
@@ -80,6 +80,31 @@ object Main
         help = "Iglu resolver configuration"
       )
       .mapValidated(base64.decode(_).leftMap(_.message).toValidatedNel)
+    val cloudwatchNamespace = Opts
+      .option[String](
+        "cloudwatch-namespace",
+        help = "Namespace name for CloudWatch"
+      )
+      .orNone
+    val cloudwatchDimensions = Opts
+      .option[String](
+        "cloudwatch-dimensions",
+        help = "Cloudwatch dimensions"
+      )
+      .mapValidated { input =>
+        input
+          .split(";")
+          .toList
+          .traverse(str =>
+            str.split(":", 2) match {
+              case Array(key, value) => Validated.valid(Map[String, String](key -> value))
+              case _                 => Validated.invalid(s"Invalid key:value pair $str")
+            }
+          )
+          .map(_.foldLeft(Map.empty[String, String])((acc, next) => acc |+| next))
+          .toValidatedNel
+      }
+      .orNone
     val config = Opts
       .option[String](
         "config",
@@ -91,6 +116,8 @@ object Main
       validateSchema[IO](c, r).map(_ => c).flatMap(v => EitherT.fromEither(load(v))).value
     )
 
+    val cloudwatch = (cloudwatchNamespace, cloudwatchDimensions).mapN((_, _).mapN(Cloudwatch.Config))
+
     (
       input,
       output,
@@ -99,8 +126,9 @@ object Main
       directoryOutput,
       region,
       batchSize,
-      validatedConfig
-    ).mapN { (i, o, f, u, d, r, b, c) =>
+      validatedConfig,
+      cloudwatch
+    ).mapN { (i, o, f, u, d, r, b, c, cw) =>
       c.map(
         _.bimap(
           err => new RuntimeException(err),
@@ -113,7 +141,8 @@ object Main
               d,
               Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
               b.getOrElse(recordsMaxDataSize),
-              cfg
+              cfg,
+              Cloudwatch.init[SyncIO](cw)
             )
         )
       ).map(_ => ExitCode.Success)
