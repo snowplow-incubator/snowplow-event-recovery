@@ -23,7 +23,7 @@ import com.snowplowanalytics.snowplow.badrows.Payload
 import config._
 import domain._
 import steps._
-import util.thrift
+import util.{base64, thrift}
 import inspectable.Inspectable._
 import util.payload._
 import util.querystring._
@@ -97,11 +97,23 @@ object recoverable {
 
     implicit val cpFormatViolationRecovery: Recoverable[CPFormatViolation, Payload.CollectorPayload] =
       new Recoverable[CPFormatViolation, Payload.CollectorPayload] {
-        override def recover(b: CPFormatViolation)(config: List[StepConfig]) =
-          for {
-            payload   <- recoverQuery(b)
-            recovered <- step(config, payload)(new Modify[Payload.CollectorPayload](_))
-          } yield recovered
+        override def recover(b: CPFormatViolation)(config: List[StepConfig]) = {
+          val payload = b.failure.message match {
+            case FailureDetails.CPFormatViolationMessage.Fallback(error) if isPayloadAlreadyBase64Encoded(error) =>
+              recoverBase64EncodedPayload(b)
+            case _ => recoverQuery(b)
+          }
+
+          payload.flatMap(p => step(config, p)(new Modify[Payload.CollectorPayload](_)))
+        }
+
+        private[this] def isPayloadAlreadyBase64Encoded(error: String) = {
+          val errorMessage = "error deserializing raw event: Unrecognized type \\d*".r
+          errorMessage.findFirstIn(error).isDefined
+        }
+
+        private[this] def recoverBase64EncodedPayload(b: CPFormatViolation) =
+          base64.decode(b.payload.event).flatMap(thrift.deserialize).flatMap(cocoerce)
 
         private[this] def recoverQuery(b: CPFormatViolation) =
           for {
