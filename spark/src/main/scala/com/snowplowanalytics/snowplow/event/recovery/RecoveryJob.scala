@@ -104,7 +104,8 @@ trait RecoveryJob {
         batchSize,
         recovered,
         new Summary(spark.sparkContext),
-        spark
+        spark,
+        cloudwatch
       )
 
     metrics.recovered.inc(summary.successful.value)
@@ -157,7 +158,8 @@ trait RecoveryJob {
     batchSize: Int,
     v: Dataset[(Array[Byte], Result)],
     summary: Summary,
-    spark: SparkSession
+    spark: SparkSession,
+    cloudwatch: Cloudwatch[SyncIO]
   )(implicit
     encoder: Encoder[Array[Byte]],
     resEncoder: Encoder[(Array[Byte], Result)],
@@ -175,7 +177,10 @@ trait RecoveryJob {
         }
         .rdd
         .sinkToKinesis(streamName = output.get, region = region, chunk = batchSize)
-
+      cloudwatch.report(summary.successful.name.getOrElse("recovered"), summary.successful.value).use(v => SyncIO.pure("Sending event $v")).attempt.unsafeRunSync() match {
+      case Left(err) => println(s"Couldn't report metric values. Error: ${err.getMessage()}")
+      case Right(_)  => println("Metric values successfully reported.")
+      }
     }
 
     if (directoryOutput.isDefined) {
@@ -216,6 +221,10 @@ trait RecoveryJob {
         .write
         .mode(SaveMode.Append)
         .text(path(failedOutput, Schemas.RecoveryError))
+      cloudwatch.report(summary.failed.name.getOrElse("failed"), summary.failed.value).use(SyncIO.pure).attempt.unsafeRunSync() match {
+      case Left(err) => println(s"Couldn't report metric values. Error: ${err.getMessage()}")
+      case Right(_)  => println("Metric values successfully reported.")
+      }
     }
 
     if (!unrecoverable.isEmpty) {

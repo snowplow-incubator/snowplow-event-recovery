@@ -49,7 +49,8 @@ class RecoveryJobSpec extends SparkSpec {
       batchSize: Int,
       v: Dataset[(Array[Byte], Result)],
       summary: Summary,
-      spark: SparkSession
+      spark: SparkSession,
+      cloudwatch: Cloudwatch[SyncIO],
     )(implicit
       encoder: Encoder[Array[Byte]],
       resEncoder: Encoder[(Array[Byte], Result)],
