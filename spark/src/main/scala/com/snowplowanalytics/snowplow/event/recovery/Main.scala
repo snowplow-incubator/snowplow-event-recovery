@@ -14,14 +14,14 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import com.amazonaws.regions.Regions
+import java.util.concurrent.ScheduledThreadPoolExecutor
+import org.slf4j.LoggerFactory
 
 import cats.implicits._
 import cats.effect._
 
 import com.monovore.decline._
 import com.monovore.decline.effect._
-import jp.co.bizreach.kinesis.recordsMaxDataSize
 
 import util.paths._
 import util.base64
@@ -35,6 +35,8 @@ object Main
       name = "snowplow-event-recovery-job",
       header = "Snowplow event recovery job"
     ) {
+  lazy val log = LoggerFactory.getLogger(getClass)
+
   override def main: Opts[IO[ExitCode]] = {
     val input = Opts.option[String](
       "input",
@@ -69,9 +71,10 @@ object Main
       help = "Kinesis region"
     )
     val batchSize = Opts
+    val kinesisThreadpool = Opts
       .option[Int](
-        "batchSize",
-        help = "Kinesis batch size"
+        "kinesis-threadpool",
+        help = "Kinesis client threadpool size. Default: `8`"
       )
       .orNone
     val resolver = Opts
@@ -116,7 +119,8 @@ object Main
       validateSchema[IO](c, r).map(_ => c).flatMap(v => EitherT.fromEither(load(v))).value
     )
 
-    val cloudwatch = (cloudwatchNamespace, cloudwatchDimensions).mapN((_, _).mapN(Cloudwatch.Config))
+    val cloudwatchConfig = (cloudwatchNamespace, cloudwatchDimensions).mapN((_, _).mapN(Cloudwatch.Config))
+    val kinesisConfig    = (region, kinesisThreadpool).mapN((r, kt) => KinesisSink.Config(region = r, threadpool = kt))
 
     (
       input,
@@ -124,11 +128,10 @@ object Main
       failedOutput,
       unrecoverableOutput,
       directoryOutput,
-      region,
-      batchSize,
+      kinesisConfig,
       validatedConfig,
-      cloudwatch
-    ).mapN { (i, o, f, u, d, r, b, c, cw) =>
+      cloudwatchConfig
+    ).mapN { (i, o, f, u, d, k, c, cw) =>
       c.map(
         _.bimap(
           err => new RuntimeException(err),
@@ -139,8 +142,7 @@ object Main
               f.getOrElse(failedPath(i)),
               u.orElse(f.map(unrecoverablePath)).getOrElse(unrecoverablePath(i)),
               d,
-              Either.catchNonFatal(Regions.fromName(r)).getOrElse(Regions.EU_CENTRAL_1),
-              b.getOrElse(recordsMaxDataSize),
+              Some(k),
               cfg,
               Cloudwatch.init[SyncIO](cw)
             )
@@ -148,5 +150,10 @@ object Main
       ).map(_ => ExitCode.Success)
 
     }
+  }
+
+  def buildExecutorService(threadPoolSize: Int = 16): ScheduledThreadPoolExecutor = {
+    log.info("Creating thread pool of size " + threadPoolSize)
+    new ScheduledThreadPoolExecutor(threadPoolSize)
   }
 }

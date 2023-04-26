@@ -14,29 +14,29 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
+import org.slf4j.LoggerFactory
+
 import com.hadoop.compression.lzo.{LzoCodec, LzopCodec}
 import org.apache.hadoop.io.LongWritable
 import org.apache.spark.{SparkConf, SparkContext, SparkEnv}
 import org.apache.spark.metrics.source.Metrics
 import org.apache.spark.sql.{Dataset, Encoder, Encoders, SaveMode, SparkSession}
 import org.apache.spark.util.LongAccumulator
-import com.amazonaws.regions.Regions
 import com.twitter.elephantbird.mapreduce.output.LzoThriftBlockOutputFormat
 import com.twitter.elephantbird.mapreduce.io.ThriftWritable
-import jp.co.bizreach.kinesis.recordsMaxCount
-import jp.co.bizreach.kinesis.spark.{DefaultCredentials, KinesisRDDWriter, SparkAWSCredentials}
 import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import com.snowplowanalytics.snowplow.badrows._
 import config._
 import util.paths._
 import util.base64
 import domain._
-import kinesis._
 import cats.effect.SyncIO
+import java.util.concurrent.ScheduledThreadPoolExecutor
 
 object RecoveryJob extends RecoveryJob
 
 trait RecoveryJob {
+  lazy val log = LoggerFactory.getLogger(getClass)
 
   /** Spark job running the event recovery process on AWS. It will:
     *   - read the input data from an S3 location
@@ -71,8 +71,7 @@ trait RecoveryJob {
     failedOutput: String,
     unrecoverableOutput: String,
     directoryOutput: Option[String],
-    region: Regions,
-    batchSize: Int,
+    kinesis: Option[KinesisSink.Config],
     cfg: Config,
     cloudwatch: Cloudwatch[SyncIO]
   ): Unit = {
@@ -100,11 +99,10 @@ trait RecoveryJob {
         failedOutput,
         unrecoverableOutput,
         directoryOutput,
-        region,
-        batchSize,
         recovered,
         new Summary(spark.sparkContext),
-        spark
+        spark,
+        kinesis
       )
 
     metrics.recovered.inc(summary.successful.value)
@@ -153,11 +151,11 @@ trait RecoveryJob {
     failedOutput: String,
     unrecoverableOutput: String,
     directoryOutput: Option[String],
-    region: Regions,
-    batchSize: Int,
+    // batchSize: Int, // FIXME add thresholds, backoff
     v: Dataset[(Array[Byte], Result)],
     summary: Summary,
-    spark: SparkSession
+    spark: SparkSession,
+    kinesis: Option[KinesisSink.Config]
   )(implicit
     encoder: Encoder[Array[Byte]],
     resEncoder: Encoder[(Array[Byte], Result)],
@@ -167,15 +165,27 @@ trait RecoveryJob {
     val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
     val failed        = v.filter(_._2 == Failed).map(_._1)
 
-    if (output.isDefined) {
-      successful
-        .map { x =>
-          summary.successful.add(1)
-          x
-        }
-        .rdd
-        .sinkToKinesis(streamName = output.get, region = region, chunk = batchSize)
-
+    kinesis match {
+      case Some(sink) =>
+        successful
+          .foreachPartition { (f: Iterator[Array[Byte]]) =>
+            val k = output
+              .flatMap(streamName =>
+                KinesisSink
+                  .createAndInitialize(
+                    kinesisConfig = sink,
+                    streamName,
+                    enableStartupChecks = true,
+                    executorService = buildExecutorService(sink.threadpool.getOrElse(8))
+                  )
+                  .toOption // FIXME
+              )
+              .get
+            summary.successful.add(1)
+            k.storeRawEvents(f.toList, java.util.UUID.randomUUID().toString())
+          }
+      case None =>
+        log.info("Not sending to Kinesis")
     }
 
     if (directoryOutput.isDefined) {
@@ -211,6 +221,7 @@ trait RecoveryJob {
       failed
         .map { x =>
           summary.failed.add(1)
+          log.debug(s"Saving failed event")
           base64.byteToString(x)
         }
         .write
@@ -222,6 +233,7 @@ trait RecoveryJob {
       unrecoverable
         .map { x =>
           summary.unrecoverable.add(1)
+          log.debug(s"Saving unrecoverable event")
           base64.byteToString(x)
         }
         .write
@@ -231,6 +243,11 @@ trait RecoveryJob {
 
     summary
   }
+
+  def buildExecutorService(threadPoolSize: Int = 8): ScheduledThreadPoolExecutor = {
+    log.info("Creating thread pool of size " + threadPoolSize)
+    new ScheduledThreadPoolExecutor(threadPoolSize)
+  }
 }
 
 case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, failed: LongAccumulator) {
@@ -239,35 +256,4 @@ case class Summary(successful: LongAccumulator, unrecoverable: LongAccumulator, 
 
   override def toString() =
     s"SUMMARY | RECOVERED: ${successful.value} | FAILED : ${failed.value} | UNRECOVERABLE: ${unrecoverable.value}"
-}
-
-import org.apache.spark.rdd.RDD
-import org.json4s.{DefaultFormats, Formats}
-object kinesis {
-  implicit class KinesisRDD[A <: AnyRef](rdd: RDD[A]) {
-    def sinkToKinesis(
-      streamName: String,
-      region: Regions,
-      credentials: SparkAWSCredentials = DefaultCredentials,
-      chunk: Int = recordsMaxCount,
-      endpoint: Option[String] = None
-    ): Unit =
-      if (!rdd.isEmpty)
-        rdd
-          .sparkContext
-          .runJob(rdd, new PlainKinesisRDDWriter(streamName, region, credentials, chunk, endpoint).write _)
-  }
-  class PlainKinesisRDDWriter[A <: AnyRef](
-    streamName: String,
-    region: Regions,
-    credentials: SparkAWSCredentials,
-    chunk: Int,
-    endpoint: Option[String]
-  ) extends KinesisRDDWriter[A](streamName, region, credentials, chunk, endpoint) {
-
-    override def serialize(a: A)(implicit formats: Formats = DefaultFormats): Array[Byte] =
-      a.asInstanceOf[Array[Byte]]
-
-  }
-
 }

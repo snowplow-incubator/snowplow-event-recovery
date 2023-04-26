@@ -49,7 +49,7 @@ class CloudwatchSpec extends AnyWordSpec with TestContainerForAll {
       val namespace  = "event-recovery"
       val dimensions = Map("d1" -> "val1")
       val metricName = "recovered"
-      val value      = 10
+      val value      = 10L
 
       val client = AmazonCloudWatchClientBuilder
         .standard()
@@ -73,7 +73,7 @@ class CloudwatchSpec extends AnyWordSpec with TestContainerForAll {
         .use(IO.pure)
 
       val results: IO[List[MetricDataResult]] = IO.delay {
-        val CHECK_DURATION_IN_SECONDS = 1 * 60;
+        val CHECK_DURATION_IN_SECONDS = 1 * 60L;
         val REQUESTER                 = s"${namespace}-it"
         val startTime       = Instant.now().minusSeconds(CHECK_DURATION_IN_SECONDS).truncatedTo(ChronoUnit.MINUTES);
         val endTime         = startTime.plusSeconds(CHECK_DURATION_IN_SECONDS);

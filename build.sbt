@@ -66,15 +66,15 @@ lazy val spark =
     .settings(sparkBuildSettings)
     .settings(
       libraryDependencies ++= Seq(
-        Dependencies.awsKinesisSpark,
         Dependencies.elephantBird,
         Dependencies.hadoopLzo,
-        Dependencies.cloudwatch
+        Dependencies.cloudwatch,
       ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
         ++ Dependencies.spark
         ++ Dependencies.decline
         ++ Dependencies.testContainers
         ++ Dependencies.scalatestIT
+        :+ Dependencies.kinesis
         :+ Dependencies.catsRetry,
       dependencyOverrides += Dependencies.jackson
     )

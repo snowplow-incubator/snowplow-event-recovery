@@ -25,8 +25,22 @@ import domain._
 import json._
 import config._
 import cats.effect.SyncIO
+import com.dimafeng.testcontainers.LocalStackContainer
+import com.dimafeng.testcontainers.scalatest.TestContainerForAll
+import org.testcontainers.containers.localstack.LocalStackContainer.Service
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
+import com.amazonaws.services.kinesis.model.GetRecordsRequest
+import com.amazonaws.services.kinesis.model.CreateStreamRequest
+import com.amazonaws.services.kinesis.model.DescribeStreamRequest
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest
 
-class RecoveryJobSpec extends SparkSpec {
+class RecoveryJobSpec extends SparkSpec with TestContainerForAll {
+  override val containerDef = LocalStackContainer.Def(
+    dockerImageName = "localstack/localstack:2.0.2",
+    services = List(Service.KINESIS)
+  )
+
   implicit val session                                 = spark
   implicit val resultE: Encoder[(Array[Byte], Result)] = Encoders.kryo
 
@@ -38,55 +52,6 @@ class RecoveryJobSpec extends SparkSpec {
       import spark.implicits._
       spark.createDataset(badRows)
     }
-
-    override def sink(
-      output: Option[String],
-      failedOutput: String,
-      unrecoverableOutput: String,
-      directoryOutput: Option[String],
-      v: Dataset[(Array[Byte], Result)],
-      summary: Summary,
-      spark: SparkSession,
-      kinesis: Option[KinesisSink.Config]
-    )(implicit
-      encoder: Encoder[Array[Byte]],
-      resEncoder: Encoder[(Array[Byte], Result)],
-      strEncoder: Encoder[String]
-    ) = {
-      recovered ++= v
-        .filter(_._2 == Recovered)
-        .map(_._1)
-        .map { r =>
-          summary.successful.add(1)
-          r
-        }
-        .collectAsList
-        .asScala
-        .toList
-      failed ++= v
-        .filter(_._2 == Failed)
-        .map(_._1)
-        .map { r =>
-          summary.failed.add(1)
-          r
-        }
-        .collectAsList
-        .asScala
-        .toList
-      unrecoverable ++= v
-        .filter(_._2 == Unrecoverable)
-        .map(_._1)
-        .map { r =>
-          summary.unrecoverable.add(1)
-          r
-        }
-        .collectAsList
-        .asScala
-        .toList
-
-      summary
-    }
-
   }
 
   val cfg: Config = decode("""
@@ -123,19 +88,70 @@ class RecoveryJobSpec extends SparkSpec {
 
   "RecoveryJob" must {
     "filter" should {
-      "should filter based on the criteria passed as arguments" in {
+      "should filter based on the criteria passed as arguments" in withContainers { localstack =>
+        val outputStreamName = "output"
+        val endpoint         = localstack.endpointConfiguration(Service.KINESIS)
+        val credentials      = localstack.defaultCredentialsProvider.getCredentials()
+        val kinesisConfig = KinesisSink.Config(
+          region = endpoint.getSigningRegion(),
+          endpoint = Some(endpoint.getServiceEndpoint()),
+          credentials = Some(
+            KinesisSink.Credentials(
+              accessKey = credentials.getAWSAccessKeyId(),
+              secretKey = credentials.getAWSSecretKey()
+            )
+          )
+        )
+
+        val kinesisClient = AmazonKinesisClientBuilder
+          .standard()
+          .withCredentials(localstack.defaultCredentialsProvider)
+          .withEndpointConfiguration(
+            new EndpointConfiguration(endpoint.getServiceEndpoint(), endpoint.getSigningRegion())
+          )
+          .build()
+
+        val createStream: CreateStreamRequest = new CreateStreamRequest()
+          .withStreamName(outputStreamName)
+          .withShardCount(1)
+        kinesisClient.createStream(createStream)
+
         RecoveryJobTest.run(
           "input",
-          Some("output"),
+          Some(outputStreamName),
           "failed",
           "unrecoverable",
-          Some("debug"),
           None,
+          Some(kinesisConfig),
           cfg,
           Cloudwatch.init[SyncIO](None)
         )
+
+        val describeStreamRequest: DescribeStreamRequest = new DescribeStreamRequest().withStreamName(outputStreamName)
+        val shardId = kinesisClient
+          .describeStream(describeStreamRequest)
+          .getStreamDescription()
+          .getShards()
+          .asScala
+          .toList
+          .map(_.getShardId())
+          .head
+
+        val getShardIteratorRequest: GetShardIteratorRequest = new GetShardIteratorRequest()
+          .withStreamName(outputStreamName)
+          .withShardId(shardId)
+          .withShardIteratorType("TRIM_HORIZON")
+        val shardIterator = kinesisClient.getShardIterator(getShardIteratorRequest).getShardIterator()
+
+        val req: GetRecordsRequest =
+          new GetRecordsRequest()
+            .withShardIterator(shardIterator)
+            .withLimit(1)
+
+        val res  = kinesisClient.getRecords(req).getRecords().asScala.toList.map(_.getData().array())
+
         RecoveryJobTest.recovered.size == 1
-        RecoveryJobTest.recovered should contain(fixed)
+        res should contain(fixed)
         RecoveryJobTest.failed.size == 0
         RecoveryJobTest.unrecoverable.size == 0
       }

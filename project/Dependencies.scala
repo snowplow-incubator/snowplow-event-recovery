@@ -59,20 +59,18 @@ object Dependencies {
     val aws             = "1.12.261"
 
     // Scala third-party
-    val atto            = "0.9.5"
-    val catsCore        = "2.8.0"
-    val catsEffect      = "2.5.5"
-    val circeOptics     = "0.14.1"
-    val circe           = "0.14.2"
-    val monocle         = "2.1.0"
-    val spark           = "3.2.1"
-    val awsKinesisSpark = "0.0.12"
-    val flink           = "1.10.3"
-    val scio            = "0.11.9"
-    val beam            = "2.40.0"
-    val decline         = "1.4.0"
-    val declineEffect   = "1.4.0"
-    val scalaMacros     = "2.1.0"
+    val atto          = "0.9.5"
+    val catsCore      = "2.8.0"
+    val catsEffect    = "2.5.5"
+    val circeOptics   = "0.14.1"
+    val circe         = "0.14.2"
+    val monocle       = "2.1.0"
+    val spark         = "3.2.1"
+    val scio          = "0.11.9"
+    val beam          = "2.40.0"
+    val decline       = "1.4.0"
+    val declineEffect = "1.4.0"
+    val scalaMacros   = "2.1.0"
 
     // Scala first-party
     val badRows    = "2.2.0"
@@ -98,6 +96,7 @@ object Dependencies {
   val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"      % V.elephantBird
   val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"              % V.hadoopLzo
   val cloudwatch   = "com.amazonaws"              % "aws-java-sdk-cloudwatch" % V.aws
+  val kinesis      = "com.amazonaws"              % "aws-java-sdk-kinesis"    % V.aws
 
   // Scala third-party
   val atto       = "org.tpolecat"  %% "atto-core"   % V.atto
@@ -119,11 +118,7 @@ object Dependencies {
     Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map { case (pkg, version) =>
       "com.monovore" %% pkg % version
     }
-  val flink = Seq("flink-scala", "flink-streaming-scala", "flink-connector-kinesis").map(
-    "org.apache.flink" %% _ % V.flink % Provided
-  ) :+ "org.apache.flink" % "flink-s3-fs-hadoop" % V.flink % Provided
-  val spark           = Seq("spark-core", "spark-sql").map("org.apache.spark" %% _ % V.spark % Provided)
-  val awsKinesisSpark = "jp.co.bizreach" %% "aws-kinesis-spark" % V.awsKinesisSpark
+  val spark = Seq("spark-core", "spark-sql").map("org.apache.spark" %% _ % V.spark % Provided)
 
   // Scala first-party
   val badRows    = "com.snowplowanalytics" %% "snowplow-badrows"  % V.badRows
