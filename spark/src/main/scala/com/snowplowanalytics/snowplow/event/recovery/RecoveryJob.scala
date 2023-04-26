@@ -30,8 +30,8 @@ import config._
 import util.paths._
 import util.base64
 import domain._
+import cats.syntax.either._
 import cats.effect.SyncIO
-import java.util.concurrent.ScheduledThreadPoolExecutor
 
 object RecoveryJob extends RecoveryJob
 
@@ -105,6 +105,28 @@ trait RecoveryJob {
         kinesis
       )
 
+    // read retry messages and run them as stream
+    import java.io.File
+    Either.catchNonFatal(new File(s"$failedOutput/retry").mkdirs())
+    spark
+      .readStream
+      .textFile(s"$failedOutput/retry")
+      .map(v => (v.mkString.getBytes(), Recovered: Result))
+      .writeStream
+      .foreachBatch { (batch: Dataset[(Array[Byte], Result)], _: Long) =>
+        sink(
+          output,
+          failedOutput,
+          unrecoverableOutput,
+          directoryOutput,
+          batch,
+          new Summary(spark.sparkContext),
+          spark,
+          kinesis
+        )
+        ()
+      }
+
     metrics.recovered.inc(summary.successful.value)
     metrics.unrecoverable.inc(summary.unrecoverable.value)
     metrics.failed.inc(summary.failed.value)
@@ -122,7 +144,7 @@ trait RecoveryJob {
     SparkEnv.get.metricsSystem.report
   }
 
-  def load(input: String)(implicit spark: SparkSession): Dataset[String] = spark.read.textFile(input)
+  def load(input: String)(implicit spark: SparkSession): Dataset[String] = spark.readStream.textFile(input)
 
   private[this] def init(): SparkSession = {
     val conf = new SparkConf().setIfMissing("spark.master", "local[*]").setAppName("recovery")
@@ -165,26 +187,41 @@ trait RecoveryJob {
     val unrecoverable = v.filter(_._2 == Unrecoverable).map(_._1)
     val failed        = v.filter(_._2 == Failed).map(_._1)
 
-    kinesis match {
-      case Some(sink) =>
-        successful
-          .foreachPartition { (f: Iterator[Array[Byte]]) =>
-            val k = output
-              .flatMap(streamName =>
-                KinesisSink
-                  .createAndInitialize(
-                    kinesisConfig = sink,
-                    streamName,
-                    enableStartupChecks = true,
-                    executorService = buildExecutorService(sink.threadpool.getOrElse(8))
-                  )
-                  .toOption // FIXME
-              )
-              .get
-            summary.successful.add(1)
-            k.storeRawEvents(f.toList, java.util.UUID.randomUUID().toString())
+    (kinesis, output) match {
+      case (Some(config), Some(streamName)) =>
+        successful.foreachPartition { (f: Iterator[Array[Byte]]) =>
+          val res = KinesisSink.createAndInitialize(
+            kinesisConfig = config,
+            streamName,
+            enableStartupChecks = true,
+            // can't live with Kinesis - won't serialize
+            executorService = Main.buildExecutorService(config.threadpool.getOrElse(8))
+          ) match {
+            case Right(sink) =>
+              val ff = f.toList
+              summary.successful.add(ff.size.toLong)
+              sink.storeRawEvents(ff, java.util.UUID.randomUUID().toString())
+              Iterator.empty
+            case Left(err) =>
+              // logs don't survive remote node
+              System
+                .err
+                .println(
+                  "Failed to initialize Kinesis sink on a worker node. Writing file for later processing. ${err.getMessage()}"
+                )
+              f
           }
-      case None =>
+          if (!res.toSeq.isEmpty) {
+            spark
+              .createDataset(res.toSeq)
+              .filter(!_.isEmpty)
+              .rdd
+              .saveAsObjectFile(
+                s"$failedOutput/retry/${java.time.Instant.now()}-${java.util.UUID.randomUUID().toString()}"
+              )
+          }
+        }
+      case _ =>
         log.info("Not sending to Kinesis")
     }
 
@@ -242,11 +279,6 @@ trait RecoveryJob {
     }
 
     summary
-  }
-
-  def buildExecutorService(threadPoolSize: Int = 8): ScheduledThreadPoolExecutor = {
-    log.info("Creating thread pool of size " + threadPoolSize)
-    new ScheduledThreadPoolExecutor(threadPoolSize)
   }
 }
 

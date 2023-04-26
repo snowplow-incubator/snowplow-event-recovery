@@ -31,6 +31,7 @@
             pkgs.awscli
             pkgs.nodePackages.snyk
             pkgs.lzop
+            pkgs.lzo
           ];
         };
       }

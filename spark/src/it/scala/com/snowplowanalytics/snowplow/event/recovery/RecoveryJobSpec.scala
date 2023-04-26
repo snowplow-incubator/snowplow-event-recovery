@@ -105,7 +105,7 @@ class RecoveryJobSpec extends SparkSpec with TestContainerForAll {
 
         val kinesisClient = AmazonKinesisClientBuilder
           .standard()
-          .withCredentials(localstack.defaultCredentialsProvider)
+          .withCredentials(localstack.desfaultCredentialsProvider)
           .withEndpointConfiguration(
             new EndpointConfiguration(endpoint.getServiceEndpoint(), endpoint.getSigningRegion())
           )

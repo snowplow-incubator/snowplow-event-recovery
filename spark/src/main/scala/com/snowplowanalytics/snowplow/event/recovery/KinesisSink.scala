@@ -62,6 +62,7 @@ class KinesisSink private (
     @volatile private var lastFlushedTime = 0L
 
     def store(event: Array[Byte], key: String): Unit = {
+      log.debug("Storing event in buffer")
       val eventBytes = ByteBuffer.wrap(event)
       val eventSize  = eventBytes.capacity
 
@@ -151,6 +152,7 @@ class KinesisSink private (
         prr.setRecords(putRecordsRequestEntryList.asJava)
         prr
       }
+      log.debug("Writing records to Kinesis")
       client.putRecords(putRecordsRequest)
     }
 
