@@ -1,7 +1,13 @@
+Version 0.5.2 (2023-04-27)
+--------------------------
+Add basic cloudwatch metrics (#128)
+Remove flink (#127)
+Add CPFV handling for double Base64-encoded payloads (#127)
+
 Version 0.5.1 (2022-08-11)
 --------------------------
-Bump framework dependencies (close #121)
-Fix Snyk github action (close #119)
+Bump framework dependencies (#121)
+Fix Snyk github action (#119)
 
 Version 0.5.0 (2022-04-15)
 --------------------------
