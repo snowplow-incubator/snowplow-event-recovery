@@ -4,10 +4,10 @@ interp.repositories() ++= Seq(coursierapi.MavenRepository.of("http://maven.snplo
 @
 
 import $url.{`https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/master/scripts/Recovery.sc` => Recovery}, Recovery._
-import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.5.1`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
+import $ivy.`com.snowplowanalytics::snowplow-event-recovery-core:0.5.2`, com.snowplowanalytics.snowplow.event.recovery._, config._, json._
 
 // ACTUAL TESTS
-// for available functions see [[https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/feature/recovery-typeclasses/scripts/Recovery.sc]]
+// for available 0.functions see [[https://raw.githubusercontent.com/snowplow-incubator/snowplow-event-recovery/feature/recovery-typeclasses/scripts/Recovery.sc]]
 
 operations.cast("""{"int": "1"}""", "$.int", CastType.String, CastType.Array)
 operations.replace("""{"int": "1"}""", "$.int", "(?U)^.*$", "new")
