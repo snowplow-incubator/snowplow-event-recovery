@@ -34,7 +34,6 @@ object SecurityOverrides {
     "org.apache.thrift"                % "libthrift"               % V.libthrift,
     "com.alibaba"                      % "fastjson"                % V.fastjson,
     "com.google.guava"                 % "guava"                   % V.guava,
-    "com.google.protobuf"              % "protobuf-java"           % V.protobuf,
     "com.google.oauth-client"          % "google-oauth-client"     % V.oauthClient,
     "commons-codec"                    % "commons-codec"           % V.commonsCodec,
     "org.typelevel"                    % "jawn-parser_2.12"        % V.jawnParser,
@@ -67,7 +66,8 @@ object Dependencies {
     val monocle         = "2.1.0"
     val spark           = "3.2.1"
     val awsKinesisSpark = "0.0.12"
-    val flink           = "1.10.3"
+    val flink           = "1.15.2"
+    val flinkKinesis    = "1.15.2"
     val scio            = "0.11.9"
     val beam            = "2.40.0"
     val decline         = "1.4.0"
@@ -98,6 +98,7 @@ object Dependencies {
   val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"      % V.elephantBird
   val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"              % V.hadoopLzo
   val cloudwatch   = "com.amazonaws"              % "aws-java-sdk-cloudwatch" % V.aws
+  val kinesis      = "com.amazonaws"              % "aws-java-sdk-kinesis"    % V.aws
 
   // Scala third-party
   val atto       = "org.tpolecat"  %% "atto-core"   % V.atto
@@ -119,9 +120,16 @@ object Dependencies {
     Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map { case (pkg, version) =>
       "com.monovore" %% pkg % version
     }
-  val flink = Seq("flink-scala", "flink-streaming-scala", "flink-connector-kinesis").map(
+  val flink = Seq("flink-scala", "flink-streaming-scala").map(
     "org.apache.flink" %% _ % V.flink % Provided
-  ) :+ "org.apache.flink" % "flink-s3-fs-hadoop" % V.flink % Provided
+  ) :+
+    ("org.apache.flink" % "flink-s3-fs-hadoop" % V.flink % Provided) :+
+    ("org.apache.flink" % "flink-connector-aws-kinesis-streams" % V.flinkKinesis)
+      .exclude("com.google.protobuf", "protobuf-java") :+
+    ("org.apache.flink" % "flink-connector-files" % V.flink).exclude("com.google.protobuf", "protobuf-java") :+
+    ("org.apache.flink" % "flink-test-utils" % V.flink % IntegrationTest) :+
+    ("org.apache.flink" % "flink-test-utils" % V.flink % Test) :+
+    ("org.apache.flink" % "flink-streaming-java" % V.flink % Test classifier Artifact.TestsClassifier)
   val spark           = Seq("spark-core", "spark-sql").map("org.apache.spark" %% _ % V.spark % Provided)
   val awsKinesisSpark = "jp.co.bizreach" %% "aws-kinesis-spark" % V.awsKinesisSpark
 

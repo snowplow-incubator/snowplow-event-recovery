@@ -181,5 +181,5 @@ object BuildSettings {
 
   lazy val sparkBuildSettings: Seq[sbt.Setting[_]] = sparkProjectSettings ++ commonBuildSettings ++ assemblySettings(
     true
-  ) ++ (IntegrationTest / fork := true)
+  ) ++ Seq(IntegrationTest / fork := true)
 }

@@ -132,7 +132,8 @@ object Main
       c.map(
         _.bimap(
           err => new RuntimeException(err),
-          cfg =>
+          cfg => {
+            println("WARNING! Spark Module is deprecated. Migrate to Flink to get reliable Kinesis integration.")
             RecoveryJob.run(
               i,
               o,
@@ -144,6 +145,7 @@ object Main
               cfg,
               Cloudwatch.init[SyncIO](cw)
             )
+          }
         )
       ).map(_ => ExitCode.Success)
 

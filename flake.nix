@@ -23,7 +23,6 @@
           config.allowUnsupportedSystem = true;
         };
         jre = pkgs.openjdk11;
-        scala = pkgs.scala.override {inherit jre;};
         sbt = pkgs.sbt.override {inherit jre;};
         coursier = pkgs.coursier.override {inherit jre;};
         metals = pkgs.metals.override {inherit coursier jre;};
@@ -40,7 +39,6 @@
                 pkgs.awscli
                 pkgs.nodePackages.snyk
               ];
-              languages.scala.enable = true;
               languages.nix.enable = true;
               pre-commit.hooks = {
                 alejandra.enable = true;
