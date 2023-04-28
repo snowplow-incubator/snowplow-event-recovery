@@ -127,14 +127,21 @@ class RecoverableSpec extends AnyWordSpec with Inspectors with ScalaCheckPropert
       }
     }
     "handle CPFormatViolation when body is double Base64-encoded" in {
-      forAll{ (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
+      forAll { (b: BadRow.CPFormatViolation, cp: CollectorPayload) =>
         val base64cp: String = thrift.serialize(cp).flatMap(base64.encode).right.get
-        val bad = b.copy(payload = Payload.RawPayload(base64cp), failure = Failure.CPFormatViolation(Instant.ofEpochMilli(0), "some-loader-1.0.0", FailureDetails.CPFormatViolationMessage.Fallback("error deserializing raw event: Unrecognized type 67")))
+        val bad = b.copy(
+          payload = Payload.RawPayload(base64cp),
+          failure = Failure.CPFormatViolation(
+            Instant.ofEpochMilli(0),
+            "some-loader-1.0.0",
+            FailureDetails.CPFormatViolationMessage.Fallback("error deserializing raw event: Unrecognized type 67")
+          )
+        )
         val recovered: Recovering[Payload.CollectorPayload] = bad.recover(List.empty)
 
         val original = payload.cocoerce(cp)
-        recovered should be ('right)
-        recovered.value shouldEqual(original.value)
+        recovered should be('right)
+        recovered.value shouldEqual (original.value)
       }
     }
   }

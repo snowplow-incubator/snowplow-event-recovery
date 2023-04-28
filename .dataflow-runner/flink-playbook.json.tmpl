@@ -27,7 +27,7 @@
         "arguments": [
           "bash",
           "-c",
-          "flink run -m yarn-cluster /home/hadoop/event-recovery.jar --input s3://{{ .bucket }}/ --output {{ .output }} --failedOutput s3://{{ .bucket }}/failed --unrecoverableOutput s3://{{ .bucket }}/unrecoverable --resolver {{ .resolver }} --config {{ .config }} --region {{ .region }}"
+          "flink run -m yarn-cluster /home/hadoop/event-recovery.jar --input s3a://{{ .bucket }}{{ .inputdir }} --output {{ .output }} --failed s3a://{{ .bucket }}/failed --unrecoverable s3a://{{ .bucket }}/unrecoverable --resolver {{ .resolver }} --config {{ .config }} --region {{ .region }} --checkpoint-interval {{ .interval }} --checkpoint-dir s3a://{{ .bucket }}/checkpoints"
         ]
       }
     ],

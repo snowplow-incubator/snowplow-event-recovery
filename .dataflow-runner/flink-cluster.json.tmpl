@@ -13,7 +13,7 @@
       "service": "EMR_DefaultRole"
     },
     "ec2": {
-      "amiVersion": "6.10.0",
+      "amiVersion": "6.9.0",
       "keyName": "{{ .keypair }}",
       "location": {
         "vpc": {
@@ -22,20 +22,7 @@
       },
       "instances": {
         "master": {
-          "type": "m4.large",
-          "ebsConfiguration": {
-            "ebsOptimized": true,
-            "ebsBlockDeviceConfigs": [
-              {
-                "volumesPerInstance": 12,
-                "volumeSpecification": {
-                  "iops": 8,
-                  "sizeInGB": 10,
-                  "volumeType": "gp2"
-                }
-              }
-            ]
-          }
+          "type": "m4.large"
         },
         "core": {
           "type": "m4.large",
@@ -43,8 +30,7 @@
         },
         "task": {
           "type": "m4.large",
-          "count": 0,
-          "bid": "0.015"
+          "count": 0
         }
       }
     },
@@ -58,8 +44,73 @@
         "value": "recovery"
       }
     ],
+    "configurations": [
+      {
+        "classification": "hadoop-env",
+        "properties": {},
+        "configurations": [
+          {
+            "classification": "export",
+            "properties": {
+              "JAVA_HOME": "/usr/lib/jvm/java-11-amazon-corretto.x86_64"
+            }
+          }
+        ]
+      },
+      {
+        "classification": "flink-conf",
+        "properties": {
+          "taskmanager.numberOfTaskSlots": "1",
+          "jobmanager.web.address": "0.0.0.0",
+          "rest.address": "0.0.0.0",
+          "jobmanager.heap.size": "1024m",
+          "taskmanager.memory.process.size": "1728m",
+          "web.timeout": "1000000",
+          "metrics.reporters": "stsd",
+          "metrics.reporter.stsd.port": "8125",
+          "metrics.reporter.stsd.host": "localhost",
+          "metrics.reporter.stsd.class": "org.apache.flink.metrics.statsd.StatsDReporter",
+          "metrics.reporter.stsd.factory.class": "org.apache.flink.metrics.statsd.StatsDReporterFactory",
+          "metrics.reporter.stsd.interval": "1 SECONDS",
+          "metrics.scope.jm": "jobmanager",
+          "metrics.scope.jm.job": "jobmanager.<job_id>",
+          "metrics.scope.tm": "taskmanager.<tm_id>",
+          "metrics.scope.tm.job": "taskmanager.<tm_id>.<job_id>",
+          "metrics.scope.task": "taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>",
+          "metrics.scope.operator": "taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>",
+          "state.savepoints.dir": "s3://{{ .bucket }}/savepoints/"
+        }
+      },
+      {
+        "classification": "flink-log4j",
+        "properties": {
+          "rootLogger.appenderRef.console.ref": "ConsoleAppender",
+          "appender.console.name": "ConsoleAppender",
+          "appender.console.type": "CONSOLE",
+          "appender.console.layout.type": "PatternLayout",
+          "appender.console.layout.pattern": "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n"
+        }
+      },
+      {
+        "classification": "flink-log4j-cli",
+        "properties": {
+          "rootLogger.appenderRef.console.ref": "ConsoleAppender",
+          "appender.console.name": "ConsoleAppender",
+          "appender.console.type": "CONSOLE",
+          "appender.console.layout.type": "PatternLayout",
+          "appender.console.layout.pattern": "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n"
+        }
+      }
+    ],
+    "bootstrapActionConfigs": [
+      {
+        "name": "Flink Streaming Hadoop FS",
+        "scriptBootstrapAction": {
+          "path": "s3://{{ .bucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}-bootstrap.sh"
+        }
+      }
+    ],
     "applications": [
-      "Hadoop",
       "Flink"
     ]
   }
