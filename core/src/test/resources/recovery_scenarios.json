@@ -70,7 +70,7 @@
     ],
     "iglu:com.snowplowanalytics.snowplow.badrows/enrichment_failures/jsonschema/1-0-*": [
       {
-        "name": "main flow making use of most of available features",
+        "name": "main",
         "conditions": [
           {
             "op": "Test",
@@ -152,7 +152,7 @@
         ]
       },
       {
-        "name": "impossible flow",
+        "name": "impossible",
         "conditions": [
           {
             "op": "Test",

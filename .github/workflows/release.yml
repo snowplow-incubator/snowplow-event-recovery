@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - '*'
-
 jobs:
   release:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
@@ -23,6 +22,9 @@ jobs:
       - name: Build spark
         run: |
           sbt spark/assembly
+      - name: Build spark
+        run: |
+          sbt flink/assembly
       - name: Deploy hosted-assets
         env:
           TAG: ${{github.ref_name}}
@@ -33,6 +35,9 @@ jobs:
           aws --region="eu-west-1" s3 cp spark/target/scala-2.12/snowplow-event-recovery-spark-$TAG.jar s3://$BUCKET/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-$TAG.jar
           aws --region="eu-west-1" s3 cp spark/emr/bootstrap-java-11.sh s3://$BUCKET/3-enrich/snowplow-event-recovery/emr-bootstrap-java-11.sh
           for aws_region in "us-east-1" "us-west-1" "us-west-2" "sa-east-1" "eu-central-1" "ap-southeast-1" "ap-southeast-2" "ap-northeast-1" "ap-south-1" "us-east-2" "ca-central-1" "eu-west-2" "ap-northeast-2"; do aws --region="${aws_region}" s3 cp spark/target/scala-2.12/snowplow-event-recovery-spark-$TAG.jar s3://$BUCKET-${aws_region}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-$TAG.jar && aws --region="eu-west-1" s3 cp spark/emr/bootstrap-java-11.sh s3://$BUCKET/3-enrich/snowplow-event-recovery/emr-bootstrap-java-11.sh; done
+          aws --region="eu-west-1" s3 cp flink/target/scala-2.12/snowplow-event-recovery-flink-$TAG.jar s3://$BUCKET/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-$TAG.jar
+          aws --region="eu-west-1" s3 cp .dataflow-runner/bootstrap.sh s3://$BUCKET/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-$TAG-bootstrap.sh
+          for aws_region in "us-east-1" "us-west-1" "us-west-2" "sa-east-1" "eu-central-1" "ap-southeast-1" "ap-southeast-2" "ap-northeast-1" "ap-south-1" "us-east-2" "ca-central-1" "eu-west-2" "ap-northeast-2"; do aws --region="${aws_region}" s3 cp flink/target/scala-2.12/snowplow-event-recovery-flink-$TAG.jar s3://$BUCKET-${aws_region}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-$TAG.jar && aws --region="eu-west-1" s3 cp .dataflow-runner/bootstrap.sh s3://$BUCKET/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-$TAG-bootstrap.sh; done
       - name: Docker login
         uses: docker/login-action@v1
         with:
@@ -72,3 +77,4 @@ jobs:
             - "core/target/scala-2.12/snowplow-event-recovery-core-${{github.ref_name}}.jar"
             - "beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip"
             - "spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar"
+            - "flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar"

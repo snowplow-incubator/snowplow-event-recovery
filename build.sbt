@@ -15,7 +15,7 @@
 
 import BuildSettings._
 
-lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, spark)
+lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink, spark)
 
 lazy val core = project
   .settings(coreBuildSettings)
@@ -56,6 +56,37 @@ lazy val beam = project
       Dependencies.scioTest,
       Dependencies.slf4jSimple
     )
+  )
+
+lazy val flink = project
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(flinkBuildSettings)
+  .configs(IntegrationTest)
+  .settings(Defaults.itSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      Dependencies.mockito
+    ) ++ Dependencies.decline
+      ++ Dependencies
+      .flink
+      .map(
+        _.excludeAll(
+          ExclusionRule(organization = "commons-logging", name = "commons-logging"),
+          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
+        )
+      ) ++ Dependencies.circe
+      ++ Dependencies.testContainers
+      ++ Dependencies.scalatestIT
+      :+ Dependencies.catsRetry
+      :+ Dependencies.kinesis.excludeAll(
+          ExclusionRule(organization = "commons-logging", name = "commons-logging"),
+          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
+        )
+      :+ Dependencies.cloudwatch.excludeAll(
+          ExclusionRule(organization = "commons-logging", name = "commons-logging"),
+          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
+        ),
+    dependencyOverrides += Dependencies.jackson
   )
 
 lazy val spark =

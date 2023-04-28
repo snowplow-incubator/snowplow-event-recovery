@@ -86,7 +86,10 @@ object Cloudwatch {
             c <- client
             _ <- Resource.eval(reportOne(cfg, c, metricName, value))
           } yield ()
-        case None => Resource.eval(Sync[F].delay(System.out.println(s"CloudWatch reporting disabled. Metric $metricName: $value not sent.")))
+        case None =>
+          Resource.eval(
+            Sync[F].delay(System.out.println(s"CloudWatch reporting disabled. Metric $metricName: $value not sent."))
+          )
       }
     }
 

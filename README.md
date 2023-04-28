@@ -7,7 +7,7 @@ The different Snowplow pipelines being all non-lossy, if something goes wrong du
 
 The goal of recovery is to fix the payloads contained in these bad rows so that they are ready to be processed successfully by a Snowplow enrichment platform.
 
-For detailed documentation see [docs.snowplowanalytics.com][techdocs]
+For detailed documentation see [docs.snowplow.io][techdocs]
 
 # Configuration
 Configuration mechanism allows for flexibility taking into account the most common usecases. Configuration is constructed with self-describing JSON consisting with 3 main concepts:
@@ -26,8 +26,8 @@ Flows are sequences of Steps applied one by one.
 2. Encode config
 3. Choose runner and deploy:
 - Beam
-- Spark
-- Flink (experimental)
+- Spark (deprecated)
+- Flink
 
 # Extending recovery
 There are several extension points for recovery: Steps, Conditions or additional [BadRow][badrows] types.
@@ -41,7 +41,7 @@ There are several extension points for recovery: Steps, Conditions or additional
 
 ## Copyright and license
 
-Copyright 2018-2020 Snowplow Analytics Ltd.
+Copyright 2018-2023 Snowplow Analytics Ltd.
 
 Licensed under the [Apache License, Version 2.0][license] (the "License");
 you may not use this software except in compliance with the License.
@@ -57,4 +57,4 @@ limitations under the License.
 [badrows]: https://github.com/snowplow-incubator/snowplow-badrows
 [techdocs-image]: https://d3i6fms1cm1j0i.cloudfront.net/github/images/techdocs.png
 [setup-image]: https://d3i6fms1cm1j0i.cloudfront.net/github/images/setup.png
-[techdocs]: https://docs.snowplowanalytics.com/docs/snowplow-event-recovery/
+[techdocs]: https://docs.snowplow.io/docs/managing-data-quality/snowplow-event-recovery/
