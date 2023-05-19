@@ -1,0 +1,66 @@
+{
+  "schema": "iglu:com.snowplowanalytics.dataflowrunner/ClusterConfig/avro/1-1-0",
+  "data": {
+    "name": "emr-recovery-cluster",
+    "logUri": "s3://{{ .bucket }}/logs/",
+    "region": "{{ .region }}",
+    "credentials": {
+      "accessKeyId": "env",
+      "secretAccessKey": "env"
+    },
+    "roles": {
+      "jobflow": "{{ .role }}",
+      "service": "EMR_DefaultRole"
+    },
+    "ec2": {
+      "amiVersion": "6.10.0",
+      "keyName": "{{ .keypair }}",
+      "location": {
+        "vpc": {
+          "subnetId": "{{ .subnet }}"
+        }
+      },
+      "instances": {
+        "master": {
+          "type": "m4.large",
+          "ebsConfiguration": {
+            "ebsOptimized": true,
+            "ebsBlockDeviceConfigs": [
+              {
+                "volumesPerInstance": 12,
+                "volumeSpecification": {
+                  "iops": 8,
+                  "sizeInGB": 10,
+                  "volumeType": "gp2"
+                }
+              }
+            ]
+          }
+        },
+        "core": {
+          "type": "m4.large",
+          "count": 1
+        },
+        "task": {
+          "type": "m4.large",
+          "count": 0,
+          "bid": "0.015"
+        }
+      }
+    },
+    "tags": [
+      {
+        "key": "client",
+        "value": "{{ .client }}"
+      },
+      {
+        "key": "job",
+        "value": "recovery"
+      }
+    ],
+    "applications": [
+      "Hadoop",
+      "Flink"
+    ]
+  }
+}
