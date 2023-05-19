@@ -1,0 +1,70 @@
+
+{
+  "schema": "iglu:com.snowplowanalytics.dataflowrunner/PlaybookConfig/avro/1-0-1",
+  "data": {
+    "region": " {{ .region }}",
+    "credentials": {
+      "accessKeyId": "env",
+      "secretAccessKey": "env"
+    },
+    "steps": [
+      {
+        "type": "CUSTOM_JAR",
+        "name": "Fetch jar",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "command-runner.jar",
+        "arguments": [
+          "bash",
+          "-c",
+          "aws s3 cp s3://{{ .bucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-spark-{{ .version }}.jar /home/hadoop/event-recovery.jar"
+        ]
+      },
+      {
+        "type": "CUSTOM_JAR",
+        "name": "snowplow-event-recovery",
+        "actionOnFailure": "CANCEL_AND_WAIT",
+        "jar": "command-runner.jar",
+        "arguments": [
+          "spark-submit",
+          "--class",
+          "com.snowplowanalytics.snowplow.event.recovery.Main",
+          "--master",
+          "yarn",
+          "--deploy-mode",
+          "cluster",
+          "/home/hadoop/event-recovery.jar",
+          "--input",
+          "s3://{{ .bucket }}{{ .inputdir }}",
+          "--output",
+          "{{ .output }}",
+          "--directoryOutput",
+          "s3://{{ .bucket }}{{ .inputdir }}",
+          "--region",
+          "{{ .region}}",
+          "--failedOutput",
+          "s3://{{ .bucket }}/failed",
+          "--unrecoverableOutput",
+          "s3://{{ .bucket }}/unrecoverable",
+          "--resolver",
+          "{{ .resolver }}",
+          "--config",
+          "{{ .config }}",
+          "--cloudwatch-namespace",
+          "snowplow/event-recovery",
+          "--cloudwatch-dimensions",
+          "customer:{{ .client }};job:recovery"
+        ]
+      }
+    ],
+    "tags": [
+      {
+        "key": "client",
+        "value": "{{ .client }}"
+      },
+      {
+        "key": "job",
+        "value": "recovery"
+      }
+    ]
+  }
+}
