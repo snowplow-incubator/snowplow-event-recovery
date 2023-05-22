@@ -41,7 +41,7 @@ lazy val core = project
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest
       ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
-  )
+ ).enablePlugins(BuildInfoPlugin)
 
 lazy val beam = project
   .dependsOn(core % "compile->compile;test->test")
