@@ -1,3 +1,10 @@
+Version 0.6.0 (2023-05-26)
+--------------------------
+Set event recovery version dynamically in bad rows (#84)
+Add stable Flink kinesis job and deprecate Spark (#132)
+Add devenv shell and pre-commit hooks
+Add dataflow-runner templates
+
 Version 0.5.2 (2023-04-27)
 --------------------------
 Add basic cloudwatch metrics (#128)
