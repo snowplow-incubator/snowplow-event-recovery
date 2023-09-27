@@ -16,6 +16,7 @@
 package com.snowplowanalytics.snowplow.event.recovery
 package inspect
 
+import cats.syntax.either._
 import io.circe._
 import io.circe.syntax._
 
@@ -43,7 +44,7 @@ object check {
         false,
         identity,
         _ => false,
-        _ == "true",
+        x => if (x == "true" || x.asRight == util.base64.encode("true")) true else false,
         _ => false,
         _ => false
       )
