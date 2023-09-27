@@ -22,7 +22,7 @@ jobs:
       - name: Build spark
         run: |
           sbt spark/assembly
-      - name: Build spark
+      - name: Build flink
         run: |
           sbt flink/assembly
       - name: Deploy hosted-assets

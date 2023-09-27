@@ -190,5 +190,23 @@
     "event_name": "page_view",
     "event_format": "jsonschema",
     "event_version": "1-0-0"
+  },
+  {
+    "event_id": "2dfeb9b7-5a87-4214-8a97-a8b23176856b",
+    "v_etl": "recovery-0.0.0-common-3.1.2",
+    "platform" : "app",
+    "etl_tstamp" : "1970-01-18T08:40:00",
+    "collector_tstamp" : "2020-07-31T23:57:02.501",
+    "event" : "unstruct",
+    "v_tracker" : "com.snowplowanalytics.iglu-v1",
+    "v_collector" : "ssc-1.0.1-kinesis",
+    "user_ipaddress" : "00.000.000.000",
+    "network_userid" : "3e02e9c7-0000-0000-0000-b592ed92120d",
+    "useragent" : "Ro170A)",
+    "derived_tstamp" : "2020-07-31T23:57:02.501",
+    "event_vendor" : "com.dpm",
+    "event_name" : "v_i",
+    "event_format" : "jsonschema",
+    "event_version" : "1-0-0"
   }
 ]

@@ -216,7 +216,20 @@
           }
         ],
         "steps": []
-      }
+      },
+      {
+            "name": "cx-test",
+            "conditions": [
+                {
+                    "op": "Test",
+                    "path": "$.payload.raw.parameters.cx.data.[?(@.schema=~iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0)].data.id",
+                    "value": {
+                        "regex": "39a9934a-ddd3-4581-a4ea-d0ba20e63b92"
+                    }
+                }
+            ],
+            "steps": []
+        }
     ],
     "iglu:com.snowplowanalytics.snowplow.badrows/collector_payload_format_violation/jsonschema/1-0-0": [
       {
