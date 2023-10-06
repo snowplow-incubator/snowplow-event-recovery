@@ -2,7 +2,7 @@
   {
     "platform": "web",
     "etl_tstamp": "1970-01-18T08:40:00",
-    "collector_tstamp": "2020-02-17T09:28:16.56",
+    "collector_tstamp": "2023-02-17T09:28:16.56",
     "dvce_created_tstamp": "2020-02-17T09:28:16.114",
     "event": "page_view",
     "event_id": "2dfeb9b7-5a87-4214-8a97-a8b23176856b",
