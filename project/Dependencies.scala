@@ -19,15 +19,15 @@ object SecurityOverrides {
   object V {
     val libthrift             = "0.16.0"
     val fastjson              = "1.2.83"
-    val guava                 = "30.0-jre"
+    val guava                 = "32.0.0-jre"
     val protobuf              = "3.16.1"
     val oauthClient           = "1.33.3"
     val commonsCodec          = "1.13"
     val jawnParser            = "1.4.0"
     val jacksonDataformatCbor = "2.12.3"
-    val netty                 = "4.1.77.Final"
+    val netty                 = "4.1.100.Final"
     val bcprov                = "1.69"
-    val springExpression      = "5.3.17"
+    val springExpression      = "5.3.27"
   }
 
   val dependencies = Seq(
@@ -39,8 +39,18 @@ object SecurityOverrides {
     "org.typelevel"                    % "jawn-parser_2.12"        % V.jawnParser,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % V.jacksonDataformatCbor,
     "io.netty"                         % "netty-common"            % V.netty,
+    "io.netty"                         % "netty-handler"           % V.netty,
+    "io.netty"                         % "netty-codec-http2"       % V.netty,
     "org.bouncycastle"                 % "bcprov-jdk15on"          % V.bcprov,
-    "org.springframework"              % "spring-expression"       % V.springExpression
+    "org.springframework"              % "spring-expression"       % V.springExpression,
+    
+    //WIP
+    "org.json"                         % "json"                    % "20231013",
+    "org.yaml"                         % "snakeyaml"               % "2.0",
+    "org.xerial.snappy"                % "snappy-java"             % "1.1.10.4",
+    "org.apache.avro"                  % "avro"                    % "1.11.3",
+    "org.apache.commons"               % "commons-compress"        % "1.24.0",
+    "ch.qos.reload4j"                  % "reload4j"                % "1.2.25"
   )
 
 }
@@ -55,7 +65,7 @@ object Dependencies {
     val slf4j           = "1.7.36"
     val hadoopLzo       = "0.4.20"
     val jacksonDatabind = "2.12.6"
-    val aws             = "1.12.261"
+    val aws             = "1.12.576"
 
     // Scala third-party
     val atto            = "0.9.5"
@@ -68,8 +78,8 @@ object Dependencies {
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.15.2"
     val flinkKinesis    = "1.15.2"
-    val scio            = "0.11.9"
-    val beam            = "2.40.0"
+    val scio            = "0.13.4"
+    val beam            = "2.51.0"
     val decline         = "1.4.0"
     val declineEffect   = "1.4.0"
     val scalaMacros     = "2.1.0"
