@@ -17,30 +17,30 @@ import sbt._
 
 object SecurityOverrides {
   object V {
-    val libthrift             = "0.16.0"
-    val fastjson              = "1.2.83"
-    val guava                 = "30.0-jre"
-    val protobuf              = "3.16.1"
-    val oauthClient           = "1.33.3"
     val commonsCodec          = "1.13"
-    val jawnParser            = "1.4.0"
-    val jacksonDataformatCbor = "2.12.3"
-    val netty                 = "4.1.77.Final"
-    val bcprov                = "1.69"
-    val springExpression      = "5.3.17"
+    val guava                 = "32.0.0-jre"
+    val libthrift             = "0.16.0"
+    val netty                 = "4.1.101.Final"
+    val json                  = "20231013"
+    val snakeyaml             = "2.0"
+    val snappy                = "1.1.10.4"
+    val avro                  = "1.11.3"
+    val commonsCompress       = "1.24.0"
+    val reload4j              = "1.2.25"
   }
 
   val dependencies = Seq(
-    "org.apache.thrift"                % "libthrift"               % V.libthrift,
-    "com.alibaba"                      % "fastjson"                % V.fastjson,
     "com.google.guava"                 % "guava"                   % V.guava,
-    "com.google.oauth-client"          % "google-oauth-client"     % V.oauthClient,
     "commons-codec"                    % "commons-codec"           % V.commonsCodec,
-    "org.typelevel"                    % "jawn-parser_2.12"        % V.jawnParser,
-    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % V.jacksonDataformatCbor,
-    "io.netty"                         % "netty-common"            % V.netty,
-    "org.bouncycastle"                 % "bcprov-jdk15on"          % V.bcprov,
-    "org.springframework"              % "spring-expression"       % V.springExpression
+    "org.apache.thrift"                % "libthrift"               % V.libthrift,
+    "io.netty"                         % "netty-handler"           % V.netty,
+    "io.netty"                         % "netty-codec-http2"       % V.netty,
+    "org.json"                         % "json"                    % V.json,
+    "org.yaml"                         % "snakeyaml"               % V.snakeyaml,
+    "org.xerial.snappy"                % "snappy-java"             % V.snappy,
+    "org.apache.avro"                  % "avro"                    % V.avro,
+    "org.apache.commons"               % "commons-compress"        % V.commonsCompress,
+    "ch.qos.reload4j"                  % "reload4j"                % V.reload4j 
   )
 
 }
@@ -51,11 +51,10 @@ object Dependencies {
     // Java
     val thriftSchema    = "0.0.0"
     val elephantBird    = "4.17"
-    val mockito         = "1.10.19"
     val slf4j           = "1.7.36"
     val hadoopLzo       = "0.4.20"
-    val jacksonDatabind = "2.12.6"
-    val aws             = "1.12.261"
+    val jacksonDatabind = "2.12.7.1"
+    val aws             = "1.12.576"
 
     // Scala third-party
     val atto            = "0.9.5"
@@ -68,11 +67,10 @@ object Dependencies {
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.15.2"
     val flinkKinesis    = "1.15.2"
-    val scio            = "0.11.9"
-    val beam            = "2.40.0"
+    val scio            = "0.13.5"
+    val beam            = "2.52.0"
     val decline         = "1.4.0"
     val declineEffect   = "1.4.0"
-    val scalaMacros     = "2.1.0"
 
     // Scala first-party
     val badRows    = "2.2.0"
