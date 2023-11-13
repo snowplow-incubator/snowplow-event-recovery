@@ -33,9 +33,9 @@ object base64 {
 
   def decode[A](encoded: String, fn: Array[Byte] => A = byteToString): Recovering[A] =
     Either
-      .catchNonFatal(Base64.getDecoder.decode(encoded))
+      .catchNonFatal(Base64.getDecoder.decode(encoded.replaceAll("-","+").replaceAll("_","/").getBytes("UTF-8")))
       .map(fn)
-      .leftMap(e => Base64Failure(encoded, s"Configuration is not properly base64-encoded: ${e.getMessage}"))
+      .leftMap(e => Base64Failure(encoded, s"Data is not properly base64-encoded: ${e.getMessage}"))
 
   /** Decode a base64-encoded string.
     * @param encoded
