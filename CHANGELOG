@@ -1,3 +1,11 @@
+Version 0.6.1 (2023-11-22)
+--------------------------
+Fix CI step for GH release creation
+Allow filtering base64-encoded fields in conditions (#134)
+Upgrade dependencies to mitigate security vulnerabilites (#136)
+Handle url-unsafe Base64 encodings (#137)
+Clarify which fields are expected to get a freshly generated value 
+
 Version 0.6.0 (2023-05-26)
 --------------------------
 Set event recovery version dynamically in bad rows (#84)
