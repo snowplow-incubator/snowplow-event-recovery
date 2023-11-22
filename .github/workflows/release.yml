@@ -55,26 +55,15 @@ jobs:
           PGP_SECRET: ${{ secrets.SONA_PGP_SECRET }}
           SONATYPE_USERNAME: ${{ secrets.SONA_USER }}
           SONATYPE_PASSWORD: ${{ secrets.SONA_PASS }}
-      - name: Write changelog
-        run: |
-          nbNewCommits=$(echo "$(git log --pretty=format:%s | grep -n -m1 "Prepare for .* release" | cut -d':' -f1) - 1" | bc)
-          newCommits=$(git log --pretty=format:%s|head -n${nbNewCommits:-0}|sed 's/close #/#/;s/closes #/#/')
-          headLine="Version ${{github.ref_name}} ($(date +%Y-%m-%d))"
-          nbDashes=$(expr length "$headLine")
-          dashes=$(printf "%0.s-" $(seq 1 $nbDashes))
-          echo 'CHANGELOG<<EOF' >> $GITHUB_ENV
-          echo -e "$headLine\n\n$dashes\n$newCommits\n" >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-      - name: Release
+      - name: Create GH release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'rc-')
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           body: ${{ env.CHANGELOG }}
           draft: true
           name: Version ${{github.ref_name}}
           tag_name: ${{github.ref_name}}
           files: |
-            - "core/target/scala-2.12/snowplow-event-recovery-core-${{github.ref_name}}.jar"
-            - "beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip"
-            - "spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar"
-            - "flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar"
+            beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip
+            spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar
+            flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar
