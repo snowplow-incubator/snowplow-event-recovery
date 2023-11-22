@@ -74,7 +74,7 @@ jobs:
           name: Version ${{github.ref_name}}
           tag_name: ${{github.ref_name}}
           files: |
-            - "core/target/scala-2.12/snowplow-event-recovery-core-${{github.ref_name}}.jar"
-            - "beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip"
-            - "spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar"
-            - "flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar"
+            core/target/scala-2.12/snowplow-event-recovery-core-${{github.ref_name}}.jar
+            beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip
+            spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar
+            flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar
