@@ -173,6 +173,7 @@ class IntegrationSpec extends AnyWordSpec with Inspectors {
       .flatMap(removeField("event_id"))
       .flatMap(removeField("v_etl"))
 
+    loaded.size should be > 0
     loaded should contain theSameElementsAs expected
   }
 

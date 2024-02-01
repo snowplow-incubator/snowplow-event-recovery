@@ -18,12 +18,14 @@ package util
 
 import scala.collection.JavaConverters._
 import cats.syntax.either._
+import io.circe.Json
 import io.circe.parser._
 import domain._
 import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
 import org.joda.time.DateTime
 import java.util.UUID
+import com.snowplowanalytics.iglu.core.SchemaKey
 
 object payload {
 
@@ -52,44 +54,54 @@ object payload {
       cp.hostname = p.hostname.orNull
       cp.networkUserId = p.networkUserId.map(_.toString).orNull
       Right(cp)
-    case e @ Payload.EnrichmentPayload(_, p) =>
-      val urlEncodedPayload = "ue_pr"
-      val igluWebhookVendor = "com.snowplowanalytics.iglu"
-      lazy val err          = UncoerciblePayload(e, _)
-      val parameters: Recovering[String] = {
-        if (p.vendor == igluWebhookVendor) {
-          (for {
-            v <- Either.fromOption(
-              p.parameters.find(_.name == urlEncodedPayload).flatMap(_.value),
-              err(s"$urlEncodedPayload parameter is empty")
-            )
-            p      <- parse(v).map(_.hcursor.downField("data")).leftMap(e => err(e.toString))
-            schema <- p.get[String]("schema").map(v => NVP("schema", Some(v)) :: Nil).leftMap(e => err(e.toString))
-            nvps   <- p.get[List[NVP]]("data").leftMap(e => err(e.toString))
-          } yield querystring.fromNVP(nvps ++ schema))
-        } else {
-          Right(querystring.fromNVP(p.parameters))
+    case e @ Payload.EnrichmentPayload(_, p) if p.vendor == "com.sendgrid" =>
+      extractData(e)
+        .flatMap { case (schema, data) =>
+          val schemaName = SchemaKey.fromUri(schema).map(_.name).leftMap(err => UncoerciblePayload(e, err.toString))
+          schemaName.map { name =>
+            data.deepMerge(Json.obj(("event", Json.fromString(name)))).noSpaces
+          }
         }
-      }
-      parameters.map { querystring =>
-        val cp = new CollectorPayload(
-          thriftSchema,
-          p.ipAddress.orNull,
-          p.timestamp.map(_.getMillis).getOrElse(0),
-          p.encoding,
-          p.loaderName
-        )
-        cp.path = mkPath(p.vendor, p.version)
-        cp.userAgent = p.useragent.orNull
-        cp.refererUri = p.refererUri.orNull
-        cp.hostname = p.hostname.orNull
-        cp.networkUserId = p.userId.map(_.toString).orNull
-        cp.querystring = querystring
-        cp
-      }
-    case p => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
+        .map { body =>
+          val cp = convert(p)
+          cp.body = s"""[$body]"""
+          cp.contentType = "application/json"
+          cp
+        }
+    case e @ Payload.EnrichmentPayload(_, p) if p.vendor == "com.snowplowanalytics.iglu" =>
+      extractData(e)
+        .flatMap { case (schema, data) =>
+          data
+            .as[List[NVP]]
+            .map(nvps => querystring.fromNVP(nvps :+ NVP("schema", Some(schema))))
+            .leftMap(err => UncoerciblePayload(e, err.toString))
+        }
+        .map { querystring =>
+          val cp = convert(p)
+          cp.querystring = querystring
+          cp
+        }
+
+    case Payload.EnrichmentPayload(_, p) => convert(p).asRight
+    case p                               => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
   }
 
+  private[this] def convert(p: Payload.RawEvent): CollectorPayload = {
+    val cp = new CollectorPayload(
+      thriftSchema,
+      p.ipAddress.orNull,
+      p.timestamp.map(_.getMillis).getOrElse(0),
+      p.encoding,
+      p.loaderName
+    )
+    cp.path = mkPath(p.vendor, p.version)
+    cp.userAgent = p.useragent.orNull
+    cp.refererUri = p.refererUri.orNull
+    cp.hostname = p.hostname.orNull
+    cp.networkUserId = p.userId.map(_.toString).orNull
+    cp.querystring = querystring.fromNVP(p.parameters)
+    cp
+  }
   private[this] val mkPath = (vendor: String, version: String) => s"/$vendor/$version"
 
   private[this] val thriftSchema =
@@ -114,6 +126,19 @@ object payload {
         headers = Either.catchNonFatal(cp.headers.asScala.toList).getOrElse(List.empty),
         networkUserId = Option(cp.networkUserId).flatMap(n => Either.catchNonFatal(UUID.fromString(n)).toOption)
       )
+  }
+
+  private[this] def extractData[A](e: Payload.EnrichmentPayload): Recovering[(String, Json)] = {
+    val urlEncodedPayload = "ue_pr"
+    (for {
+      v <- Either.fromOption(
+        e.raw.parameters.find(_.name == urlEncodedPayload).flatMap(_.value),
+        s"$urlEncodedPayload parameter is empty"
+      )
+      p      <- parse(v).map(_.hcursor.downField("data")).leftMap(_.message)
+      schema <- p.get[String]("schema").leftMap(_.message)
+      data   <- p.get[Json]("data").leftMap(_.message)
+    } yield (schema, data)).leftMap(err => UncoerciblePayload(e, err))
   }
 
   private[this] case class VendorVersion(vendor: String, version: String)

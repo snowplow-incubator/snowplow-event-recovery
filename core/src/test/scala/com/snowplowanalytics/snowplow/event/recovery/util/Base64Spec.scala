@@ -34,7 +34,7 @@ class Base64Spec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherVa
     "successfilly decode url-unsafe alphabet base64 string" in {
       val expected = """What does 2 + 2.1 equal?? ~ 4"""
       base64.decode("V2hhdCBkb2VzIDIgKyAyLjEgZXF1YWw/PyB+IDQ=") shouldEqual Right(expected)
-      base64.decode("V2hhdCBkb2VzIDIgKyAyLjEgZXF1YWw_PyB-IDQ")  shouldEqual Right(expected)
+      base64.decode("V2hhdCBkb2VzIDIgKyAyLjEgZXF1YWw_PyB-IDQ") shouldEqual Right(expected)
     }
   }
 

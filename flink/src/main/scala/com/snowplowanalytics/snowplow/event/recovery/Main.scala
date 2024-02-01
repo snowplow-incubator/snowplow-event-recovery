@@ -79,28 +79,34 @@ object Main
       )
       .orNone
 
-    val checkpointInterval = Opts.option[Long]("checkpoint-interval", help = "How often (in seconds) should the job perfrom checkpointing operations").orNone
+    val checkpointInterval = Opts
+      .option[Long](
+        "checkpoint-interval",
+        help = "How often (in seconds) should the job perfrom checkpointing operations"
+      )
+      .orNone
     val checkpointDir = Opts.option[String]("checkpoint-dir", help = "Where to store the checkpoints").orNone
 
     val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
-    val checkpointing = (checkpointInterval, checkpointDir).mapN((_, _).mapN(Checkpointing))
+    val checkpointing   = (checkpointInterval, checkpointDir).mapN((_, _).mapN(Checkpointing))
 
-    (input, output, failedOutput, unrecoverableOutput, validatedConfig, region, batchSize, maxBuffered, checkpointing).mapN { (i, o, f, u, c, r, bs, mb, ch) =>
-      IO.fromEither(
-        c.map(config =>
-          RecoveryJob.run(
-            StreamExecutionEnvironment.getExecutionEnvironment,
-            i,
-            o,
-            f.getOrElse(s"$o/failed"),
-            u.getOrElse(s"$o/unrecoverable"),
-            config,
-            KinesisConfig(region = r, batchSize = bs, maxBuffered = mb, checkpointing = ch),
-          )
-        ).map(_ => ExitCode.Success)
-          .leftMap(new RuntimeException(_))
-      )
-    }
+    (input, output, failedOutput, unrecoverableOutput, validatedConfig, region, batchSize, maxBuffered, checkpointing)
+      .mapN { (i, o, f, u, c, r, bs, mb, ch) =>
+        IO.fromEither(
+          c.map(config =>
+            RecoveryJob.run(
+              StreamExecutionEnvironment.getExecutionEnvironment,
+              i,
+              o,
+              f.getOrElse(s"$o/failed"),
+              u.getOrElse(s"$o/unrecoverable"),
+              config,
+              KinesisConfig(region = r, batchSize = bs, maxBuffered = mb, checkpointing = ch)
+            )
+          ).map(_ => ExitCode.Success)
+            .leftMap(new RuntimeException(_))
+        )
+      }
   }
 
   implicit val catsClockIdInstance: Clock[Id] = new Clock[Id] {

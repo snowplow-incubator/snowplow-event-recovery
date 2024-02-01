@@ -208,5 +208,42 @@
     "event_name" : "v_i",
     "event_format" : "jsonschema",
     "event_version" : "1-0-0"
-  }
+  },
+  {
+    "event_id": "2dfeb9b7-5a87-4214-8a97-a8b23176856b",
+    "v_etl": "recovery-0.0.0-common-3.1.2",
+    "platform" : "srv",
+    "etl_tstamp" : "1970-01-18T08:40:00",
+    "collector_tstamp" : "2020-02-17T09:28:18.1",
+    "event" : "unstruct",
+    "v_tracker" : "com.sendgrid-v3",
+    "v_collector" : "ssc-2.7.1-googlepubsub",
+    "user_ipaddress" : "127.0.0.1",
+    "network_userid" : "e4b93a69-7d61-42c1-9540-ae040e4b05d8",
+    "useragent" : "SendGrid Event API",
+    "derived_tstamp" : "2020-02-17T09:28:18.1",
+    "event_vendor" : "com.sendgrid",
+    "event_name" : "bounce",
+    "event_format" : "jsonschema",
+    "event_version" : "2-0-0"
+  },
+  {
+    "event_id": "2dfeb9b7-5a87-4214-8a97-a8b23176856b",
+    "v_etl": "recovery-0.0.0-common-3.1.2",
+    "platform" : "srv",
+    "etl_tstamp" : "1970-01-18T08:40:00",
+    "collector_tstamp" : "2023-01-20T14:14:45.205",
+    "event" : "unstruct",
+    "v_tracker" : "com.sendgrid-v3",
+    "v_collector" : "ssc-2.8.2-googlepubsub",
+    "user_ipaddress" : "127.0.0.1",
+    "network_userid" : "b96ebd0f-d8cb-4423-9ad0-aa58f83a1434",
+    "useragent" : "SendGrid Event API",
+    "derived_tstamp" : "2023-01-20T14:14:45.205",
+    "event_vendor" : "com.sendgrid",
+    "event_name" : "open",
+    "event_format" : "jsonschema",
+    "event_version" : "2-0-0"
+   }
 ]
+

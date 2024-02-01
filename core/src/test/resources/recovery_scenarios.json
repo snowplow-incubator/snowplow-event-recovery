@@ -167,6 +167,57 @@
     ],
     "iglu:com.snowplowanalytics.snowplow.badrows/schema_violations/jsonschema/*-*-*": [
       {
+         "name": "sendgrid-invalid-asm-group-id",
+         "conditions": [
+           {
+             "op": "Test",
+             "path": "$.payload.raw.vendor",
+             "value": {
+               "regex": "com.sendgrid"
+             }
+           },
+           {
+             "op": "Test",
+             "path": "$.failure.messages.[0].schemaKey",
+             "value": {
+               "regex": "iglu:com.sendgrid/open/jsonschema/2-0-0"
+             }
+           }
+         ],
+         "steps": [
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.asm_group_id",
+             "value": 32767
+           },
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data",
+             "match": "^(.*)}$",
+             "value": "$1,\"event\":\"open\"}"
+           }
+         ]
+      },
+      {
+         "name": "sendgrid-invalid-email",
+         "conditions": [
+           {
+             "op": "Test",
+             "path": "$.payload.raw.vendor",
+             "value": {
+               "regex": "com.sendgrid"
+             }
+           }
+         ],
+         "steps": [
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.email",
+             "value": "invalid@email.com"
+           }
+         ]
+      },
+      {
         "name": "first",
         "conditions": [
           {
