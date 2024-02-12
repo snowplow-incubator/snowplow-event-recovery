@@ -55,7 +55,7 @@ object cast {
     case (CastType.String, CastType.Numeric) if value.isString =>
       value
         .asString
-        .flatMap(v => Either.catchNonFatal(v.toLong.asJson).toOption)
+        .flatMap(v => Either.catchNonFatal(v.toDouble.asJson).toOption)
         .toRight(CastFailure(value.noSpaces, from, to))
     case _ => Left(CastFailure(value.noSpaces, from, to))
   }
