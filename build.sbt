@@ -55,7 +55,7 @@ lazy val beam = project
       Dependencies.beam,
       Dependencies.scioTest,
       Dependencies.slf4jSimple
-    )
+    ) ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
   )
 
 lazy val flink = project

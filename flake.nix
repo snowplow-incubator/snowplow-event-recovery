@@ -37,7 +37,7 @@
                 sbt
                 pkgs.entr
                 pkgs.awscli
-                # pkgs.nodePackages.snyk
+                pkgs.snyk
               ];
               languages.nix.enable = true;
               pre-commit.hooks = {

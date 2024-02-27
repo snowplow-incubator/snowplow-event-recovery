@@ -25,7 +25,7 @@ object SecurityOverrides {
     val snakeyaml             = "2.0"
     val snappy                = "1.1.10.4"
     val avro                  = "1.11.3"
-    val commonsCompress       = "1.24.0"
+    val commonsCompress       = "1.26.0"
     val reload4j              = "1.2.25"
   }
 
@@ -67,7 +67,7 @@ object Dependencies {
     val awsKinesisSpark = "0.0.12"
     val flink           = "1.15.2"
     val flinkKinesis    = "1.15.2"
-    val scio            = "0.13.5"
+    val scio            = "0.13.6"
     val beam            = "2.52.0"
     val decline         = "1.4.0"
     val declineEffect   = "1.4.0"
