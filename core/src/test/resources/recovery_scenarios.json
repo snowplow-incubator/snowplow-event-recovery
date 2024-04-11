@@ -3,8 +3,13 @@
   "data": {
     "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
       {
-        "name": "zero",
+        "name": "schema-is-iglu",
         "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "value": "1f843b4a-8b62-48e2-abea-e26fc84e5903" }
+          },
           {
             "op": "Test",
             "path": "$.payload.querystring.[?(@.name=~schema)].value",
@@ -27,8 +32,13 @@
         ]
       },
       {
-        "name": "first",
+        "name": "",
         "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "value": "9a60e697-4865-495a-8ece-a090c1a0eb89" }
+          },
           {
             "op": "Test",
             "path": "$.payload.querystring.[?(@.name=~page)].value",
@@ -49,7 +59,13 @@
       },
       {
         "name": "second",
-        "conditions": [],
+        "conditions": [
+           {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "regex": "81e05c40-b230-49dd-a95f-594e7ff11938" }
+          }
+        ],
         "steps": [
           {
             "op": "Replace",
@@ -72,6 +88,7 @@
       {
         "name": "main",
         "conditions": [
+          { "op": "Test", "path": "$.payload.enriched.domain_userid", "value": {"regex": "526b49a8-b6d5-4980-8305-0b7d7d98e527"} },
           {
             "op": "Test",
             "path": "$.processor.artifact",
@@ -171,6 +188,11 @@
          "conditions": [
            {
              "op": "Test",
+             "path": "$.payload.raw.userId",
+             "value": { "value": "b96ebd0f-d8cb-4423-9ad0-aa58f83a1434" }
+           },
+           {
+             "op": "Test",
              "path": "$.payload.raw.vendor",
              "value": {
                "regex": "com.sendgrid"
@@ -222,6 +244,11 @@
         "conditions": [
           {
             "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "3e02e9c7-0000-0000-0000-b592ed92120d" }
+          },
+          {
+            "op": "Test",
             "path": "$.payload.raw.parameters.ue_pr.data.schema",
             "value": {
               "value": "iglu:0/video_impression/jsonschema/1-0-0"
@@ -237,7 +264,31 @@
         ]
       },
       {
-        "name": "another",
+        "name": "first",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "aeb99d70-739f-443e-8e3b-3a15817e08d6" }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:0/video_impression/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+          "path": "$.raw.parameters.[?(@.name=~ue_pr)].value",
+          "match": "iglu:0/video_impression/jsonschema/1-0-0",
+          "value": "iglu:com.dpm/v_i/jsonschema/1-0-0"
+          }
+        ]
+      },
+      {
+        "name": "abc6e94a-1c69-4e4d-9f95-5b8306e5d339",
         "conditions": [
           {
             "op": "Test",
@@ -245,6 +296,35 @@
             "value": {
               "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
             }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "abc6e94a-1c69-4e4d-9f95-5b8306e5d339" }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+            "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.formId",
+            "match": "4MA(\\w+)",
+            "value": "my-form-id"
+          }
+        ]
+      },
+      {
+        "name": "c8f11306-ea78-430f-acdc-0b3255bba727",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "c8f11306-ea78-430f-acdc-0b3255bba727" }
           }
         ],
         "steps": [{
