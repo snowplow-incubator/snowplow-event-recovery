@@ -145,15 +145,16 @@ object BuildSettings {
       assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
       assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = includeScala),
       assembly / assemblyMergeStrategy := {
-        case x if x.startsWith("META-INF")                           => MergeStrategy.discard
-        case x if x.endsWith(".html")                                => MergeStrategy.discard
-        case x if x.endsWith("ProjectSettings$.class")               => MergeStrategy.first
-        case x if x.endsWith("package-info.class")                   => MergeStrategy.first
-        case x if x.endsWith("module-info.class")                    => MergeStrategy.first
-        case x if x.endsWith("nowarn.class")                         => MergeStrategy.first
-        case x if x.endsWith("nowarn$.class")                        => MergeStrategy.first
-        case PathList("org", "apache", "spark", "unused", tail @ _*) => MergeStrategy.first
-        case "build.properties"                                      => MergeStrategy.first
+        case x if x.startsWith("META-INF")                                     => MergeStrategy.discard
+        case x if x.endsWith(".html")                                          => MergeStrategy.discard
+        case x if x.endsWith("package-info.class")                             => MergeStrategy.discard
+        case x if x.endsWith("module-info.class")                              => MergeStrategy.discard
+        case x if x.endsWith("ProjectSettings$.class")                         => MergeStrategy.first
+        case PathList("scala", "annotation", "nowarn.class" | "nowarn$.class") => MergeStrategy.first
+        case PathList("org", "slf4j", "impl", _)                               => MergeStrategy.first
+        case PathList("org", "apache", "spark", "unused", tail @ _*)           => MergeStrategy.first
+        case "build.properties"                                                => MergeStrategy.first
+        case PathList("META-INF", "io.netty.versions.properties")              => MergeStrategy.discard
         case x =>
           val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)

@@ -165,8 +165,6 @@ class IntegrationSpec extends AnyWordSpec with Inspectors {
     val expected: List[Json] = decode[List[Json]](Source.fromResource("expected_payloads.json").mkString)
       .sequence
       .flatMap(_.toList)
-      .flatMap(removeField("event_id"))
-      .flatMap(removeField("v_etl"))
 
     val loaded: List[Json] = enriched
       .flatMap(_.flatMap(EnrichedEvent.toAtomic).toList)

@@ -26,6 +26,7 @@ import com.snowplowanalytics.snowplow.badrows.{BadRow, Schemas}
 import gens._
 import conditions._
 import io.circe.syntax._
+import java.util.UUID
 
 class BadRowWithConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks with EitherValues {
 
@@ -36,7 +37,27 @@ class BadRowWithConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPr
         val cfg            = mkCfg(List.empty)
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
-        BadRowWithConfig.find(config, badRow).value should equal(cfg)
+        BadRowWithConfig.find(config, badRow).value should equal(List(cfg))
+      }
+    }
+    "find config all configs matching bad row" in {
+      forAll { (b: BadRow.AdapterFailures) =>
+        val uuid = UUID.randomUUID()
+        val bad  = b.copy(payload = b.payload.copy(networkUserId = Some(uuid)))
+        val cfgWithConditions = FlowConfig(
+          "default",
+          List(Condition(op = Test, path = "$.payload.networkUserId", value = RegularExpression(uuid.toString()))),
+          List(Replacement(conditions.Replace, "$.payload.raw.test", None, "sample".asJson))
+        )
+        val cfg = FlowConfig(
+          "default",
+          List.empty,
+          List(Replacement(conditions.Replace, "$.payload.raw.hello", None, "also-a-sample".asJson))
+        )
+        val configs        = List(cfg, cfgWithConditions)
+        val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> configs)
+        val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, bad)
+        BadRowWithConfig.find(config, badRow).value should equal(configs)
       }
     }
     "handle direct comparison matchers" in {
@@ -47,7 +68,7 @@ class BadRowWithConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPr
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
         val res            = BadRowWithConfig.find(config, badRow)
-        res.value should equal(cfg)
+        res.value should equal(List(cfg))
       }
     }
     "handle size matchers on arrays" in {
@@ -57,7 +78,7 @@ class BadRowWithConfigSpec extends AnyWordSpec with Inspectors with ScalaCheckPr
         val config: Config = Map(Schemas.AdapterFailures.toSchemaUri -> List(cfg))
         val badRow         = SelfDescribingData[BadRow](Schemas.AdapterFailures, b)
 
-        BadRowWithConfig.find(config, badRow).value should equal(cfg)
+        BadRowWithConfig.find(config, badRow).value should equal(List(cfg))
       }
     }
   }
