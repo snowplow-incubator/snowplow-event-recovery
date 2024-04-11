@@ -45,7 +45,7 @@ object BadRowWithConfig {
       decoded <- decode(line)
       body    <- body(decoded, line)
       config  <- find(config, body)
-    } yield BadRowWithConfig(decoded.data, config.steps)).leftMap(_.withRow(line.noSpaces))
+    } yield BadRowWithConfig(decoded.data, config.flatMap(_.steps))).leftMap(_.withRow(line.noSpaces))
 
   private[this] val decode = (line: Json) =>
     line.as[SelfDescribingBadRow].leftMap(err => InvalidDataFormat(line.some, err.getMessage))
@@ -60,11 +60,13 @@ object BadRowWithConfig {
         .leftMap(err => InvalidDataFormat(line.some, err.getMessage))
     else Right(decoded)
 
-  private[config] val find = (config: Config, body: SelfDescribingBadRow) =>
-    config
-      .find(v => matchSchema(v._1, body.schema.toSchemaUri))
-      .flatMap(_._2.find(v => check(v.conditions, body.data)))
-      .toRight(FailedToMatchConfiguration(body.schema.toSchemaUri))
+  private[config] val find = (config: Config, body: SelfDescribingBadRow) => {
+    val res = config
+      .filter(v => matchSchema(v._1, body.schema.toSchemaUri))
+      .flatMap(_._2.filter(v => check(v.conditions, body.data)))
+    if (res.isEmpty) Left(FailedToMatchConfiguration(body.schema.toSchemaUri))
+    else Right(res.toList)
+  }
 
   private[this] def check(conditions: List[Condition], badRow: BadRow): Boolean =
     conditions.foldLeft(true) { (acc, cur) =>
