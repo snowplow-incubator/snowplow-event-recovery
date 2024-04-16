@@ -25,6 +25,9 @@ jobs:
       - name: Build flink
         run: |
           sbt flink/assembly
+      - name: Build spark
+        run: |
+          sbt cli/assembly
       - name: Deploy hosted-assets
         env:
           TAG: ${{github.ref_name}}
@@ -67,3 +70,4 @@ jobs:
             beam/target/universal/snowplow-event-recovery-beam-${{github.ref_name}}.zip
             spark/target/scala-2.12/snowplow-event-recovery-spark-${{github.ref_name}}.jar
             flink/target/scala-2.12/snowplow-event-recovery-flink-${{github.ref_name}}.jar
+            cli/target/scala-2.12/snowplow-event-recovery

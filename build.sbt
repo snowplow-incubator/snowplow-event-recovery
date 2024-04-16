@@ -41,7 +41,20 @@ lazy val core = project
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest
       ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
- ).enablePlugins(BuildInfoPlugin)
+  )
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val cli = project
+  .dependsOn(core % "compile->compile;test->test")
+  .enablePlugins(JavaAppPackaging)
+  .settings(dynVerSettings)
+  .settings(cliBuildSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.cliDeps,
+    excludeDependencies ++= Seq(
+      ExclusionRule("com.snowplowanalytics", "iglu-scala-client-data_2.12")
+    )
+  )
 
 lazy val beam = project
   .dependsOn(core % "compile->compile;test->test")
@@ -68,23 +81,27 @@ lazy val flink = project
       Dependencies.mockito
     ) ++ Dependencies.decline
       ++ Dependencies
-      .flink
-      .map(
-        _.excludeAll(
-          ExclusionRule(organization = "commons-logging", name = "commons-logging"),
-          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
-        )
-      ) ++ Dependencies.circe
+        .flink
+        .map(
+          _.excludeAll(
+            ExclusionRule(organization = "commons-logging", name = "commons-logging"),
+            ExclusionRule(organization = "org.springframework", name = "spring-jcl")
+          )
+        ) ++ Dependencies.circe
       ++ Dependencies.testContainers
       ++ Dependencies.scalatestIT
       :+ Dependencies.catsRetry
-      :+ Dependencies.kinesis.excludeAll(
+      :+ Dependencies
+        .kinesis
+        .excludeAll(
           ExclusionRule(organization = "commons-logging", name = "commons-logging"),
-          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
+          ExclusionRule(organization = "org.springframework", name = "spring-jcl")
         )
-      :+ Dependencies.cloudwatch.excludeAll(
+      :+ Dependencies
+        .cloudwatch
+        .excludeAll(
           ExclusionRule(organization = "commons-logging", name = "commons-logging"),
-          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
+          ExclusionRule(organization = "org.springframework", name = "spring-jcl")
         ),
     dependencyOverrides += Dependencies.jackson
   )
