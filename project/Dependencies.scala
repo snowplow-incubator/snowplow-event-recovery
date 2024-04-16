@@ -17,30 +17,30 @@ import sbt._
 
 object SecurityOverrides {
   object V {
-    val commonsCodec          = "1.13"
-    val guava                 = "32.0.0-jre"
-    val libthrift             = "0.16.0"
-    val netty                 = "4.1.101.Final"
-    val json                  = "20231013"
-    val snakeyaml             = "2.0"
-    val snappy                = "1.1.10.4"
-    val avro                  = "1.11.3"
-    val commonsCompress       = "1.26.0"
-    val reload4j              = "1.2.25"
+    val commonsCodec    = "1.13"
+    val guava           = "32.0.0-jre"
+    val libthrift       = "0.16.0"
+    // val netty           = "4.1.101.Final"
+    val json            = "20231013"
+    val snakeyaml       = "2.0"
+    val snappy          = "1.1.10.4"
+    val avro            = "1.11.3"
+    val commonsCompress = "1.26.0"
+    val reload4j        = "1.2.25"
   }
 
   val dependencies = Seq(
-    "com.google.guava"                 % "guava"                   % V.guava,
-    "commons-codec"                    % "commons-codec"           % V.commonsCodec,
-    "org.apache.thrift"                % "libthrift"               % V.libthrift,
-    "io.netty"                         % "netty-handler"           % V.netty,
-    "io.netty"                         % "netty-codec-http2"       % V.netty,
-    "org.json"                         % "json"                    % V.json,
-    "org.yaml"                         % "snakeyaml"               % V.snakeyaml,
-    "org.xerial.snappy"                % "snappy-java"             % V.snappy,
-    "org.apache.avro"                  % "avro"                    % V.avro,
-    "org.apache.commons"               % "commons-compress"        % V.commonsCompress,
-    "ch.qos.reload4j"                  % "reload4j"                % V.reload4j 
+    "com.google.guava"   % "guava"             % V.guava,
+    "commons-codec"      % "commons-codec"     % V.commonsCodec,
+    "org.apache.thrift"  % "libthrift"         % V.libthrift,
+    // "io.netty"           % "netty-handler"     % V.netty,
+    // "io.netty"           % "netty-codec-http2" % V.netty,
+    "org.json"           % "json"              % V.json,
+    "org.yaml"           % "snakeyaml"         % V.snakeyaml,
+    "org.xerial.snappy"  % "snappy-java"       % V.snappy,
+    "org.apache.avro"    % "avro"              % V.avro,
+    "org.apache.commons" % "commons-compress"  % V.commonsCompress,
+    "ch.qos.reload4j"    % "reload4j"          % V.reload4j
   )
 
 }
@@ -86,6 +86,11 @@ object Dependencies {
     val scalaCommonEnrich   = "3.2.1"
     val testContainers      = "0.40.15"
     val catsRetry           = "2.1.0"
+
+    //cli
+    val mainargs            = "0.7.0"
+    val osLib               = "0.10.0"
+    val pprint              = "0.9.0"
   }
 
   // Java
@@ -127,7 +132,7 @@ object Dependencies {
     ("org.apache.flink" % "flink-connector-files" % V.flink).exclude("com.google.protobuf", "protobuf-java") :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % IntegrationTest) :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % Test) :+
-    ("org.apache.flink" % "flink-streaming-java" % V.flink % Test classifier Artifact.TestsClassifier)
+    (("org.apache.flink" % "flink-streaming-java" % V.flink % Test).classifier(Artifact.TestsClassifier))
   val spark           = Seq("spark-core", "spark-sql").map("org.apache.spark" %% _ % V.spark % Provided)
   val awsKinesisSpark = "jp.co.bizreach" %% "aws-kinesis-spark" % V.awsKinesisSpark
 
@@ -155,4 +160,11 @@ object Dependencies {
     "com.dimafeng" %% _ % V.testContainers % Seq(Test, IntegrationTest).mkString(",")
   )
   val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
+
+  val cliDeps = Seq(
+    "com.lihaoyi" %% "mainargs" % V.mainargs,
+    "com.lihaoyi" %% "os-lib"   % V.osLib,
+    "com.lihaoyi" %% "pprint"   % V.pprint,
+    ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich).exclude("com.maxmind.geoip2", "geoip2")
+  )
 }
