@@ -20,7 +20,6 @@ object SecurityOverrides {
     val commonsCodec          = "1.13"
     val guava                 = "32.0.0-jre"
     val libthrift             = "0.16.0"
-    val netty                 = "4.1.101.Final"
     val json                  = "20231013"
     val snakeyaml             = "2.0"
     val snappy                = "1.1.10.4"
@@ -33,8 +32,6 @@ object SecurityOverrides {
     "com.google.guava"                 % "guava"                   % V.guava,
     "commons-codec"                    % "commons-codec"           % V.commonsCodec,
     "org.apache.thrift"                % "libthrift"               % V.libthrift,
-    "io.netty"                         % "netty-handler"           % V.netty,
-    "io.netty"                         % "netty-codec-http2"       % V.netty,
     "org.json"                         % "json"                    % V.json,
     "org.yaml"                         % "snakeyaml"               % V.snakeyaml,
     "org.xerial.snappy"                % "snappy-java"             % V.snappy,
@@ -86,6 +83,10 @@ object Dependencies {
     val scalaCommonEnrich   = "3.2.1"
     val testContainers      = "0.40.15"
     val catsRetry           = "2.1.0"
+
+    //cli
+    val mainargs = "0.7.0"
+    val osLib    = "0.10.0"
   }
 
   // Java
@@ -155,4 +156,10 @@ object Dependencies {
     "com.dimafeng" %% _ % V.testContainers % Seq(Test, IntegrationTest).mkString(",")
   )
   val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
+
+  val cliDeps = Seq(
+    "com.lihaoyi"            %% "mainargs"               % V.mainargs,
+    "com.lihaoyi"            %% "os-lib"                 % V.osLib,
+    ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich).exclude("com.maxmind.geoip2", "geoip2")
+  )
 }
