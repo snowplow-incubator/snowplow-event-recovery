@@ -24,8 +24,8 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 import com.typesafe.sbt.packager.Keys.{daemonUser, maintainer}
 
 // Assembly
-import sbtassembly.{MergeStrategy, PathList, ShadeRule}
-import sbtassembly.AssemblyKeys.{assembly, assemblyJarName, assemblyMergeStrategy, assemblyOption, assemblyShadeRules}
+import sbtassembly.AssemblyPlugin.defaultUniversalScript
+import sbtassembly.AssemblyPlugin.autoImport._
 
 object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
@@ -55,6 +55,10 @@ object BuildSettings {
   lazy val sparkProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
     name := "snowplow-event-recovery-spark",
     description := "Apache Spark recovery job"
+  )
+  lazy val cliProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
+    name := "snowplow-event-recovery",
+    description := "Snowplow Event recovery CLI"
   )
 
   lazy val compilerSettings = Seq[Setting[_]](
@@ -168,11 +172,23 @@ object BuildSettings {
       }
     )
 
+  lazy val executableSettings = Seq(
+    // Executable jarfile
+    assembly / assemblyPrependShellScript := Some(defaultUniversalScript(shebang = true)),
+
+    assembly / mainClass := Some("com.snowplowanalytics.snowplow.event.recovery.Main"),
+    // Name it as an executable
+    assembly / assemblyJarName := name.value
+  )
+
   lazy val commonBuildSettings: Seq[sbt.Setting[_]] =
     compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings
 
   lazy val coreBuildSettings: Seq[sbt.Setting[_]] =
     coreProjectSettings ++ commonBuildSettings ++ publishSettings ++ assemblySettings(false)
+
+  lazy val cliBuildSettings: Seq[sbt.Setting[_]] =
+    cliProjectSettings ++ commonBuildSettings ++ assemblySettings(true) ++ executableSettings
 
   lazy val beamBuildSettings: Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings
 

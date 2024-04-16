@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs-metals.url = "github:jpaju/nixpkgs/metals-1.3.0";
     flake-utils.url = "github:numtide/flake-utils";
     flake-utils.inputs.nixpkgs.follows = "nixpkgs";
     devenv.url = "github:cachix/devenv";
@@ -11,6 +12,7 @@
 
   outputs = {
     nixpkgs,
+    nixpkgs-metals,
     flake-utils,
     devenv,
     ...
@@ -22,10 +24,15 @@
           config.allowUnfree = true;
           config.allowUnsupportedSystem = true;
         };
+        metalsPkgs = import nixpkgs-metals {
+          inherit system;
+          config.allowUnfree = true;
+          config.allowUnsupportedSystem = true;
+        };
         jre = pkgs.openjdk11;
         sbt = pkgs.sbt.override {inherit jre;};
         coursier = pkgs.coursier.override {inherit jre;};
-        metals = pkgs.metals.override {inherit coursier jre;};
+        metals = metalsPkgs.metals.override {inherit coursier jre;};
       in {
         devShell = devenv.lib.mkShell {
           inherit inputs pkgs;

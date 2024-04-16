@@ -153,6 +153,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-metals": {
+      "locked": {
+        "lastModified": 1713208459,
+        "narHash": "sha256-x4QfB3WQu/MueAxDINSxxZD0XCxuC+akKv0fU8NcBcs=",
+        "owner": "jpaju",
+        "repo": "nixpkgs",
+        "rev": "f39106a7b92fb72aa0e38498fc94a24ed8e58069",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jpaju",
+        "ref": "metals-1.3.0",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-regression": {
       "locked": {
         "lastModified": 1643052045,
@@ -217,7 +233,8 @@
       "inputs": {
         "devenv": "devenv",
         "flake-utils": "flake-utils_2",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-metals": "nixpkgs-metals"
       }
     },
     "systems": {

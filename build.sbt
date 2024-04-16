@@ -41,7 +41,20 @@ lazy val core = project
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest
       ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
- ).enablePlugins(BuildInfoPlugin)
+  )
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val cli = project
+  .dependsOn(core % "compile->compile;test->test")
+  .enablePlugins(JavaAppPackaging)
+  .settings(dynVerSettings)
+  .settings(cliBuildSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.cliDeps,
+    excludeDependencies ++= Seq(
+      ExclusionRule("com.snowplowanalytics", "iglu-scala-client-data_2.12")
+    )
+  )
 
 lazy val beam = project
   .dependsOn(core % "compile->compile;test->test")

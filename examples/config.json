@@ -1,0 +1,373 @@
+{
+  "schema": "iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0",
+  "data": {
+    "iglu:com.snowplowanalytics.snowplow.badrows/adapter_failures/jsonschema/1-0-*": [
+      {
+        "name": "schema-is-iglu",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "value": "1f843b4a-8b62-48e2-abea-e26fc84e5903" }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.querystring.[?(@.name=~schema)].value",
+            "value": {
+              "value": "iglu"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.querystring.[?(@.name=~schema)].value",
+            "value": "iglu:com.snowplowanalytics.snowplow/audio_impression/jsonschema/1-0-0"
+          },
+          {
+            "op": "Replace",
+            "path": "$.querystring.[?(@.name=~app_id)].value",
+            "value": "badcock-furniture-646ed61e-3427-4d2a-9c55-7c5ca9299378"
+          }
+        ]
+      },
+      {
+        "name": "query-params",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "value": "9a60e697-4865-495a-8ece-a090c1a0eb89" }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.querystring.[?(@.name=~page)].value",
+            "value": {
+              "value": ""
+            }
+          }
+        ],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.querystring.[?(@.name=~page)].value",
+            "value": {
+              "value": "FixedQueryParams"
+            }
+          }
+        ]
+      },
+      {
+        "name": "second",
+        "conditions": [
+           {
+            "op": "Test",
+            "path": "$.payload.networkUserId",
+            "value": { "regex": "81e05c40-b230-49dd-a95f-594e7ff11938" }
+          }
+        ],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.querystring",
+            "value": [
+              {
+                "name": "e",
+                "value": "pv"
+              },
+              {
+                "name": "page",
+                "value": "DemoPageTitle"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "iglu:com.snowplowanalytics.snowplow.badrows/enrichment_failures/jsonschema/1-0-*": [
+      {
+        "name": "main",
+        "conditions": [
+          { "op": "Test", "path": "$.payload.enriched.domain_userid", "value": {"regex": "526b49a8-b6d5-4980-8305-0b7d7d98e527"} },
+          {
+            "op": "Test",
+            "path": "$.processor.artifact",
+            "value": {
+              "value": "beam-enrich"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.vendor",
+            "value": {
+              "regex": "com.snowplow\\.*"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.processor.artifact",
+            "value": {
+              "size": {
+                "eq": 11
+              }
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.processor.artifact",
+            "value": {
+              "size": {
+                "gt": 3
+              }
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.processor.artifact",
+            "value": {
+              "size": {
+                "lt": 30
+              }
+            }
+          }
+        ],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.raw.refererUri",
+            "match": "(?U)^.*$",
+            "value": "https://console.snplow.com/"
+          },
+          {
+            "op": "Remove",
+            "path": "$.raw.parameters.aid"
+          },
+          {
+            "op": "Replace",
+            "path": "$.raw.parameters.cx.data.[?(@.schema=~iglu:org.w3/PerformanceTiming/jsonschema/1-0-0)].data.loadEventEnd",
+            "match": "(?U)^.*$",
+            "value": 1
+          },
+          {
+            "op": "Cast",
+            "path": "$.raw.parameters.cx.data.[?(@.schema=~iglu:org.w3/PerformanceTiming/jsonschema/1-0-0)].data.domComplete",
+            "from": "Numeric",
+            "to": "Boolean"
+          },
+          {
+            "op": "Replace",
+            "path": "$.raw.parameters.cx.data.[1].data.domComplete",
+            "match": "false",
+            "value": true
+          },
+          {
+            "op": "Cast",
+            "path": "$.raw.parameters.cx.data.[?(@.data.navigationStart=~([0-9]+))].data.domComplete",
+            "from": "Boolean",
+            "to": "Numeric"
+          }
+        ]
+      },
+      {
+        "name": "impossible",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.processor.artifact",
+            "value": {
+              "value": "lorem-ipsum"
+            }
+          }
+        ],
+        "steps": []
+      }
+    ],
+    "iglu:com.snowplowanalytics.snowplow.badrows/schema_violations/jsonschema/*-*-*": [
+      {
+         "name": "sendgrid-invalid-asm-group-id",
+         "conditions": [
+           {
+             "op": "Test",
+             "path": "$.payload.raw.userId",
+             "value": { "value": "b96ebd0f-d8cb-4423-9ad0-aa58f83a1434" }
+           },
+           {
+             "op": "Test",
+             "path": "$.payload.raw.vendor",
+             "value": {
+               "regex": "com.sendgrid"
+             }
+           },
+           {
+             "op": "Test",
+             "path": "$.failure.messages.[0].schemaKey",
+             "value": {
+               "regex": "iglu:com.sendgrid/open/jsonschema/2-0-0"
+             }
+           }
+         ],
+         "steps": [
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.asm_group_id",
+             "value": 32767
+           },
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data",
+             "match": "^(.*)}$",
+             "value": "$1,\"event\":\"open\"}"
+           }
+         ]
+      },
+      {
+         "name": "sendgrid-invalid-email",
+         "conditions": [
+           {
+             "op": "Test",
+             "path": "$.payload.raw.vendor",
+             "value": {
+               "regex": "com.sendgrid"
+             }
+           }
+         ],
+         "steps": [
+           {
+             "op": "Replace",
+             "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.email",
+             "value": "invalid@email.com"
+           }
+         ]
+      },
+      {
+        "name": "first",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "3e02e9c7-0000-0000-0000-b592ed92120d" }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:0/video_impression/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+          "path": "$.raw.parameters.[?(@.name=~ue_pr)].value",
+          "match": "iglu:0/video_impression/jsonschema/1-0-0",
+          "value": "iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0"
+          }
+        ]
+      },
+      {
+        "name": "first",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "aeb99d70-739f-443e-8e3b-3a15817e08d6" }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:0/video_impression/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+          "path": "$.raw.parameters.[?(@.name=~ue_pr)].value",
+          "match": "iglu:0/video_impression/jsonschema/1-0-0",
+          "value": "iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0"
+          }
+        ]
+      },
+      {
+        "name": "abc6e94a-1c69-4e4d-9f95-5b8306e5d339",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "abc6e94a-1c69-4e4d-9f95-5b8306e5d339" }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+            "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.formId",
+            "match": "4MA(\\w+)",
+            "value": "my-form-id"
+          }
+        ]
+      },
+      {
+        "name": "c8f11306-ea78-430f-acdc-0b3255bba727",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          },
+          {
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "c8f11306-ea78-430f-acdc-0b3255bba727" }
+          }
+        ],
+        "steps": [{
+          "op": "Replace",
+            "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.data.formId",
+            "match": "4MA(\\w+)",
+            "value": "my-form-id"
+          }
+        ]
+      },
+      {
+        "name": "review-event-and-action-on-review-4",
+        "conditions": [
+          {
+            "op": "Test",
+            "path": "$.payload.raw.parameters.ue_pr.data.schema",
+            "value": {
+              "value": "iglu:com.snowplowanalytics.snowplow/submit_form/jsonschema/1-0-0"
+            }
+          }
+        ],
+        "steps": []
+      },
+      {
+            "name": "cx-test",
+            "conditions": [
+                {
+                    "op": "Test",
+                    "path": "$.payload.raw.parameters.cx.data.[?(@.schema=~iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0)].data.id",
+                    "value": {
+                        "regex": "39a9934a-ddd3-4581-a4ea-d0ba20e63b92"
+                    }
+                }
+            ],
+            "steps": []
+        }
+    ],
+    "iglu:com.snowplowanalytics.snowplow.badrows/collector_payload_format_violation/jsonschema/1-0-0": [
+      {
+        "name": "passthrough",
+        "conditions": [],
+        "steps": []
+      }
+    ]
+  }
+}
