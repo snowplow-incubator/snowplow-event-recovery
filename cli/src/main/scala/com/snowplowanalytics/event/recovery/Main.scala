@@ -59,7 +59,7 @@ object Main {
     enrich: Boolean = false
   ) = {
     val cfg         = os.read(os.Path(config))
-    val resolverCfg = resolver.getOrElse(data.resolverConfig)
+    val resolverCfg = resolver.map(r => os.read(os.Path(r))).getOrElse(data.resolverConfig)
     val inputLines =
       os.walk(os.Path(input)).filter(os.isFile(_, followLinks = false)).filter(_.ext == glob).flatMap(os.read.lines)
 
@@ -67,7 +67,7 @@ object Main {
       """{"schema": "iglu:com.snowplowanalytics.snowplow/enrichments/jsonschema/1-0-0", "data": []}"""
 
     val client = Client
-      .parseDefault[Id](parse(resolverConfig).right.get)
+      .parseDefault[Id](parse(resolverCfg).right.get)
       .leftMap(_.toString)
       .value
       .fold(
@@ -90,6 +90,8 @@ object Main {
       pprintln(s"ERROR! Invalid config: " + conf)
       System.exit(1)
     }
+    pprintln("Config loaded")
+
     val res =
       inputLines
         .toList
@@ -97,6 +99,7 @@ object Main {
         .map(_.leftMap(_.badRow))
         .map(_.flatMap(ThriftLoader.toCollectorPayload(_, Processor("recovery-cli", "0.0.0")).toEither.leftMap(_.head)))
         .flatMap { e =>
+          pprintln(s"Enriching event...")
           EtlPipeline
             .processEvents[Id](
               adapterRegistry,
@@ -112,7 +115,7 @@ object Main {
         }
 
     output.foreach { o =>
-      val good = res.filter(_.isRight).map(_.right.get)
+      val good = res.filter(_.isRight).map(_.right.get).map(EnrichedEvent.toPartiallyEnrichedEvent)
       val bad  = res.filter(_.isLeft).map(_.left.get).map(_.asInstanceOf[BadRow].compact)
       os.write.over(os.Path(o) / "good.txt", good.mkString("\n"))
       os.write.over(os.Path(o) / "bad.txt", bad.mkString("\n"))
