@@ -51,13 +51,6 @@ jobs:
           REPOSITORY: snowplow/snowplow-event-recovery-beam
           TAG: ${{github.ref_name}}
         run: docker push $REPOSITORY:$TAG
-      - name: Deploy common on Maven Central
-        run: sbt "project core" ci-release
-        env:
-          PGP_PASSPHRASE: ${{ secrets.SONA_PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.SONA_PGP_SECRET }}
-          SONATYPE_USERNAME: ${{ secrets.SONA_USER }}
-          SONATYPE_PASSWORD: ${{ secrets.SONA_PASS }}
       - name: Create GH release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
