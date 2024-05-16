@@ -18,7 +18,7 @@
       {
         "name": "an embedded repo",
         "priority": 100,
-        "vendorprefixes": [
+        "vendorPrefixes": [
           "de.acompany.snowplow"
         ],
         "connection": {
