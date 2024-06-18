@@ -16,13 +16,13 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: Label PR
         if: github.event_name == 'pull_request'
-        uses: TimonVS/pr-labeler-action@v3
+        uses: TimonVS/pr-labeler-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v14
       - name: Push changes
-        uses: stefanzweifel/git-auto-commit-action@v4.1.3
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "[REBASE] Run formatter/linter"
       - name: Test all
