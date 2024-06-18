@@ -53,7 +53,7 @@ class AddSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherValue
           add(Seq("payload", "querystring"), List(suffix).asJson)(br.asJson).leftMap(_.message)
         )
         f <- EitherT.fromOption[Id](a.hcursor.downField("payload").downField("querystring").focus, "empty cursor")
-        o <- EitherT.fromEither[Id](f.as[List[NVP]].leftMap(_.message))
+        o <- EitherT.fromEither[Id](f.as[List[NVP]](json.nvpsDecoder).leftMap(_.message))
       } yield o).value.value should contain theSameElementsAs (value :+ suffix)
 
     }
