@@ -1,4 +1,9 @@
-Version 0.6.1 (2024-04-24)
+Version 0.7.1 (2024-06-18)
+--------------------------
+Make NVP codec isomorphic (close #143)
+Bump github actions
+
+Version 0.7.0 (2024-04-24)
 --------------------------
 Add local testing CLI (#142)
 Run all matched configs for given row (#142)
