@@ -12,7 +12,7 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v2
       - name: Setup Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v14
       - name: Build core
         run: |
           sbt core/assembly
