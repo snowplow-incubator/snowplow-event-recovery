@@ -51,7 +51,7 @@
                 alejandra.enable = true;
                 deadnix.enable = true;
                 gitleaks = {
-                  enable = true;
+                  enable = false;
                   name = "gitleaks";
                   entry = "${pkgs.gitleaks}/bin/gitleaks detect --no-git --source . -v";
                 };

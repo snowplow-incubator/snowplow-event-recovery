@@ -360,7 +360,23 @@
                 }
             ],
             "steps": []
-        }
+      },
+      {
+        "name": "schema-is-iglu",
+        "conditions": [{
+            "op": "Test",
+            "path": "$.payload.raw.userId",
+            "value": { "value": "ccbd375d-e37f-4919-811c-780f460a3ed4" }
+        }],
+        "steps": [
+          {
+            "op": "Replace",
+            "path": "$.raw.parameters.[?(@.name=~ue_pr)].value.data.schema",
+            "match": "iglu:com.lorem/ipsum_campaign/jsonschema/1-0-5",
+            "value": "iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0"
+          }
+        ]
+      }
     ],
     "iglu:com.snowplowanalytics.snowplow.badrows/collector_payload_format_violation/jsonschema/1-0-0": [
       {

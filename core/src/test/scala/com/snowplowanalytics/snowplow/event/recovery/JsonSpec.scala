@@ -16,6 +16,7 @@ package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.util.Random
 import org.scalatest.Inspectors
+import org.scalatest.EitherValues
 import org.scalatest.wordspec.AnyWordSpec
 
 import org.scalatest.matchers.should.Matchers._
@@ -23,7 +24,10 @@ import org.scalatestplus.scalacheck._
 
 import org.scalacheck._
 
-class JsonSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks {
+import com.snowplowanalytics.snowplow.badrows.NVP
+import io.circe.parser._
+
+class JsonSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks with EitherValues {
 
   implicit val noShrink: Shrink[String] = Shrink.shrinkAny
 
@@ -46,6 +50,24 @@ class JsonSpec extends AnyWordSpec with Inspectors with ScalaCheckPropertyChecks
         val segments = List("payload", "raw", "parameters", "ue_px", "schema")
         val path     = segments.mkString(".")
         json.path(path) should contain theSameElementsAs segments
+      }
+    }
+  }
+
+  "NVP json codec" should {
+    "be isomorphic" in {
+      val xs = List(NVP("n", Some("v")), NVP("o", Some("1")), NVP("p", Some("true")))
+      val j  = parse("""{"n": "v", "o": 1, "p": true }""")
+      j.flatMap(_.as[List[NVP]](json.nvpsDecoder)).value should contain.theSameElementsAs(xs)
+    }
+    "do not decode" when {
+      "array as a value passed" in {
+        val j = parse("""{"n": [1,2,3] }""")
+        j.flatMap(_.as[List[NVP]](json.nvpsDecoder)) should be('left)
+      }
+      "object as a value passed" in {
+        val j = parse("""{"n": {"o": "p", "e": "s"}}""")
+        j.flatMap(_.as[List[NVP]](json.nvpsDecoder)) should be('left)
       }
     }
   }

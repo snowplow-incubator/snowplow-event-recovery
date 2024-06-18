@@ -14,6 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
+import java.io.File
 import scala.io.Source
 
 import cats.Id
@@ -133,11 +134,11 @@ class IntegrationSpec extends AnyWordSpec with Inspectors {
   "IntegrationSpec" in {
 
     val conf = decode[Conf](
-      Source.fromResource("recovery_scenarios.json").mkString
+      Source.fromFile(new File("examples/config.json")).mkString
     ).right.get.data
 
     val enriched = Source
-      .fromResource("bad_rows.json")
+      .fromFile(new File("examples/input.txt"))
       .getLines
       .toList
       .map(recoveryExecute(conf))

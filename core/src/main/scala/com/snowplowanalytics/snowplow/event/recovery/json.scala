@@ -15,8 +15,8 @@
 package com.snowplowanalytics.snowplow
 package event.recovery
 
-import cats.syntax.functor._
-import io.circe.{Decoder, Encoder, Printer}
+import cats.implicits._
+import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json, JsonObject, Printer}
 import io.circe.syntax._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.generic.extras.semiauto.{deriveEnumerationDecoder, deriveEnumerationEncoder}
@@ -24,6 +24,7 @@ import com.snowplowanalytics.snowplow.badrows._
 import com.snowplowanalytics.iglu.core.circe.implicits._
 import config._
 import config.conditions._
+import badrows.NVP
 
 object json {
   def path(str: String): Seq[String] = {
@@ -156,4 +157,55 @@ object json {
     private[this] def field[A: Decoder](fieldName: String)(b: BadRow): Option[A] =
       b.selfDescribingData.data.hcursor.get[A](fieldName).toOption
   }
+
+  // this is an override of a decoder found in snowplow/snowplow-badrows
+  // the original decoder is not isomprphic with encoder
+  // encoded json containing non-string values would break with object
+  // conversion
+  implicit val nvpsDecoder: Decoder[List[NVP]] = new Decoder[List[NVP]] {
+    final def apply(cur: HCursor): Decoder.Result[List[NVP]] =
+      cur.focus match {
+        case Some(json) =>
+          json.fold(
+            DecodingFailure("query string (payload.raw.parameters) can not be null", cur.history).asLeft,
+            b =>
+              DecodingFailure(
+                s"query string (payload.raw.parameters) can not be boolean, [$b] provided",
+                cur.history
+              ).asLeft,
+            n =>
+              DecodingFailure(
+                s"query string (payload.raw.parameters) cannot be number, [$n] provided",
+                cur.history
+              ).asLeft,
+            s =>
+              DecodingFailure(
+                s"query string (payload.raw.parameters) cannot be string, [$s] provided",
+                cur.history
+              ).asLeft,
+            a => arrayToNVPs(a),
+            o => objectToNVPs(o)
+          )
+        case None =>
+          DecodingFailure("query string (payload.raw.parameters) is missing", cur.history).asLeft
+      }
+  }
+
+  private def arrayToNVPs(arr: Vector[Json]): Decoder.Result[List[NVP]] =
+    arr.toList.traverse(_.as[NVP])
+
+  private def objectToNVPs(obj: JsonObject): Decoder.Result[List[NVP]] =
+    obj.toList.traverse { case (key, value) =>
+      value
+        .fold(
+          None.asRight,
+          b => Some(b.toString).asRight,
+          n => Some(n.toString).asRight,
+          s => Some(s).asRight,
+          a => DecodingFailure(s"NVP parameter cannot be an array, [$a] provided", List.empty).asLeft,
+          o => DecodingFailure(s"NVP parameter cannot be an object, [$o] provided", List.empty).asLeft
+        )
+        .map(v => NVP(key, v))
+    }
+
 }
