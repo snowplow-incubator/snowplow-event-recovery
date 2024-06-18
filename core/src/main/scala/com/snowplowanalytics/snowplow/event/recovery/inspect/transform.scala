@@ -24,6 +24,7 @@ import io.circe.parser.{parse => parseJson}
 import domain._
 import com.snowplowanalytics.snowplow.badrows.NVP
 import scala.util.matching.Regex
+import json.nvpsDecoder
 
 /** A blueprint for transformation operations on JSON objects
   */
@@ -198,7 +199,7 @@ private[inspect] object transform {
       .flatMap(encode)
 
   private[this] val indexF = (name: String) =>
-    (json: ACursor) => (Option(index(name)) <*> json.as[List[NVP]].toOption).filter(_ >= 0)
+    (json: ACursor) => (Option(index(name)) <*> json.as[List[NVP]](nvpsDecoder).toOption).filter(_ >= 0)
 
   private[this] val index = (name: String) => (nvps: List[NVP]) => nvps.indexWhere(_.name == name)
 

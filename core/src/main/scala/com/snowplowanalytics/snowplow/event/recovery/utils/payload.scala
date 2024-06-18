@@ -17,7 +17,6 @@ package event.recovery
 package util
 
 import scala.collection.JavaConverters._
-import cats.syntax.either._
 import io.circe.Json
 import io.circe.parser._
 import domain._
@@ -26,6 +25,8 @@ import CollectorPayload.thrift.model1.CollectorPayload
 import org.joda.time.DateTime
 import java.util.UUID
 import com.snowplowanalytics.iglu.core.SchemaKey
+import io.circe._
+import cats.implicits._
 
 object payload {
 
@@ -72,7 +73,7 @@ object payload {
       extractData(e)
         .flatMap { case (schema, data) =>
           data
-            .as[List[NVP]]
+            .as[List[NVP]](json.nvpsDecoder)
             .map(nvps => querystring.fromNVP(nvps :+ NVP("schema", Some(schema))))
             .leftMap(err => UncoerciblePayload(e, err.toString))
         }
