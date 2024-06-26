@@ -224,24 +224,19 @@
     "event_version": "2-0-0"
   },
   {
-    "platform": "app",
-    "etl_tstamp": "1970-01-18T08:40:00",
-    "collector_tstamp": "2024-02-02T12:51:38.534",
-    "event": "unstruct",
-    "v_tracker": "com.snowplowanalytics.iglu-v1",
-    "v_collector": "ssc-2.10.0-kinesis",
-    "user_ipaddress": "34.76.244.217",
-    "network_userid": "ccbd375d-e37f-4919-811c-780f460a3ed4",
-    "page_url": "https://www.lorem.com/Ipsum-dolor-sit-AMET",
-    "page_urlscheme": "https",
-    "page_urlhost": "www.lorem.com",
-    "page_urlport": 443,
-    "page_urlpath": "/Ipsum-dolor-sit-AMET",
-    "useragent": "python-requests/2.31.0",
-    "derived_tstamp": "2024-02-02T12:51:38.534",
-    "event_vendor": "com.snowplowanalytics.iglu",
-    "event_name": "anything-a",
-    "event_format": "jsonschema",
-    "event_version": "1-0-0"
-  }
+    "platform" : "app",
+    "etl_tstamp" : "1970-01-18T08:40:00",
+    "collector_tstamp" : "2024-02-02T12:51:38.534",
+    "event" : "unstruct",
+    "v_tracker" : "com.snowplowanalytics.iglu-v1",
+    "v_collector" : "ssc-2.10.0-kinesis",
+    "user_ipaddress" : "34.76.244.217",
+    "network_userid" : "ccbd375d-e37f-4919-811c-780f460a3ed4",
+    "useragent" : "python-requests/2.31.0",
+    "derived_tstamp" : "2024-02-02T12:51:38.534",
+    "event_vendor" : "com.snowplowanalytics.iglu",
+    "event_name" : "anything-a",
+    "event_format" : "jsonschema",
+    "event_version" : "1-0-0"
+   }
 ]
