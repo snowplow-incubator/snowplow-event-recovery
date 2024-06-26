@@ -70,19 +70,13 @@ object payload {
           cp
         }
     case e @ Payload.EnrichmentPayload(_, p) if p.vendor == "com.snowplowanalytics.iglu" =>
-      extractData(e)
-        .flatMap { case (schema, data) =>
-          data
-            .as[List[NVP]](json.nvpsDecoder)
-            .map(nvps => querystring.fromNVP(nvps :+ NVP("schema", Some(schema))))
-            .leftMap(err => UncoerciblePayload(e, err.toString))
-        }
-        .map { querystring =>
-          val cp = convert(p)
-          cp.querystring = querystring
-          cp
-        }
-
+      extractData(e).map { case (schema, data) =>
+        val cp = convert(p)
+        cp.body = data.noSpaces
+        cp.querystring = s"schema=$schema"
+        cp.contentType = "application/json"
+        cp
+      }
     case Payload.EnrichmentPayload(_, p) => convert(p).asRight
     case p                               => Left(UncocoerciblePayload(p.toString, "Unsupported request format"))
   }
