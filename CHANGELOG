@@ -1,3 +1,7 @@
+Version 0.7.2 (2024-06-26)
+--------------------------
+Do not decode iglu json webhook ue_pr paramter on coerce (close #144)
+
 Version 0.7.1 (2024-06-18)
 --------------------------
 Make NVP codec isomorphic (close #143)
