@@ -14,35 +14,70 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import org.apache.flink.util.Collector
-import org.apache.flink.streaming.api.scala.OutputTag
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import domain._
+import scala.collection.JavaConverters._
+
+import org.apache.flink.api.common.accumulators.{IntMaximum, LongCounter}
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Counter
-import org.apache.flink.api.common.accumulators.LongCounter
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.scala.OutputTag
+import org.apache.flink.util.Collector
+
+import domain._
 
 class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[RecoveryError])
-    extends ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]] {
+    extends ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]]
+    with CheckpointedFunction {
+  import SplitByStatus._
 
-  // we need this as described here:
-  //  https://nightlies.apache.org/flink/flink-docs-release-1.15/docs/ops/metrics
+  // Live metrics, reset when the job restarts. Flink assigns them in open(), see
+  //  https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/ops/metrics
   @transient private var recoveredCount: Counter     = _
   @transient private var failedCount: Counter        = _
   @transient private var unrecoverableCount: Counter = _
 
-  // Totals for the end-of-run summary. Accumulators are merged across subtasks and returned by env.execute()
+  // Totals for the end-of-run summary. Accumulators are merged across subtasks and returned by env.execute(), but
+  // Flink does not checkpoint them, so they are also kept in operator state and restored from it after a restart.
   private val recoveredTotal     = new LongCounter()
   private val failedTotal        = new LongCounter()
   private val unrecoverableTotal = new LongCounter()
+  private val attempt            = new IntMaximum()
+
+  // Operator state holding the totals, assigned by Flink in initializeState()
+  @transient private var totalsState: ListState[java.lang.Long] = _
+
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    totalsState =
+      context.getOperatorStateStore.getListState(new ListStateDescriptor(TotalsState, classOf[java.lang.Long]))
+    // Each subtask stores (recovered, failed, unrecoverable). On restore a subtask may receive several triples, or
+    // none if parallelism changed; their sum over all subtasks is the total either way.
+    totalsState.get.asScala.map(_.longValue).toList.grouped(3).foreach {
+      case List(recovered, failed, unrecoverable) =>
+        recoveredTotal.add(recovered)
+        failedTotal.add(failed)
+        unrecoverableTotal.add(unrecoverable)
+      case other =>
+        throw new IllegalStateException(s"Corrupt $TotalsState state: expected triples, got $other")
+    }
+  }
+
+  override def snapshotState(context: FunctionSnapshotContext): Unit =
+    totalsState.update(
+      List(recoveredTotal, failedTotal, unrecoverableTotal).map(t => java.lang.Long.valueOf(t.getLocalValue)).asJava
+    )
 
   override def open(parameters: Configuration): Unit = {
     recoveredCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("recovered")
     failedCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("failed")
     unrecoverableCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("unrecoverable")
-    getRuntimeContext().addAccumulator(SplitByStatus.Recovered, recoveredTotal)
-    getRuntimeContext().addAccumulator(SplitByStatus.Failed, failedTotal)
-    getRuntimeContext().addAccumulator(SplitByStatus.Unrecoverable, unrecoverableTotal)
+    getRuntimeContext().addAccumulator(Recovered, recoveredTotal)
+    getRuntimeContext().addAccumulator(Failed, failedTotal)
+    getRuntimeContext().addAccumulator(Unrecoverable, unrecoverableTotal)
+    attempt.add(getRuntimeContext().getTaskInfo().getAttemptNumber())
+    getRuntimeContext().addAccumulator(Attempt, attempt)
   }
 
   override def processElement(
@@ -76,4 +111,9 @@ object SplitByStatus {
   val Recovered     = "recovered"
   val Failed        = "failed"
   val Unrecoverable = "unrecoverable"
+
+  /** Highest task attempt number, i.e. how many times the job restarted */
+  val Attempt = "attempt"
+
+  private val TotalsState = "recovery-totals"
 }

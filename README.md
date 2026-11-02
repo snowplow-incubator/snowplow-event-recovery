@@ -38,6 +38,8 @@ On success the job logs a summary:
 Recovery finished: <n> recovered and written to Kinesis stream <stream>, <n> failed (written to <path>), <n> unrecoverable (written to <path>)
 ```
 
+`failed` and `unrecoverable` are bad rows the recovery configuration could not fix. They are written to S3 and never reach Kinesis. Each input event is counted once, even when the job restarted from a checkpoint (see below).
+
 The live metrics, reported through the configured metrics reporter (statsd in `.dataflow-runner/flink-cluster.json.tmpl`), mean:
 
 | Metric | Meaning |
@@ -47,6 +49,14 @@ The live metrics, reported through the configured metrics reporter (statsd in `.
 | `numRecordsOutErrors` on the `kinesis: Writer` operator | Records Kinesis rejected and that will be retried. |
 
 While the job runs, records written so far is `numRecordsOut` minus `numRecordsOutErrors` on `kinesis: Writer`. This relies on Kinesis reporting an accurate `FailedRecordCount` for PutRecords. It has not been verified against real Kinesis: the integration tests use LocalStack, which reports a `FailedRecordCount` of 1 for any throttled batch.
+
+## Flink job: checkpointing and resuming
+Pass `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` to turn on checkpointing. The input position, the events waiting in the Kinesis sink and the counts are saved in each checkpoint.
+
+- **A task fails during the run** (for example a lost node): Flink restarts the job from its last checkpoint, up to 3 times with 10 seconds between attempts. A `restart-strategy` set in the cluster's Flink configuration is used instead of this default (the job checks for one; this is not covered by a test). The summary then says how many times the job restarted.
+- **The run fails for good** (restarts used up, or the step was stopped): its checkpoints are kept under `<checkpoint-dir>/<job id>/chk-<n>`. Rerun on the same input with `flink run -s <checkpoint-dir>/<job id>/chk-<highest n>` to continue from there. The failure is logged with these directions. Resuming is tested on Flink's local test cluster, not yet on EMR.
+
+Delivery to Kinesis is at-least-once. Events the sink sent after the checkpoint a run continues from are sent again, so the stream can hold some events twice. Each event is still counted once in the summary. Without checkpointing, a failed run cannot be continued: rerunning on the same input sends again every event the failed run had written.
 
 # Extending recovery
 There are several extension points for recovery: Steps, Conditions or additional [BadRow][badrows] types.

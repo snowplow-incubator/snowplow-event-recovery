@@ -14,7 +14,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
+import scala.concurrent.duration.{DurationLong, MILLISECONDS, NANOSECONDS, TimeUnit}
 import cats.Id
 import cats.effect._
 import cats.implicits._
@@ -82,13 +82,14 @@ object Main
     val checkpointInterval = Opts
       .option[Long](
         "checkpoint-interval",
-        help = "How often (in seconds) should the job perfrom checkpointing operations"
+        help = "How often, in seconds, the job takes a checkpoint. Needs --checkpoint-dir"
       )
       .orNone
     val checkpointDir = Opts.option[String]("checkpoint-dir", help = "Where to store the checkpoints").orNone
 
     val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
-    val checkpointing   = (checkpointInterval, checkpointDir).mapN((_, _).mapN(Checkpointing))
+    val checkpointing =
+      (checkpointInterval, checkpointDir).mapN((_, _).mapN((seconds, dir) => Checkpointing(seconds.seconds, dir)))
 
     (input, output, failedOutput, unrecoverableOutput, validatedConfig, region, batchSize, maxBuffered, checkpointing)
       .mapN { (i, o, f, u, c, r, bs, mb, ch) =>
