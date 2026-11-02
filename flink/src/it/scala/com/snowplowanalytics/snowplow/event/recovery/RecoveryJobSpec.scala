@@ -58,6 +58,15 @@ class RecoveryJobSpec extends AnyWordSpec with TestContainerForAll with BeforeAn
     services = List(Service.KINESIS)
   )
 
+  // testcontainers-scala 0.41+ dropped its AWS SDK v1 helpers; rebuild them from the Java container
+  private def endpointConfiguration(localstack: LocalStackContainer, service: Service): EndpointConfiguration =
+    new EndpointConfiguration(localstack.container.getEndpointOverride(service).toString, localstack.container.getRegion)
+
+  private def credentialsProvider(localstack: LocalStackContainer): AWSStaticCredentialsProvider =
+    new AWSStaticCredentialsProvider(
+      new BasicAWSCredentials(localstack.container.getAccessKey, localstack.container.getSecretKey)
+    )
+
   val cfg: Config = parser
     .decode("""
     {
@@ -117,12 +126,10 @@ class RecoveryJobSpec extends AnyWordSpec with TestContainerForAll with BeforeAn
     "recover" should {
       "bad events into Kinesis stream" in withContainers { localstack: LocalStackContainer =>
         val outputStreamName = "output"
-        val endpoint         = localstack.endpointConfiguration(Service.KINESIS)
-        val accessValue =
-          localstack.defaultCredentialsProvider.getCredentials.getAWSAccessKeyId
-        val secretValue =
-          localstack.defaultCredentialsProvider.getCredentials.getAWSSecretKey
-        val credentials = localstack.defaultCredentialsProvider
+        val endpoint         = endpointConfiguration(localstack, Service.KINESIS)
+        val credentials      = credentialsProvider(localstack)
+        val accessValue      = credentials.getCredentials.getAWSAccessKeyId
+        val secretValue      = credentials.getCredentials.getAWSSecretKey
 
         val kinesisClient = AmazonKinesisClientBuilder
           .standard()

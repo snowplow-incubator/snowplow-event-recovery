@@ -81,7 +81,8 @@ object Dependencies {
     val scalaCheckSchema    = "0.2.1"
     val scalaCheckShapeless = "1.3.0"
     val scalaCommonEnrich   = "3.2.1"
-    val testContainers      = "0.40.15"
+    val testContainers      = "0.43.6"
+    val testContainersJava  = "1.21.4" // Docker Engine 29 rejects the API version older testcontainers-java requests
     val catsRetry           = "2.1.0"
 
     //cli
@@ -154,6 +155,8 @@ object Dependencies {
   val mockito  = "org.scalatestplus" %% "mockito-4-2" % s"${V.scalatest}.0" % Test
   val testContainers = Seq("testcontainers-scala-scalatest", "testcontainers-scala-localstack").map(
     "com.dimafeng" %% _ % V.testContainers % Seq(Test, IntegrationTest).mkString(",")
+  ) ++ Seq("testcontainers", "localstack").map(
+    "org.testcontainers" % _ % V.testContainersJava % Seq(Test, IntegrationTest).mkString(",")
   )
   val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
 
