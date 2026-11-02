@@ -16,11 +16,12 @@ package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.concurrent.duration.{DurationLong, MILLISECONDS, NANOSECONDS, TimeUnit}
 import cats.Id
+import cats.data.Validated
 import cats.effect._
 import cats.implicits._
 import com.monovore.decline._
 import com.monovore.decline.effect._
-import util.base64
+import util.{base64, paths}
 import config._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
@@ -29,23 +30,56 @@ object Main
       name = "snowplow-event-recovery-job",
       header = "Snowplow event recovery job"
     ) {
+
+  /** Kinesis accepts at most this many records in one PutRecords call */
+  val MaxKinesisBatchSize = 500
+
+  // The Spark and Beam jobs name these --failedOutput, --unrecoverableOutput and --batchSize. Both names are accepted
+  // so the same arguments work with every runner.
+  private[recovery] val failedOutput: Opts[Option[String]] = optionWithAlias[String](
+    "failed",
+    "failedOutput",
+    "Output path for bad rows that could not be recovered. Defaults to `input`/unrecovered"
+  ).orNone
+
+  private[recovery] val unrecoverableOutput: Opts[Option[String]] = optionWithAlias[String](
+    "unrecoverable",
+    "unrecoverableOutput",
+    "Output path for bad rows that can never be recovered. Defaults to `failed`/unrecoverable, or `input`/unrecoverable"
+  ).orNone
+
+  private[recovery] val batchSize: Opts[Option[Int]] = optionWithAlias[Int](
+    "batch-size",
+    "batchSize",
+    s"Records per Kinesis PutRecords call, at most $MaxKinesisBatchSize"
+  ).mapValidated { size =>
+    Validated.condNel(
+      size >= 1 && size <= MaxKinesisBatchSize,
+      size,
+      s"--batch-size must be between 1 and $MaxKinesisBatchSize (the Kinesis PutRecords limit), got $size"
+    )
+  }.orNone
+
+  /** Same defaults as the Spark and Beam jobs. They sit under `input`, so a rerun on the same input reads them too. */
+  private[recovery] def failedPathOrDefault(input: String, failed: Option[String]): String =
+    failed.getOrElse(paths.failedPath(input))
+
+  private[recovery] def unrecoverablePathOrDefault(
+    input: String,
+    failed: Option[String],
+    unrecoverable: Option[String]
+  ): String =
+    unrecoverable.orElse(failed.map(paths.unrecoverablePath)).getOrElse(paths.unrecoverablePath(input))
+
+  /** An option that can also be given under the name the Spark and Beam jobs use */
+  private def optionWithAlias[A: Argument](name: String, alias: String, help: String): Opts[A] =
+    Opts.option[A](name, help).orElse(Opts.option[A](alias, s"Same as --$name"))
+
   override def main: Opts[IO[ExitCode]] = {
     val input = Opts.option[String](
       "input",
       help = "Input S3 path"
     )
-    val failedOutput = Opts
-      .option[String](
-        "failed",
-        help = "Unrecovered (bad row) output S3 path. Defaults to `input`"
-      )
-      .orNone
-    val unrecoverableOutput = Opts
-      .option[String](
-        "unrecoverable",
-        help = "Unrecoverable (bad row) output S3 path. Defaults failedOutput/unrecoverable` or `input/unrecoverable`"
-      )
-      .orNone
     val output = Opts.option[String](
       "output",
       help = "Output Kinesis topic"
@@ -64,13 +98,6 @@ object Main
       .mapValidated(base64.decode(_).leftMap(_.message).toValidatedNel)
 
     val region = Opts.option[String]("region", help = "Kinesis region")
-
-    val batchSize = Opts
-      .option[Int](
-        "batch-size",
-        help = "Kinesis batch size"
-      )
-      .orNone
 
     val maxBuffered = Opts
       .option[Int](
@@ -99,8 +126,8 @@ object Main
               StreamExecutionEnvironment.getExecutionEnvironment,
               i,
               o,
-              f.getOrElse(s"$o/failed"),
-              u.getOrElse(s"$o/unrecoverable"),
+              failedPathOrDefault(i, f),
+              unrecoverablePathOrDefault(i, f, u),
               config,
               KinesisConfig(region = r, batchSize = bs, maxBuffered = mb, checkpointing = ch)
             )

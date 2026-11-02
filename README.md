@@ -29,6 +29,11 @@ Flows are sequences of Steps applied one by one.
 - Spark (deprecated)
 - Flink
 
+## Flink job: arguments
+The Flink job accepts the argument names of the Spark and Beam jobs as well as its own: `--failedOutput` for `--failed`, `--unrecoverableOutput` for `--unrecoverable` and `--batchSize` for `--batch-size`. `--batch-size` must be between 1 and 500, the most records Kinesis accepts in one PutRecords call.
+
+Without `--failed`, failed bad rows go to `<input>/unrecovered`; without `--unrecoverable`, unrecoverable ones go to `<failed>/unrecoverable`, as with the Spark and Beam jobs. These defaults sit under the input path and the job reads its input path including subdirectories, so a rerun on the same input would read them back. Pass both paths when the input will be read again.
+
 ## Flink job: delivery and counts
 The Flink job retries records that Kinesis throttles until they are written. A record rejected with a non-retryable error fails the job instead of being dropped. So when the job finishes successfully, every recovered event is in the output stream.
 
