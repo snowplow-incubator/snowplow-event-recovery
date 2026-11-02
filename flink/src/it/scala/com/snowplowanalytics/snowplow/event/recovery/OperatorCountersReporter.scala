@@ -15,7 +15,6 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.Properties
-
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConverters._
@@ -23,20 +22,19 @@ import scala.collection.JavaConverters._
 import org.apache.flink.metrics.{Counter, Metric, MetricConfig, MetricGroup}
 import org.apache.flink.metrics.reporter.{MetricReporter, MetricReporterFactory}
 
-/** Captures every sink writer's `numRecordsOutErrors` counter.
+/** Records every operator-scoped counter with the name of the operator that registered it.
   *
-  * The Kinesis sink increments it once per record a PutRecords call rejects, before re-queueing the record. The file
-  * sinks for failed and unrecoverable rows register it too but never increment it. All three writers are named
-  * "Sink: Writer", so their metric identifiers collide and the counters are kept as a list, not keyed by identifier.
+  * Task-scoped groups carry no `<operator_name>` variable, so a task whose name merely contains an operator's name is
+  * never mistaken for that operator.
   */
-class SinkErrorsReporter extends MetricReporter {
+class OperatorCountersReporter extends MetricReporter {
   override def open(config: MetricConfig): Unit = {}
   override def close(): Unit                     = {}
 
   override def notifyOfAddedMetric(metric: Metric, name: String, group: MetricGroup): Unit =
-    metric match {
-      case counter: Counter if name == SinkErrorsReporter.MetricName =>
-        SinkErrorsReporter.counters.add(counter)
+    (metric, Option(group.getAllVariables.get("<operator_name>"))) match {
+      case (counter: Counter, Some(operator)) =>
+        OperatorCountersReporter.counters.add(OperatorCountersReporter.Entry(operator, name, counter))
         ()
       case _ => ()
     }
@@ -44,14 +42,18 @@ class SinkErrorsReporter extends MetricReporter {
   override def notifyOfRemovedMetric(metric: Metric, name: String, group: MetricGroup): Unit = {}
 }
 
-object SinkErrorsReporter {
-  val MetricName = "numRecordsOutErrors"
+object OperatorCountersReporter {
+  final case class Entry(operator: String, metric: String, counter: Counter)
 
-  val counters: ConcurrentLinkedQueue[Counter] = new ConcurrentLinkedQueue[Counter]()
+  val counters: ConcurrentLinkedQueue[Entry] = new ConcurrentLinkedQueue[Entry]()
 
-  def total: Long = counters.asScala.map(_.getCount).sum
+  /** Sum of `metric` over every subtask of the operators whose name starts with `operatorPrefix` */
+  def total(operatorPrefix: String, metric: String): Long =
+    counters.asScala.collect {
+      case Entry(operator, `metric`, counter) if operator.startsWith(operatorPrefix) => counter.getCount
+    }.sum
 }
 
-class SinkErrorsReporterFactory extends MetricReporterFactory {
-  override def createMetricReporter(properties: Properties): MetricReporter = new SinkErrorsReporter
+class OperatorCountersReporterFactory extends MetricReporterFactory {
+  override def createMetricReporter(properties: Properties): MetricReporter = new OperatorCountersReporter
 }

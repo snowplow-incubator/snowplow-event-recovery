@@ -17,6 +17,7 @@ package com.snowplowanalytics.snowplow.event.recovery
 import java.util.Properties
 import org.slf4j.LoggerFactory
 import cats.syntax.either._
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.core.fs.Path
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.serialization.SerializationSchema
@@ -34,7 +35,14 @@ import util.paths._
 import org.apache.flink.connector.aws.config.AWSConfigConstants
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
 
-object RecoveryJob extends RecoveryJob
+object RecoveryJob extends RecoveryJob {
+
+  /** Operator name of the Kinesis sink. Its writer reports metrics as "kinesis: Writer". */
+  val KinesisSinkName = "kinesis"
+}
+
+/** Event totals of a successful run. Only produced when every recovered event was written to Kinesis. */
+final case class RecoverySummary(recovered: Long, failed: Long, unrecoverable: Long)
 
 trait RecoveryJob {
 
@@ -67,7 +75,7 @@ trait RecoveryJob {
     unrecoverableOutput: String,
     cfg: Config,
     kinesisConfig: KinesisConfig
-  ): Unit = {
+  ): RecoverySummary = {
     val properties = new Properties()
     properties.put(AWSConfigConstants.AWS_REGION, kinesisConfig.region)
     kinesisConfig.credentials.foreach { case Credentials(accessKey, secretKey) =>
@@ -96,10 +104,10 @@ trait RecoveryJob {
 
     val recovering = load(env, input).map(execute(cfg)(_)).process(new SplitByStatus(failed, unrecoverable))
 
-    recovering.sinkTo(kinesis)
+    recovering.sinkTo(kinesis).name(RecoveryJob.KinesisSinkName)
 
-    sinkErr(recovering, failed, failedOutput)
-    sinkErr(recovering, unrecoverable, unrecoverableOutput)
+    sinkErr(recovering, failed, failedOutput, "failed")
+    sinkErr(recovering, unrecoverable, unrecoverableOutput, "unrecoverable")
 
     kinesisConfig.checkpointing.foreach { ch =>
       env.enableCheckpointing(ch.interval, CheckpointingMode.EXACTLY_ONCE)
@@ -108,19 +116,39 @@ trait RecoveryJob {
       checkpointing.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
       checkpointing.setCheckpointStorage(ch.directory)
     }
-    env.execute("event-recovery")
-    ()
+    val result = env.execute("event-recovery")
+    val summary = RecoverySummary(
+      recovered = accumulator(result, SplitByStatus.Recovered),
+      failed = accumulator(result, SplitByStatus.Failed),
+      unrecoverable = accumulator(result, SplitByStatus.Unrecoverable)
+    )
+    // execute() only returns once the Kinesis sink has written every record it was given: it retries throttled
+    // records until they land and fails the job on a non-retryable error. So `recovered` here is what Kinesis holds.
+    log.info(
+      s"Recovery finished: ${summary.recovered} recovered and written to Kinesis stream $output, " +
+        s"${summary.failed} failed (written to $failedOutput), " +
+        s"${summary.unrecoverable} unrecoverable (written to $unrecoverableOutput)"
+    )
+    summary
   }
+
+  private[this] def accumulator(result: JobExecutionResult, name: String): Long =
+    Option(result.getAccumulatorResult[java.lang.Long](name)).fold(0L)(_.longValue)
 
   def load(env: StreamExecutionEnvironment, input: String): DataStream[String] =
     env.readTextFile(input, "UTF-8")
 
-  private[this] def sinkErr(recovering: DataStream[Array[Byte]], sideTag: OutputTag[RecoveryError], output: String) =
+  private[this] def sinkErr(
+    recovering: DataStream[Array[Byte]],
+    sideTag: OutputTag[RecoveryError],
+    output: String,
+    name: String
+  ) =
     Either
       .catchNonFatal {
         val side: DataStream[RecoveryError] = recovering.getSideOutput[RecoveryError](sideTag)
         val res: DataStream[String]         = side.map(_.badRow.selfDescribingData.asJson.noSpaces)
-        res.sinkTo(file(output))
+        res.sinkTo(file(output)).name(name)
       }
       .leftMap { err =>
         log.warn(s"Unable to write side output ${sideTag}.")

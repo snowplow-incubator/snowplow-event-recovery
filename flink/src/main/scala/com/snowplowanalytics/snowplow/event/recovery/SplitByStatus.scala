@@ -20,6 +20,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import domain._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Counter
+import org.apache.flink.api.common.accumulators.LongCounter
 
 class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[RecoveryError])
     extends ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]] {
@@ -30,10 +31,18 @@ class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[R
   @transient private var failedCount: Counter        = _
   @transient private var unrecoverableCount: Counter = _
 
+  // Totals for the end-of-run summary. Accumulators are merged across subtasks and returned by env.execute()
+  private val recoveredTotal     = new LongCounter()
+  private val failedTotal        = new LongCounter()
+  private val unrecoverableTotal = new LongCounter()
+
   override def open(parameters: Configuration): Unit = {
     recoveredCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("recovered")
     failedCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("failed")
     unrecoverableCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("unrecoverable")
+    getRuntimeContext().addAccumulator(SplitByStatus.Recovered, recoveredTotal)
+    getRuntimeContext().addAccumulator(SplitByStatus.Failed, failedTotal)
+    getRuntimeContext().addAccumulator(SplitByStatus.Unrecoverable, unrecoverableTotal)
   }
 
   override def processElement(
@@ -44,18 +53,27 @@ class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[R
     value match {
       case Right(v) =>
         recoveredCount.inc()
+        recoveredTotal.add(1L)
         out.collect(v)
       case v @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
         unrecoverableCount.inc()
+        unrecoverableTotal.add(1L)
         ctx.output[RecoveryError](
           unrecoverable,
           v.left.get
         )
       case Left(v) =>
         failedCount.inc()
+        failedTotal.add(1L)
         ctx.output[RecoveryError](
           failed,
           v
         )
     }
+}
+
+object SplitByStatus {
+  val Recovered     = "recovered"
+  val Failed        = "failed"
+  val Unrecoverable = "unrecoverable"
 }

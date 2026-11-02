@@ -29,6 +29,25 @@ Flows are sequences of Steps applied one by one.
 - Spark (deprecated)
 - Flink
 
+## Flink job: delivery and counts
+The Flink job retries records that Kinesis throttles until they are written. A record rejected with a non-retryable error fails the job instead of being dropped. So when the job finishes successfully, every recovered event is in the output stream.
+
+On success the job logs a summary:
+
+```
+Recovery finished: <n> recovered and written to Kinesis stream <stream>, <n> failed (written to <path>), <n> unrecoverable (written to <path>)
+```
+
+The live metrics, reported through the configured metrics reporter (statsd in `.dataflow-runner/flink-cluster.json.tmpl`), mean:
+
+| Metric | Meaning |
+|---|---|
+| `events.recovered`, `events.failed`, `events.unrecoverable` | Events counted as they leave the recovery step, before any write. `recovered` is what was handed to the Kinesis sink, not what Kinesis accepted. |
+| `numRecordsOut` on the `kinesis: Writer` operator | Records sent to Kinesis, counting each retry again. |
+| `numRecordsOutErrors` on the `kinesis: Writer` operator | Records Kinesis rejected and that will be retried. |
+
+While the job runs, records written so far is `numRecordsOut` minus `numRecordsOutErrors` on `kinesis: Writer`. This relies on Kinesis reporting an accurate `FailedRecordCount` for PutRecords. It has not been verified against real Kinesis: the integration tests use LocalStack, which reports a `FailedRecordCount` of 1 for any throttled batch.
+
 # Extending recovery
 There are several extension points for recovery: Steps, Conditions or additional [BadRow][badrows] types.
 

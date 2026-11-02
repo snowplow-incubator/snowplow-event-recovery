@@ -1,1 +1,1 @@
-com.snowplowanalytics.snowplow.event.recovery.SinkErrorsReporterFactory
+com.snowplowanalytics.snowplow.event.recovery.OperatorCountersReporterFactory

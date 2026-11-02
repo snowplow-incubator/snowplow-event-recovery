@@ -71,7 +71,7 @@ class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with Bef
     new MiniClusterResourceConfiguration.Builder()
       .setConfiguration {
         val config = new Configuration()
-        config.setString("metrics.reporter.sink-errors.factory.class", classOf[SinkErrorsReporterFactory].getName)
+        config.setString("metrics.reporter.counters.factory.class", classOf[OperatorCountersReporterFactory].getName)
         config
       }
       .setNumberSlotsPerTaskManager(1)
@@ -110,7 +110,7 @@ class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with Bef
         kinesis.createStream(new CreateStreamRequest().withStreamName(streamName).withShardCount(1))
         kinesis.waiters().streamExists().run(new WaiterParameters(new DescribeStreamRequest().withStreamName(streamName)))
 
-        ThrottledRecoveryJob.run(
+        val summary = ThrottledRecoveryJob.run(
           StreamExecutionEnvironment.getExecutionEnvironment,
           "unused",
           streamName,
@@ -127,11 +127,21 @@ class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with Bef
 
         val delivered = readAll(kinesis, streamName).map(_.toSeq)
 
+        // numRecordsOut counts every send attempt, retries included. numRecordsOutErrors adds PutRecords'
+        // FailedRecordCount, which LocalStack 2.0.2 always reports as 1 for a throttled batch, so it only shows that
+        // throttling happened, not how many records were rejected.
+        val attempted = OperatorCountersReporter.total(RecoveryJob.KinesisSinkName, "numRecordsOut")
+        val rejected  = OperatorCountersReporter.total(RecoveryJob.KinesisSinkName, "numRecordsOutErrors")
+
         withClue("throttling never happened, so the test proved nothing:") {
-          SinkErrorsReporter.total should be > 0L
+          rejected should be > 0L
+        }
+        withClue("no record was sent twice, so nothing was retried:") {
+          attempted should be > EventCount.toLong
         }
         delivered should have size EventCount.toLong
         delivered should contain theSameElementsAs pages.map(payloadFor(_).toSeq)
+        summary shouldBe RecoverySummary(recovered = EventCount.toLong, failed = 0L, unrecoverable = 0L)
     }
   }
 
