@@ -113,7 +113,7 @@ class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with Bef
         val summary = ThrottledRecoveryJob.run(
           StreamExecutionEnvironment.getExecutionEnvironment,
           "unused",
-          streamName,
+          Some(streamName),
           s"$errorsDir/failed",
           s"$errorsDir/unrecoverable",
           cfg,

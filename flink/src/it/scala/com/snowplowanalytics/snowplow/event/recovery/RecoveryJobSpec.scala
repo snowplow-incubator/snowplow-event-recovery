@@ -114,7 +114,7 @@ class RecoveryJobSpec extends AnyWordSpec with TestContainerForAll with BeforeAn
         RecoveryJobTest.run(
           StreamExecutionEnvironment.getExecutionEnvironment,
           badRow,
-          outputStreamName,
+          Some(outputStreamName),
           s"$errorsDir/failed",
           s"$errorsDir/unrecoverable",
           cfg,

@@ -96,7 +96,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         val summary = FailingJob.run(
           StreamExecutionEnvironment.getExecutionEnvironment,
           setup.inputDir,
-          setup.streamName,
+          Some(setup.streamName),
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,
@@ -121,7 +121,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         an[Exception] should be thrownBy FailingJob.run(
           StreamExecutionEnvironment.getExecutionEnvironment,
           setup.inputDir,
-          setup.streamName,
+          Some(setup.streamName),
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,
@@ -141,7 +141,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         val summary = FailingJob.run(
           resumedEnv,
           setup.inputDir,
-          setup.streamName,
+          Some(setup.streamName),
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,

@@ -30,17 +30,19 @@ Flows are sequences of Steps applied one by one.
 - Flink
 
 ## Flink job: arguments
+Recovered events go to a Kinesis stream (`--output`), to files (`--directory-output`, also accepted as `--directoryOutput`), or both; at least one is required. Files are useful for a dry run before sending events to Kinesis. Each recovered event is one line of JSON keyed by the collector payload's field names (`path`, `querystring`, `body`, `headers`, ...), in files named `part-<id>-<n>.json` under one directory per hour (`<directory>/<yyyy-MM-dd--HH>/`). A run that recovers no events writes no files there.
+
 The Flink job accepts the argument names of the Spark and Beam jobs as well as its own: `--failedOutput` for `--failed`, `--unrecoverableOutput` for `--unrecoverable` and `--batchSize` for `--batch-size`. `--batch-size` must be between 1 and 500, the most records Kinesis accepts in one PutRecords call.
 
 Without `--failed`, failed bad rows go to `<input>/unrecovered`; without `--unrecoverable`, unrecoverable ones go to `<failed>/unrecoverable`, as with the Spark and Beam jobs. These defaults sit under the input path and the job reads its input path including subdirectories, so a rerun on the same input would read them back. Pass both paths when the input will be read again.
 
 ## Flink job: delivery and counts
-The Flink job retries records that Kinesis throttles until they are written. A record rejected with a non-retryable error fails the job instead of being dropped. So when the job finishes successfully, every recovered event is in the output stream.
+The Flink job retries records that Kinesis throttles until they are written. A record rejected with a non-retryable error fails the job instead of being dropped. So when the job finishes successfully, every recovered event is in the output stream and directory, whichever were given. The summary names only the destinations that were given.
 
 On success the job logs a summary:
 
 ```
-Recovery finished: <n> recovered and written to Kinesis stream <stream>, <n> failed (written to <path>), <n> unrecoverable (written to <path>)
+Recovery finished: <n> recovered and written to Kinesis stream <stream> and <directory>, <n> failed (written to <path>), <n> unrecoverable (written to <path>)
 ```
 
 `failed` and `unrecoverable` are bad rows the recovery configuration could not fix. They are written to S3 and never reach Kinesis. Each input event is counted once, even when the job restarted from a checkpoint (see below).

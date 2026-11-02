@@ -60,6 +60,23 @@ object Main
     )
   }.orNone
 
+  /** Where recovered events go: a Kinesis stream, a directory of JSON lines, or both */
+  private[recovery] val recoveredOutputs: Opts[(Option[String], Option[String])] =
+    (
+      Opts.option[String]("output", "Kinesis stream to write recovered events to").orNone,
+      optionWithAlias[String](
+        "directory-output",
+        "directoryOutput",
+        "Path to write recovered events to instead of, or as well as, Kinesis: one JSON object per line"
+      ).orNone
+    ).tupled.mapValidated { case outputs @ (stream, directory) =>
+      Validated.condNel(
+        stream.isDefined || directory.isDefined,
+        outputs,
+        "Give --output, --directory-output or both"
+      )
+    }
+
   /** Same defaults as the Spark and Beam jobs. They sit under `input`, so a rerun on the same input reads them too. */
   private[recovery] def failedPathOrDefault(input: String, failed: Option[String]): String =
     failed.getOrElse(paths.failedPath(input))
@@ -79,10 +96,6 @@ object Main
     val input = Opts.option[String](
       "input",
       help = "Input S3 path"
-    )
-    val output = Opts.option[String](
-      "output",
-      help = "Output Kinesis topic"
     )
     val resolver = Opts
       .option[String](
@@ -118,23 +131,33 @@ object Main
     val checkpointing =
       (checkpointInterval, checkpointDir).mapN((_, _).mapN((seconds, dir) => Checkpointing(seconds.seconds, dir)))
 
-    (input, output, failedOutput, unrecoverableOutput, validatedConfig, region, batchSize, maxBuffered, checkpointing)
-      .mapN { (i, o, f, u, c, r, bs, mb, ch) =>
-        IO.fromEither(
-          c.map(config =>
-            RecoveryJob.run(
-              StreamExecutionEnvironment.getExecutionEnvironment,
-              i,
-              o,
-              failedPathOrDefault(i, f),
-              unrecoverablePathOrDefault(i, f, u),
-              config,
-              KinesisConfig(region = r, batchSize = bs, maxBuffered = mb, checkpointing = ch)
-            )
-          ).map(_ => ExitCode.Success)
-            .leftMap(new RuntimeException(_))
-        )
-      }
+    (
+      input,
+      recoveredOutputs,
+      failedOutput,
+      unrecoverableOutput,
+      validatedConfig,
+      region,
+      batchSize,
+      maxBuffered,
+      checkpointing
+    ).mapN { case (i, (o, d), f, u, c, r, bs, mb, ch) =>
+      IO.fromEither(
+        c.map(config =>
+          RecoveryJob.run(
+            StreamExecutionEnvironment.getExecutionEnvironment,
+            i,
+            o,
+            failedPathOrDefault(i, f),
+            unrecoverablePathOrDefault(i, f, u),
+            config,
+            KinesisConfig(region = r, batchSize = bs, maxBuffered = mb, checkpointing = ch),
+            d
+          )
+        ).map(_ => ExitCode.Success)
+          .leftMap(new RuntimeException(_))
+      )
+    }
   }
 
   implicit val catsClockIdInstance: Clock[Id] = new Clock[Id] {

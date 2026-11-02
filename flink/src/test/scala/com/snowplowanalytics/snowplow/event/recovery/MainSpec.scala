@@ -48,6 +48,25 @@ class MainSpec extends AnyWordSpec with EitherValues {
     }
   }
 
+  "Recovered event outputs" should {
+    "accept a Kinesis stream, a directory or both" in {
+      parse(Main.recoveredOutputs, "--output", "raw").value shouldBe ((Some("raw"), None))
+      parse(Main.recoveredOutputs, "--directoryOutput", "s3://bucket/out").value shouldBe (
+        (
+          None,
+          Some("s3://bucket/out")
+        )
+      )
+      parse(Main.recoveredOutputs, "--directory-output", "s3://bucket/out", "--output", "raw").value shouldBe
+        ((Some("raw"), Some("s3://bucket/out")))
+    }
+    "require at least one" in {
+      parse(Main.recoveredOutputs).left.value.errors.mkString should include(
+        "Give --output, --directory-output or both"
+      )
+    }
+  }
+
   "Output paths" should {
     "default like the Spark and Beam jobs" in {
       Main.failedPathOrDefault("s3://bucket/in/", None) shouldBe "s3://bucket/in/unrecovered"

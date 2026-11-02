@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup
 import org.apache.flink.connector.kinesis.sink.KinesisStreamsSink
 import org.apache.flink.connector.file.sink.FileSink
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig
 import org.apache.flink.connector.file.src.FileSource
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
@@ -45,6 +46,9 @@ object RecoveryJob extends RecoveryJob {
 
   /** Operator name of the Kinesis sink. Its writer reports metrics as "kinesis: Writer". */
   val KinesisSinkName = "kinesis"
+
+  /** Operator name of the sink writing recovered events to files */
+  val DirectorySinkName = "directory"
 }
 
 /** Event totals of a successful run. Only produced when every recovered event was written to Kinesis.
@@ -79,34 +83,18 @@ trait RecoveryJob {
   def run(
     env: StreamExecutionEnvironment,
     input: String,
-    output: String,
+    output: Option[String],
     failedOutput: String,
     unrecoverableOutput: String,
     cfg: Config,
-    kinesisConfig: KinesisConfig
+    kinesisConfig: KinesisConfig,
+    directoryOutput: Option[String] = None
   ): RecoverySummary = {
-    val properties = new Properties()
-    properties.put(AWSConfigConstants.AWS_REGION, kinesisConfig.region)
-    kinesisConfig.credentials.foreach { case Credentials(accessKey, secretKey) =>
-      properties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, accessKey)
-      properties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey)
-    }
-    kinesisConfig.endpoint.foreach { endpoint =>
-      properties.put(AWSConfigConstants.AWS_ENDPOINT, endpoint)
-    }
-
-    val kinesisBuilder = KinesisStreamsSink
-      .builder()
-      .setKinesisClientProperties(properties)
-      .setSerializationSchema(new BytesSerializationSchema())
-      .setPartitionKeyGenerator(new Partitioner())
-      .setStreamName(output)
-      .setFailOnError(false)
-
-    kinesisConfig.batchSize.foreach(kinesisBuilder.setMaxBatchSize)
-    kinesisConfig.maxBuffered.foreach(kinesisBuilder.setMaxBufferedRequests)
-
-    val kinesis = kinesisBuilder.build()
+    require(
+      output.isDefined || directoryOutput.isDefined,
+      "Recovered events need a Kinesis stream, a directory or both"
+    )
+    val destinations = (output.map(stream => s"Kinesis stream $stream").toList ++ directoryOutput).mkString(" and ")
 
     val failed        = OutputTag[RecoveryError]("failed")
     val unrecoverable = OutputTag[RecoveryError]("unrecoverable")
@@ -118,7 +106,20 @@ trait RecoveryJob {
       .process(new SplitByStatus(failed, unrecoverable))
       .uid("split-by-status")
 
-    recovering.sinkTo(kinesis).name(RecoveryJob.KinesisSinkName).uid(RecoveryJob.KinesisSinkName)
+    output.foreach { stream =>
+      recovering
+        .sinkTo(kinesisSink(stream, kinesisConfig))
+        .name(RecoveryJob.KinesisSinkName)
+        .uid(RecoveryJob.KinesisSinkName)
+    }
+    directoryOutput.foreach { directory =>
+      recovering
+        .map(RecoveredJson.fromThrift _)
+        .uid("recovered-json")
+        .sinkTo(jsonLines(directory))
+        .name(RecoveryJob.DirectorySinkName)
+        .uid(RecoveryJob.DirectorySinkName)
+    }
 
     sinkErr(recovering, failed, failedOutput, "failed")
     sinkErr(recovering, unrecoverable, unrecoverableOutput, "unrecoverable")
@@ -147,7 +148,7 @@ trait RecoveryJob {
 
     val result = Either.catchNonFatal(env.execute("event-recovery")).valueOr { err =>
       log.error(
-        s"Recovery failed. Recovered events written before the failure stay in Kinesis stream $output. " +
+        s"Recovery failed. Recovered events written before the failure stay in $destinations. " +
           kinesisConfig
             .checkpointing
             .fold(
@@ -167,11 +168,12 @@ trait RecoveryJob {
       unrecoverable = accumulator(result, SplitByStatus.Unrecoverable),
       restarts = Option(result.getAccumulatorResult[Integer](SplitByStatus.Attempt)).fold(0)(_.intValue)
     )
-    // execute() only returns once the Kinesis sink has written every record it was given: it retries throttled
-    // records until they land and fails the job on a non-retryable error. So every recovered event is in Kinesis.
+    // execute() only returns once the sinks have written every record they were given: the Kinesis sink retries
+    // throttled records until they land and fails the job on a non-retryable error. So every recovered event is in
+    // the destinations.
     // The counts are kept in checkpoints, so each input event is counted once however often the job restarted.
     log.info(
-      s"Recovery finished: ${summary.recovered} recovered and written to Kinesis stream $output, " +
+      s"Recovery finished: ${summary.recovered} recovered and written to $destinations, " +
         s"${summary.failed} failed (written to $failedOutput), " +
         s"${summary.unrecoverable} unrecoverable (written to $unrecoverableOutput)" +
         (if (summary.restarts > 0)
@@ -181,6 +183,38 @@ trait RecoveryJob {
     )
     summary
   }
+
+  private[this] def kinesisSink(stream: String, kinesisConfig: KinesisConfig): KinesisStreamsSink[Array[Byte]] = {
+    val properties = new Properties()
+    properties.put(AWSConfigConstants.AWS_REGION, kinesisConfig.region)
+    kinesisConfig.credentials.foreach { case Credentials(accessKey, secretKey) =>
+      properties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, accessKey)
+      properties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey)
+    }
+    kinesisConfig.endpoint.foreach { endpoint =>
+      properties.put(AWSConfigConstants.AWS_ENDPOINT, endpoint)
+    }
+
+    val kinesisBuilder = KinesisStreamsSink
+      .builder()
+      .setKinesisClientProperties(properties)
+      .setSerializationSchema(new BytesSerializationSchema())
+      .setPartitionKeyGenerator(new Partitioner())
+      .setStreamName(stream)
+      .setFailOnError(false)
+
+    kinesisConfig.batchSize.foreach(kinesisBuilder.setMaxBatchSize)
+    kinesisConfig.maxBuffered.foreach(kinesisBuilder.setMaxBufferedRequests)
+
+    kinesisBuilder.build()
+  }
+
+  /** One recovered event per line as JSON, in files ending .json under hourly directories of `directory` */
+  private[this] def jsonLines(directory: String): FileSink[String] =
+    FileSink
+      .forRowFormat(new Path(directory), new SimpleStringEncoder[String]("UTF-8"))
+      .withOutputFileConfig(OutputFileConfig.builder().withPartSuffix(".json").build())
+      .build()
 
   private[this] def accumulator(result: JobExecutionResult, name: String): Long =
     Option(result.getAccumulatorResult[java.lang.Long](name)).fold(0L)(_.longValue)
