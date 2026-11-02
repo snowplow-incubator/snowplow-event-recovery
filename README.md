@@ -26,7 +26,7 @@ Flows are sequences of Steps applied one by one.
 2. Encode config
 3. Choose runner and deploy:
 - Beam
-- Spark (deprecated)
+- Spark: unsupported and no longer built or released. It drops events when Kinesis throttles writes and counts events before writing them. Use Flink for recoveries into Kinesis.
 - Flink
 
 ## Flink job: arguments

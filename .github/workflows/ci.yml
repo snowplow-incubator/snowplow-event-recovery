@@ -9,22 +9,39 @@ jobs:
   test:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Everything, on Java 11, which batch recoveries on EMR run with today.
+          # The spark module is not built: it is unsupported and hadoop-lzo can no longer be downloaded.
+          - java: "11"
+            tests: "test flink/IntegrationTest/test"
+          # The Flink job on the Java version EMR 7 runs Flink with. Beam's tests need module flags on Java 17.
+          - java: "17"
+            tests: "flink/test flink/IntegrationTest/test"
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
       - name: Label PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.java == '11'
         uses: TimonVS/pr-labeler-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Scala
-        uses: olafurpg/setup-scala@v14
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
       - name: Push changes
+        if: matrix.java == '11'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "[REBASE] Run formatter/linter"
-      - name: Test all
-        run: |
-          sbt test
+      - name: Test
+        # The integration tests start LocalStack with Docker, which the runner provides
+        run: sbt ${{ matrix.tests }}

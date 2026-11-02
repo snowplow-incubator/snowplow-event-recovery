@@ -15,7 +15,8 @@
 
 import BuildSettings._
 
-lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink, spark)
+// spark is not aggregated: it is unsupported and cannot be built, as hadoop-lzo is no longer downloadable
+lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink)
 
 lazy val core = project
   .settings(coreBuildSettings)
