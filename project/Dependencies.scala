@@ -62,8 +62,8 @@ object Dependencies {
     val monocle         = "2.1.0"
     val spark           = "3.2.1"
     val awsKinesisSpark = "0.0.12"
-    val flink           = "1.15.2"
-    val flinkKinesis    = "1.15.2"
+    val flink           = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
+    val flinkKinesis    = "5.1.0-1.20"
     val scio            = "0.13.6"
     val beam            = "2.52.0"
     val decline         = "1.4.0"

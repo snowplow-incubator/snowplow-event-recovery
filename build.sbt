@@ -77,6 +77,14 @@ lazy val flink = project
   .configs(IntegrationTest)
   .settings(Defaults.itSettings)
   .settings(
+    // Flink's MiniCluster does not work inside sbt's layered classloader, and on Java 9+ it needs
+    // the same module flags Flink passes to its own JVMs (env.java.default-opts.all in Flink 1.20)
+    Test / fork := true,
+    IntegrationTest / fork := true,
+    Test / javaOptions ++= BuildSettings.flinkJvmModuleOptions,
+    IntegrationTest / javaOptions ++= BuildSettings.flinkJvmModuleOptions
+  )
+  .settings(
     libraryDependencies ++= Seq(
       Dependencies.mockito
     ) ++ Dependencies.decline
