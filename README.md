@@ -63,6 +63,23 @@ Pass `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` to turn on 
 
 Delivery to Kinesis is at-least-once. Events the sink sent after the checkpoint a run continues from are sent again, so the stream can hold some events twice. Each event is still counted once in the summary. Without checkpointing, a failed run cannot be continued: rerunning on the same input sends again every event the failed run had written.
 
+## Flink job: running on EMR
+`.dataflow-runner/flink-cluster.json.tmpl` and `.dataflow-runner/flink-playbook.json.tmpl` are reference configurations for dataflow-runner. This setup has not yet been run on EMR 7.12; the job is tested with Flink's local test cluster and LocalStack.
+
+Cluster:
+- EMR 7.12.0, which ships Flink 1.20.0, the version the job is built against. Use the `Flink` application.
+- Java 17, EMR 7's default for Flink. Do not force Java 11 through `hadoop-env` or a bootstrap action.
+- The bootstrap action `snowplow-event-recovery-flink-<version>-bootstrap.sh`, published next to the jar in each region's hosted assets bucket. It installs Flink's S3 file system (needed for `s3a://` paths) and statsd metrics plugins, and the CloudWatch agent that forwards the metrics.
+- In the `flink-conf` classification, `env.java.default-opts.all` set to the module flags in the template, which Flink needs on Java 17.
+
+Step: run the job with `command-runner.jar` and
+
+```
+flink run -m yarn-cluster <jar> --input <path> --output <stream> --failed <path> --unrecoverable <path> --region <region> --resolver <base64> --config <base64> [--checkpoint-interval <seconds> --checkpoint-dir <path>]
+```
+
+`-m yarn-cluster` starts a Flink cluster on YARN for this job only (deprecated "per-job" mode, still in Flink 1.20) and waits for it to finish. So the EMR step fails when the job fails, and the summary or the failure message is in the step's log. To continue a failed run from its last checkpoint, add `-s <checkpoint-dir>/<job id>/chk-<highest n>` after `flink run` and keep the other arguments.
+
 # Extending recovery
 There are several extension points for recovery: Steps, Conditions or additional [BadRow][badrows] types.
 
