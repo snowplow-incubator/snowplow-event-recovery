@@ -37,7 +37,9 @@ The Flink job accepts the argument names of the Spark and Beam jobs as well as i
 Without `--failed`, failed bad rows go to `<input>/unrecovered`; without `--unrecoverable`, unrecoverable ones go to `<failed>/unrecoverable`, as with the Spark and Beam jobs. These defaults sit under the input path and the job reads its input path including subdirectories, so a rerun on the same input would read them back. Pass both paths when the input will be read again.
 
 ## Flink job: delivery and counts
-The Flink job retries records that Kinesis throttles until they are written. A record rejected with a non-retryable error fails the job instead of being dropped. So when the job finishes successfully, every recovered event is in the output stream and directory, whichever were given. The summary names only the destinations that were given.
+The Flink job retries records that Kinesis throttles until they are written, and never drops a record: a request either succeeds, is retried, or fails the job. So when the job finishes successfully, every recovered event is in the output stream and directory, whichever were given. The summary names only the destinations that were given.
+
+The Kinesis sink only fails the job on a few request errors: a missing stream, credentials that cannot be obtained, and client-side errors. Any other error is retried without end, including rejected credentials and `AccessDeniedException`. So before the run starts, the job describes the output stream with the credentials, region and endpoint the sink will use, and fails at once if that does not work. That check cannot tell whether the credentials may write to the stream: if they lack `kinesis:PutRecords`, the run makes no progress and `numRecordsOutErrors` on `kinesis: Writer` keeps rising, with `AccessDeniedException` in the task logs. Stop the run and fix the permissions.
 
 On success the job logs a summary:
 
@@ -58,29 +60,28 @@ The live metrics, reported through the configured metrics reporter (statsd in `.
 While the job runs, records written so far is `numRecordsOut` minus `numRecordsOutErrors` on `kinesis: Writer`. This relies on Kinesis reporting an accurate `FailedRecordCount` for PutRecords. It has not been verified against real Kinesis: the integration tests use LocalStack, which reports a `FailedRecordCount` of 1 for any throttled batch.
 
 ## Flink job: checkpointing and resuming
-Pass `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` to turn on checkpointing. The input position, the events waiting in the Kinesis sink and the counts are saved in each checkpoint.
+Pass `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` to turn on checkpointing. Both are needed: the job refuses to start with only one of them. The interval is in seconds (earlier versions took milliseconds). The input position, the events waiting in the Kinesis sink and the counts are saved in each checkpoint.
 
 - **A task fails during the run** (for example a lost node): Flink restarts the job from its last checkpoint, up to 3 times with 10 seconds between attempts. A `restart-strategy` set in the cluster's Flink configuration is used instead of this default (the job checks for one; this is not covered by a test). The summary then says how many times the job restarted.
-- **The run fails for good** (restarts used up, or the step was stopped): its checkpoints are kept under `<checkpoint-dir>/<job id>/chk-<n>`. Rerun on the same input with `flink run -s <checkpoint-dir>/<job id>/chk-<highest n>` to continue from there. The failure is logged with these directions. Resuming is tested on Flink's local test cluster, not yet on EMR.
+- **The run fails for good** (restarts used up, or the step was stopped): its checkpoints are kept under `<checkpoint-dir>/<job id>/chk-<n>`. The failure is logged with the path of the newest completed checkpoint, the highest `chk-<n>` that holds a `_metadata` file, or says that none was completed. Rerun on the same input with `flink run -s <that path>` to continue from there. The resumed run may use a different parallelism, and its summary covers both runs and says it resumed. Resuming is tested on Flink's local test cluster, not yet on EMR.
 
 Delivery to Kinesis is at-least-once. Events the sink sent after the checkpoint a run continues from are sent again, so the stream can hold some events twice. Each event is still counted once in the summary. Without checkpointing, a failed run cannot be continued: rerunning on the same input sends again every event the failed run had written.
 
 ## Flink job: running on EMR
-`.dataflow-runner/flink-cluster.json.tmpl` and `.dataflow-runner/flink-playbook.json.tmpl` are reference configurations for dataflow-runner. This setup has not yet been run on EMR 7.12; the job is tested with Flink's local test cluster and LocalStack.
+`.dataflow-runner/flink-cluster.json.tmpl` and `.dataflow-runner/flink-playbook.json.tmpl` are reference configurations for dataflow-runner. This setup has not yet been run on EMR. The job is tested with Flink's local test cluster and LocalStack, and CI runs the built jar with `flink run` on the `flink:1.20.0-java11` image (`flink/src/smoke/run.sh`).
 
 Cluster:
-- EMR 7.12.0, which ships Flink 1.20.0, the version the job is built against. Use the `Flink` application.
-- Java 17, EMR 7's default for Flink. Do not force Java 11 through `hadoop-env` or a bootstrap action.
-- The bootstrap action `snowplow-event-recovery-flink-<version>-bootstrap.sh`, published next to the jar in each region's hosted assets bucket. It installs Flink's S3 file system (needed for `s3a://` paths) and statsd metrics plugins, and the CloudWatch agent that forwards the metrics.
-- In the `flink-conf` classification, `env.java.default-opts.all` set to the module flags in the template, which Flink needs on Java 17.
+- EMR 7.13.0, which ships Flink 1.20.0, the version the job is built against. Use the `Flink` application. EMR 7.9 to 7.12 also ship Flink 1.20.0, but AWS lists a known issue there: step and container logs may not be uploaded to S3 for steps running longer than 3 hours, and the job's summary is in the step log.
+- Java 11. EMR 7 runs Flink on Java 17 by default, but Flink 1.20 ships Scala 2.12.7, which cannot deserialize the job's functions on Java 17: tasks fail with `IllegalArgumentException: too many arguments` in `scala.runtime.LambdaDeserializer`. The template sets Java 11 the way AWS documents it: `env.java.home`, `containerized.master.env.JAVA_HOME` and `containerized.taskmanager.env.JAVA_HOME` in `flink-conf`, and `JAVA_HOME` in `hadoop-env`, all `/usr/lib/jvm/jre-11`.
+- The bootstrap action `snowplow-event-recovery-flink-<version>-bootstrap.sh`, published next to the jar in each region's hosted assets bucket. The templates take that bucket as `assetsBucket`, separate from `bucket`, which holds the input, outputs, logs and checkpoints. It installs Flink's S3 file system (needed for `s3a://` paths) and statsd metrics plugins, and the CloudWatch agent that forwards the metrics.
 
 Step: run the job with `command-runner.jar` and
 
 ```
-flink run -m yarn-cluster <jar> --input <path> --output <stream> --failed <path> --unrecoverable <path> --region <region> --resolver <base64> --config <base64> [--checkpoint-interval <seconds> --checkpoint-dir <path>]
+flink run -m yarn-cluster -sae <jar> --input <path> --output <stream> --failed <path> --unrecoverable <path> --region <region> --resolver <base64> --config <base64> [--checkpoint-interval <seconds> --checkpoint-dir <path>]
 ```
 
-`-m yarn-cluster` starts a Flink cluster on YARN for this job only (deprecated "per-job" mode, still in Flink 1.20) and waits for it to finish. So the EMR step fails when the job fails, and the summary or the failure message is in the step's log. To continue a failed run from its last checkpoint, add `-s <checkpoint-dir>/<job id>/chk-<highest n>` after `flink run` and keep the other arguments.
+`-m yarn-cluster` starts a Flink cluster on YARN for this job only (deprecated "per-job" mode, still in Flink 1.20) and waits for it to finish. So the EMR step fails when the job fails, and the summary or the failure message is in the step's log. `-sae` (`--shutdownOnAttachedExit`) shuts that Flink cluster down if the `flink run` client stops, for example when the step is cancelled, so the job does not keep writing to Kinesis. To continue a failed run from its last checkpoint, add `-s <checkpoint path from the failure message>` after `flink run` and keep the other arguments.
 
 # Extending recovery
 There are several extension points for recovery: Steps, Conditions or additional [BadRow][badrows] types.

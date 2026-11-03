@@ -13,7 +13,7 @@
       "service": "EMR_DefaultRole"
     },
     "ec2": {
-      "amiVersion": "7.12.0",
+      "amiVersion": "7.13.0",
       "keyName": "{{ .keypair }}",
       "location": {
         "vpc": {
@@ -46,10 +46,24 @@
     ],
     "configurations": [
       {
+        "classification": "hadoop-env",
+        "configurations": [
+          {
+            "classification": "export",
+            "properties": {
+              "JAVA_HOME": "/usr/lib/jvm/jre-11"
+            }
+          }
+        ],
+        "properties": {}
+      },
+      {
         "classification": "flink-conf",
         "properties": {
+          "env.java.home": "/usr/lib/jvm/jre-11",
+          "containerized.master.env.JAVA_HOME": "/usr/lib/jvm/jre-11",
+          "containerized.taskmanager.env.JAVA_HOME": "/usr/lib/jvm/jre-11",
           "taskmanager.numberOfTaskSlots": "1",
-          "env.java.default-opts.all": "--add-exports=java.base/sun.net.util=ALL-UNNAMED --add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED",
           "jobmanager.web.address": "0.0.0.0",
           "rest.address": "0.0.0.0",
           "jobmanager.heap.size": "1024m",
@@ -95,7 +109,7 @@
       {
         "name": "Flink Streaming Hadoop FS",
         "scriptBootstrapAction": {
-          "path": "s3://{{ .bucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}-bootstrap.sh"
+          "path": "s3://{{ .assetsBucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}-bootstrap.sh"
         }
       }
     ],

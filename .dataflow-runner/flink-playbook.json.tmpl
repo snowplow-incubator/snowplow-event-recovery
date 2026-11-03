@@ -2,7 +2,7 @@
 {
   "schema": "iglu:com.snowplowanalytics.dataflowrunner/PlaybookConfig/avro/1-0-1",
   "data": {
-    "region": " {{ .region }}",
+    "region": "{{ .region }}",
     "credentials": {
       "accessKeyId": "env",
       "secretAccessKey": "env"
@@ -16,7 +16,7 @@
         "arguments": [
           "bash",
           "-c",
-          "aws s3 cp s3://{{ .bucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}.jar /home/hadoop/event-recovery.jar"
+          "aws s3 cp s3://{{ .assetsBucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}.jar /home/hadoop/event-recovery.jar"
         ]
       },
       {
@@ -27,7 +27,7 @@
         "arguments": [
           "bash",
           "-c",
-          "flink run -m yarn-cluster /home/hadoop/event-recovery.jar --input s3a://{{ .bucket }}{{ .inputdir }} --output {{ .output }} --failed s3a://{{ .bucket }}/failed --unrecoverable s3a://{{ .bucket }}/unrecoverable --resolver {{ .resolver }} --config {{ .config }} --region {{ .region }} --checkpoint-interval {{ .interval }} --checkpoint-dir s3a://{{ .bucket }}/checkpoints"
+          "flink run -m yarn-cluster -sae /home/hadoop/event-recovery.jar --input s3a://{{ .bucket }}{{ .inputdir }} --output {{ .output }} --failed s3a://{{ .bucket }}/failed --unrecoverable s3a://{{ .bucket }}/unrecoverable --resolver {{ .resolver }} --config {{ .config }} --region {{ .region }} --checkpoint-interval {{ .interval }} --checkpoint-dir s3a://{{ .bucket }}/checkpoints"
         ]
       }
     ],
