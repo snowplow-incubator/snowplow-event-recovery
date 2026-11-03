@@ -83,7 +83,17 @@ lazy val flink = project
     Test / fork := true,
     IntegrationTest / fork := true,
     Test / javaOptions ++= BuildSettings.flinkJvmModuleOptions,
-    IntegrationTest / javaOptions ++= BuildSettings.flinkJvmModuleOptions
+    IntegrationTest / javaOptions ++= BuildSettings.flinkJvmModuleOptions,
+    // Leave out what the cluster's Flink provides: its own jars and logging. Direct Flink dependencies are Provided;
+    // this also catches the ones that come transitively (connector-base, table-common, shaded libraries via the AWS
+    // connectors) and the logging binding from core. On YARN the job jar can be on the JobManager's system classpath
+    // ahead of Flink's lib, where a bundled logging binding or a second copy of Flink's classes breaks the JobManager.
+    // Only the AWS connectors are not part of Flink's distribution.
+    assembly / assemblyExcludedJars := (assembly / fullClasspath).value.filter { jar =>
+      val name = jar.data.getName
+      (name.startsWith("flink-") && !name.startsWith("flink-connector-aws")) ||
+      Seq("slf4j-", "log4j-", "reload4j-", "logback-").exists(name.startsWith)
+    }
   )
   .settings(
     libraryDependencies ++= Seq(

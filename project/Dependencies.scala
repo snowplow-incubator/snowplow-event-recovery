@@ -126,7 +126,10 @@ object Dependencies {
     ("org.apache.flink" % "flink-s3-fs-hadoop" % V.flink % Provided) :+
     ("org.apache.flink" % "flink-connector-aws-kinesis-streams" % V.flinkKinesis)
       .exclude("com.google.protobuf", "protobuf-java") :+
-    ("org.apache.flink" % "flink-connector-files" % V.flink).exclude("com.google.protobuf", "protobuf-java") :+
+    // Part of the Flink distribution, as are flink-connector-base and the shaded libraries the AWS connectors pull in
+    // transitively; those are left out of the jar by the flink project's assemblyExcludedJars
+    ("org.apache.flink" % "flink-connector-files" % V.flink % Provided)
+      .exclude("com.google.protobuf", "protobuf-java") :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % IntegrationTest) :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % Test) :+
     ("org.apache.flink" % "flink-streaming-java" % V.flink % Test classifier Artifact.TestsClassifier)
