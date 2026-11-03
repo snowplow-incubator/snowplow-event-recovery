@@ -15,7 +15,7 @@ jobs:
           # sbt-dynver derives the version from the tag
           fetch-depth: 0
       # Built on Java 8, as before: the Beam image runs on a Java 8 JRE, and classes compiled on a newer JDK can call
-      # methods Java 8 lacks. The Flink jar built here runs on EMR 7's Java 17.
+      # methods Java 8 lacks. The Flink jar built here runs on Java 11 on EMR.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
