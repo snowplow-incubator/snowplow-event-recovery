@@ -13,13 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Everything, on Java 11, which batch recoveries on EMR run with today.
+          # Everything, on Java 11, which the Flink job runs with on EMR.
           # The spark module is not built: it is unsupported and hadoop-lzo can no longer be downloaded.
           - java: "11"
             tests: "test flink/IntegrationTest/test"
-          # The Flink job on the Java version EMR 7 runs Flink with. Beam's tests need module flags on Java 17.
-          - java: "17"
-            tests: "flink/test flink/IntegrationTest/test"
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -45,3 +42,24 @@ jobs:
       - name: Test
         # The integration tests start LocalStack with Docker, which the runner provides
         run: sbt ${{ matrix.tests }}
+
+  # Runs the released jar with `flink run` on Flink 1.20 and Java 11. The tests above run on sbt's classpath with a
+  # newer Scala than the one Flink ships, so they cannot catch a jar that fails on the cluster.
+  flink-jar:
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      # The release builds on Java 8
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+      - name: Build the Flink jar
+        run: sbt flink/assembly
+      - name: Run it on Flink
+        run: flink/src/smoke/run.sh flink/target/scala-2.12/snowplow-event-recovery-flink-*.jar

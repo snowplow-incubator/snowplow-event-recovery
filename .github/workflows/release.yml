@@ -10,9 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
-      - name: Setup Scala
-        uses: olafurpg/setup-scala@v14
+        uses: actions/checkout@v4
+        with:
+          # sbt-dynver derives the version from the tag
+          fetch-depth: 0
+      # Built on Java 8, as before: the Beam image runs on a Java 8 JRE, and classes compiled on a newer JDK can call
+      # methods Java 8 lacks. The Flink jar built here runs on EMR 7's Java 17.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
       - name: Build core
         run: |
           sbt core/assembly
