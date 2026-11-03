@@ -49,7 +49,7 @@ Recovery finished: <n> recovered and written to Kinesis stream <stream> and <dir
 
 `failed` and `unrecoverable` are bad rows the recovery configuration could not fix. They are written to S3 and never reach Kinesis. Each input event is counted once, even when the job restarted from a checkpoint (see below).
 
-The live metrics, reported through the configured metrics reporter (statsd in `.dataflow-runner/flink-cluster.json.tmpl`), mean:
+Flink's metrics for the job (visible in the Flink web UI, or through a metrics reporter if the cluster configures one; the reference template does not) mean:
 
 | Metric | Meaning |
 |---|---|
@@ -68,14 +68,15 @@ Pass `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` to turn on 
 Delivery to Kinesis is at-least-once. Events the sink sent after the checkpoint a run continues from are sent again, so the stream can hold some events twice. Each event is still counted once in the summary. Without checkpointing, a failed run cannot be continued: rerunning on the same input sends again every event the failed run had written.
 
 ## Flink job: running on EMR
-`.dataflow-runner/flink-cluster.json.tmpl` and `.dataflow-runner/flink-playbook.json.tmpl` are reference configurations for dataflow-runner. This setup has not yet been run on EMR. The job is tested with Flink's local test cluster and LocalStack. CI also runs the built jar with `flink run` on the `flink:1.20.0-java11` image (`flink/src/smoke/run.sh`), from gzipped local files to files: that run does not cover the Kinesis sink, S3 or YARN.
+`.dataflow-runner/flink-cluster.json.tmpl` and `.dataflow-runner/flink-playbook.json.tmpl` are reference configurations for dataflow-runner. A recovery has not yet completed on EMR with this setup: a first run of 0.8.0-rc1 on EMR 7.13 found an unsupported instance type and a jar that broke the JobManager on YARN, both fixed since. The job is tested with Flink's local test cluster and LocalStack. CI also runs the built jar on the `flink:1.20.0-java11` image (`flink/src/smoke/run.sh`), from gzipped local files to files, twice: with `flink run` against a session cluster, and from Flink's `lib/` in application mode, which puts the jar on the JobManager's system classpath as `flink run -m yarn-cluster` does. A jar that bundles a logging binding or Flink's own classes fails there. Neither run covers the Kinesis sink, S3 or YARN.
 
-Permissions the cluster's instance profile needs (from the code, not yet checked on EMR): `kinesis:DescribeStreamSummary` (the check before the run) and `kinesis:PutRecords` on the output stream, plus `kms:GenerateDataKey` on its key if the stream is encrypted; S3 list and read on the input; S3 write on the failed, unrecoverable, directory and checkpoint paths; `cloudwatch:PutMetricData` for the CloudWatch agent the bootstrap installs.
+Permissions the cluster's instance profile needs: `kinesis:DescribeStreamSummary` (the check before the run) and `kinesis:PutRecords` on the output stream, plus `kms:GenerateDataKey` on its key if the stream is encrypted; S3 list and read on the input; S3 write on the failed, unrecoverable, directory and checkpoint paths. AWS's managed `AmazonElasticMapReduceforEC2Role` policy, used by `EMR_EC2_DefaultRole`, grants neither of the two Kinesis actions: with it alone the job stops before starting, with `AccessDeniedException` for `kinesis:DescribeStreamSummary` (seen on EMR 7.13).
 
 Cluster:
 - EMR 7.13.0, which ships Flink 1.20.0, the version the job is built against. Use the `Flink` application. EMR 7.9 to 7.12 also ship Flink 1.20.0, but AWS lists a known issue there: step and container logs may not be uploaded to S3 for steps running longer than 3 hours, and the job's summary is in the step log.
 - Java 11. EMR 7 runs Flink on Java 17 by default, but Flink 1.20 ships Scala 2.12.7, which cannot deserialize the job's functions on Java 17: tasks fail with `IllegalArgumentException: too many arguments` in `scala.runtime.LambdaDeserializer`. The template sets Java 11 the way AWS documents it: `env.java.home`, `containerized.master.env.JAVA_HOME` and `containerized.taskmanager.env.JAVA_HOME` in `flink-conf`, and `JAVA_HOME` in `hadoop-env`, all `/usr/lib/jvm/jre-11`.
-- The bootstrap action `snowplow-event-recovery-flink-<version>-bootstrap.sh`, published next to the jar in each region's hosted assets bucket. The templates take that bucket as `assetsBucket`, separate from `bucket`, which holds the input, outputs, logs and checkpoints. It installs Flink's S3 file system (needed for `s3a://` paths) and statsd metrics plugins, and the CloudWatch agent that forwards the metrics.
+- The bootstrap action `snowplow-event-recovery-flink-<version>-bootstrap.sh`, published next to the jar in each region's hosted assets bucket. The templates take that bucket as `assetsBucket`, separate from `bucket`, which holds the input, outputs, logs and checkpoints. It installs Flink's S3 file system plugin, needed for `s3a://` paths.
+- Instances of a type EMR 7.13 supports. The template uses `m5.xlarge`: EMR 7.13 supports no m4 type and no `.large` size of m5, m6i, m6g or m7g, and a cluster on an unsupported type fails to start ("application provisioning timed out" on the master). `aws emr list-supported-instance-types --release-label emr-7.13.0` lists them per region.
 
 Step: run the job with `command-runner.jar` and
 

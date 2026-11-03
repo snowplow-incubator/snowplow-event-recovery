@@ -22,14 +22,14 @@
       },
       "instances": {
         "master": {
-          "type": "m4.large"
+          "type": "m5.xlarge"
         },
         "core": {
-          "type": "m4.large",
+          "type": "m5.xlarge",
           "count": 1
         },
         "task": {
-          "type": "m4.large",
+          "type": "m5.xlarge",
           "count": 0
         }
       }
@@ -66,15 +66,8 @@
           "taskmanager.numberOfTaskSlots": "1",
           "jobmanager.web.address": "0.0.0.0",
           "rest.address": "0.0.0.0",
-          "jobmanager.heap.size": "1024m",
           "taskmanager.memory.process.size": "1728m",
           "web.timeout": "1000000",
-          "metrics.reporters": "stsd",
-          "metrics.reporter.stsd.port": "8125",
-          "metrics.reporter.stsd.host": "localhost",
-          "metrics.reporter.stsd.class": "org.apache.flink.metrics.statsd.StatsDReporter",
-          "metrics.reporter.stsd.factory.class": "org.apache.flink.metrics.statsd.StatsDReporterFactory",
-          "metrics.reporter.stsd.interval": "1 SECONDS",
           "metrics.scope.jm": "jobmanager",
           "metrics.scope.jm.job": "jobmanager.<job_id>",
           "metrics.scope.tm": "taskmanager.<tm_id>",
