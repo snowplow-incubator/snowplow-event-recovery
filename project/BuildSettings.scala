@@ -108,7 +108,6 @@ object BuildSettings {
       "Sonatype OSS Snapshots"
         .at("http://oss.sonatype.org/content/repositories/snapshots/")
         .withAllowInsecureProtocol(true),
-      "Twitter Maven Repo".at("http://maven.twttr.com/").withAllowInsecureProtocol(true),
       "Snowplow Analytics Maven repo".at("http://maven.snplow.com/releases/").withAllowInsecureProtocol(true),
       "Confluent Repository".at("https://packages.confluent.io/maven/"),
       Resolver.mavenLocal
