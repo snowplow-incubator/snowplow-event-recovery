@@ -15,6 +15,8 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import com.monovore.decline.{Command, Opts}
+import scala.concurrent.duration._
+
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
@@ -81,6 +83,29 @@ class MainSpec extends AnyWordSpec with EitherValues {
       Main.failedPathOrDefault("s3://bucket/in", Some("s3://bucket/f")) shouldBe "s3://bucket/f"
       Main.unrecoverablePathOrDefault("s3://bucket/in", Some("s3://bucket/f"), Some("s3://bucket/u")) shouldBe
         "s3://bucket/u"
+    }
+  }
+
+  "Checkpointing" should {
+    "be off without either flag and on with both, the interval in seconds" in {
+      parse(Main.checkpointing).value shouldBe None
+      parse(Main.checkpointing, "--checkpoint-interval", "60", "--checkpoint-dir", "s3://bucket/chk").value shouldBe
+        Some(Checkpointing(60.seconds, "s3://bucket/chk"))
+    }
+    "reject one flag without the other" in {
+      parse(Main.checkpointing, "--checkpoint-interval", "60").left.value.errors.mkString should include(
+        "--checkpoint-interval needs --checkpoint-dir"
+      )
+      parse(Main.checkpointing, "--checkpoint-dir", "s3://bucket/chk").left.value.errors.mkString should include(
+        "--checkpoint-dir needs --checkpoint-interval"
+      )
+    }
+    "reject an interval under a second" in {
+      parse(Main.checkpointing, "--checkpoint-interval", "0", "--checkpoint-dir", "s3://b/c")
+        .left
+        .value
+        .errors
+        .mkString should include("at least 1")
     }
   }
 }

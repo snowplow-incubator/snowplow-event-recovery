@@ -46,28 +46,43 @@ class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[R
   private val unrecoverableTotal = new LongCounter()
   private val attempt            = new IntMaximum()
 
+  // Set when this subtask restored totals saved by another job, i.e. the run resumed from a checkpoint
+  private val resumed = new IntMaximum()
+
   // Operator state holding the totals, assigned by Flink in initializeState()
-  @transient private var totalsState: ListState[java.lang.Long] = _
+  @transient private var totalsState: ListState[Array[Long]] = _
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
-    totalsState =
-      context.getOperatorStateStore.getListState(new ListStateDescriptor(TotalsState, classOf[java.lang.Long]))
-    // Each subtask stores (recovered, failed, unrecoverable). On restore a subtask may receive several triples, or
-    // none if parallelism changed; their sum over all subtasks is the total either way.
-    totalsState.get.asScala.map(_.longValue).toList.grouped(3).foreach {
-      case List(recovered, failed, unrecoverable) =>
+    totalsState = context.getOperatorStateStore.getListState(new ListStateDescriptor(TotalsState, classOf[Array[Long]]))
+    val job = getRuntimeContext().getJobInfo().getJobId()
+    // Each subtask stores one element. Flink hands whole elements out when the parallelism changes, so after a restore
+    // a subtask may hold several elements or none; their sum over all subtasks is the total either way.
+    totalsState.get.asScala.foreach {
+      case Array(recovered, failed, unrecoverable, jobUpper, jobLower, wasResumed) =>
         recoveredTotal.add(recovered)
         failedTotal.add(failed)
         unrecoverableTotal.add(unrecoverable)
+        if (wasResumed == 1L || jobUpper != job.getUpperPart || jobLower != job.getLowerPart) resumed.add(1)
       case other =>
-        throw new IllegalStateException(s"Corrupt $TotalsState state: expected triples, got $other")
+        throw new IllegalStateException(s"Corrupt $TotalsState state: ${other.mkString("[", ",", "]")}")
     }
   }
 
-  override def snapshotState(context: FunctionSnapshotContext): Unit =
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    val job = getRuntimeContext().getJobInfo().getJobId()
     totalsState.update(
-      List(recoveredTotal, failedTotal, unrecoverableTotal).map(t => java.lang.Long.valueOf(t.getLocalValue)).asJava
+      List(
+        Array(
+          recoveredTotal.getLocalValue.longValue,
+          failedTotal.getLocalValue.longValue,
+          unrecoverableTotal.getLocalValue.longValue,
+          job.getUpperPart,
+          job.getLowerPart,
+          resumed.getLocalValue.longValue
+        )
+      ).asJava
     )
+  }
 
   override def open(parameters: Configuration): Unit = {
     recoveredCount = getRuntimeContext().getMetricGroup().addGroup("events").counter("recovered")
@@ -78,6 +93,7 @@ class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[R
     getRuntimeContext().addAccumulator(Unrecoverable, unrecoverableTotal)
     attempt.add(getRuntimeContext().getTaskInfo().getAttemptNumber())
     getRuntimeContext().addAccumulator(Attempt, attempt)
+    getRuntimeContext().addAccumulator(Resumed, resumed)
   }
 
   override def processElement(
@@ -114,6 +130,9 @@ object SplitByStatus {
 
   /** Highest task attempt number, i.e. how many times the job restarted */
   val Attempt = "attempt"
+
+  /** 1 if the run resumed from a checkpoint of another run, else 0 */
+  val Resumed = "resumed"
 
   private val TotalsState = "recovery-totals"
 }

@@ -70,7 +70,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
   }
 
   val flinkCluster = new MiniClusterWithClientResource(
-    new MiniClusterResourceConfiguration.Builder().setNumberSlotsPerTaskManager(1).setNumberTaskManagers(1).build
+    new MiniClusterResourceConfiguration.Builder().setNumberSlotsPerTaskManager(2).setNumberTaskManagers(1).build
   )
 
   before(flinkCluster.before())
@@ -94,7 +94,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         failuresLeft.set(1)
 
         val summary = FailingJob.run(
-          StreamExecutionEnvironment.getExecutionEnvironment,
+          withParallelism(1),
           setup.inputDir,
           Some(setup.streamName),
           setup.failedDir,
@@ -111,7 +111,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         summary shouldBe RecoverySummary(recovered = EventCount.toLong, failed = 0L, unrecoverable = 0L, restarts = 1)
     }
 
-    "fail once restarts are used up, and resume from the failed run's last checkpoint" in withContainers {
+    "fail once restarts are used up, and resume from the failed run's last checkpoint at another parallelism" in withContainers {
       localstack: LocalStackContainer =>
         val setup = Setup(localstack, "resumed")
 
@@ -119,7 +119,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         // strategy it would keep restarting until the failures ran out and then succeed.
         failuresLeft.set(5)
         an[Exception] should be thrownBy FailingJob.run(
-          StreamExecutionEnvironment.getExecutionEnvironment,
+          withParallelism(1),
           setup.inputDir,
           Some(setup.streamName),
           setup.failedDir,
@@ -131,8 +131,9 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         val checkpoint          = latestCheckpoint(setup.checkpointDir)
         info(s"first run failed after delivering $deliveredByFirstRun records; resuming from $checkpoint")
 
+        // Resumed with more parallelism than the failed run had, which redistributes the saved state
         failuresLeft.set(0)
-        val resumedEnv = StreamExecutionEnvironment.getExecutionEnvironment
+        val resumedEnv = withParallelism(2)
         resumedEnv.getJavaEnv.configure {
           val config = new Configuration()
           config.set(StateRecoveryOptions.SAVEPOINT_PATH, checkpoint.toUri.toString)
@@ -154,8 +155,20 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
         deliveredByFirstRun.toLong should (be > 0L and be < EventCount.toLong)
         delivered.toSet shouldBe expected
         // The resumed run starts from the counts in the checkpoint, so it reports the whole recovery
-        summary shouldBe RecoverySummary(recovered = EventCount.toLong, failed = 0L, unrecoverable = 0L, restarts = 0)
+        summary shouldBe RecoverySummary(
+          recovered = EventCount.toLong,
+          failed = 0L,
+          unrecoverable = 0L,
+          restarts = 0,
+          resumed = true
+        )
     }
+  }
+
+  private def withParallelism(parallelism: Int): StreamExecutionEnvironment = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(parallelism)
+    env
   }
 
   final case class Setup(localstack: LocalStackContainer, streamName: String) {

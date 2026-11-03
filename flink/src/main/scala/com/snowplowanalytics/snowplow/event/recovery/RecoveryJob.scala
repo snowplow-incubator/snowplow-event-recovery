@@ -27,7 +27,10 @@ import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup
-import org.apache.flink.connector.kinesis.sink.KinesisStreamsSink
+import org.apache.flink.connector.kinesis.sink.{KinesisStreamsConfigConstants, KinesisStreamsSink}
+import org.apache.flink.connector.aws.util.{AWSClientUtil, AWSGeneralUtil}
+import software.amazon.awssdk.services.kinesis.{KinesisAsyncClient, KinesisAsyncClientBuilder}
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest
 import org.apache.flink.connector.file.sink.FileSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig
 import org.apache.flink.connector.file.src.FileSource
@@ -53,9 +56,16 @@ object RecoveryJob extends RecoveryJob {
 
 /** Event totals of a successful run. Only produced when every recovered event was written to Kinesis.
   *
-  * Each input event is counted once even if the job restarted, and `restarts` says how often it did.
+  * Each input event is counted once even if the job restarted, and `restarts` says how often it did. A run that resumed
+  * from another run's checkpoint (`resumed`) reports the totals of both runs.
   */
-final case class RecoverySummary(recovered: Long, failed: Long, unrecoverable: Long, restarts: Int = 0)
+final case class RecoverySummary(
+  recovered: Long,
+  failed: Long,
+  unrecoverable: Long,
+  restarts: Int = 0,
+  resumed: Boolean = false
+)
 
 trait RecoveryJob {
 
@@ -95,6 +105,7 @@ trait RecoveryJob {
       "Recovered events need a Kinesis stream, a directory or both"
     )
     val destinations = (output.map(stream => s"Kinesis stream $stream").toList ++ directoryOutput).mkString(" and ")
+    output.foreach(checkStream(_, kinesisConfig))
 
     val failed        = OutputTag[RecoveryError]("failed")
     val unrecoverable = OutputTag[RecoveryError]("unrecoverable")
@@ -146,19 +157,21 @@ trait RecoveryJob {
       }
     }
 
-    val result = Either.catchNonFatal(env.execute("event-recovery")).valueOr { err =>
-      log.error(
-        s"Recovery failed. Recovered events written before the failure stay in $destinations. " +
-          kinesisConfig
-            .checkpointing
-            .fold(
-              "Checkpointing was off, so a rerun on the same input sends those events again."
-            )(ch =>
-              s"Checkpoints are kept under ${ch.directory}/<job id>/chk-<n>. To resume without sending them again, " +
-                "rerun on the same input with `flink run -s <the highest chk-<n> directory>`."
-            ),
-        err
-      )
+    val job = env.executeAsync("event-recovery")
+    val result = Either.catchNonFatal(job.getJobExecutionResult.get()).valueOr { err =>
+      val rerun = "a rerun on the same input sends those events again."
+      val resume = kinesisConfig.checkpointing match {
+        case None => s"Checkpointing was off, so $rerun"
+        case Some(ch) =>
+          lastCheckpoint(ch.directory, job.getJobID.toString) match {
+            case Some(checkpoint) =>
+              s"To resume from the last checkpoint, rerun on the same input with `flink run -s $checkpoint`. " +
+                "Events sent after that checkpoint are sent again, so the stream may hold some of them twice."
+            case None =>
+              s"No checkpoint under ${ch.directory}/${job.getJobID} was completed, so $rerun"
+          }
+      }
+      log.error(s"Recovery failed. Recovered events written before the failure stay in $destinations. $resume", err)
       throw err
     }
 
@@ -166,7 +179,8 @@ trait RecoveryJob {
       recovered = accumulator(result, SplitByStatus.Recovered),
       failed = accumulator(result, SplitByStatus.Failed),
       unrecoverable = accumulator(result, SplitByStatus.Unrecoverable),
-      restarts = Option(result.getAccumulatorResult[Integer](SplitByStatus.Attempt)).fold(0)(_.intValue)
+      restarts = intAccumulator(result, SplitByStatus.Attempt),
+      resumed = intAccumulator(result, SplitByStatus.Resumed) > 0
     )
     // execute() only returns once the sinks have written every record they were given: the Kinesis sink retries
     // throttled records until they land and fails the job on a non-retryable error. So every recovered event is in
@@ -176,15 +190,17 @@ trait RecoveryJob {
       s"Recovery finished: ${summary.recovered} recovered and written to $destinations, " +
         s"${summary.failed} failed (written to $failedOutput), " +
         s"${summary.unrecoverable} unrecoverable (written to $unrecoverableOutput)" +
-        (if (summary.restarts > 0)
-           s". The job restarted ${summary.restarts} time(s) from a checkpoint: events sent to Kinesis after the " +
-             "last checkpoint before a restart were sent again and may be in the stream twice"
+        (if (summary.resumed) ". These totals include the run this one resumed from" else "") +
+        (if (summary.restarts > 0) s". The job restarted ${summary.restarts} time(s) from a checkpoint" else "") +
+        (if (summary.resumed || summary.restarts > 0)
+           ": events sent after the checkpoint it continued from were sent again and may be in the stream twice"
          else "")
     )
     summary
   }
 
-  private[this] def kinesisSink(stream: String, kinesisConfig: KinesisConfig): KinesisStreamsSink[Array[Byte]] = {
+  /** Client properties shared by the Kinesis sink and the check of the stream before the run */
+  private[this] def kinesisProperties(kinesisConfig: KinesisConfig): Properties = {
     val properties = new Properties()
     properties.put(AWSConfigConstants.AWS_REGION, kinesisConfig.region)
     kinesisConfig.credentials.foreach { case Credentials(accessKey, secretKey) =>
@@ -194,10 +210,48 @@ trait RecoveryJob {
     kinesisConfig.endpoint.foreach { endpoint =>
       properties.put(AWSConfigConstants.AWS_ENDPOINT, endpoint)
     }
+    properties
+  }
 
+  /** Fails before the run if the stream cannot be described with the credentials, region and endpoint the sink will
+    * use. The sink treats few request errors as fatal: rejected credentials or a denied request are retried forever, so
+    * without this check such a run would never end. It cannot tell whether the credentials may write
+    * (kinesis:PutRecords), only that they are accepted and can see the stream.
+    */
+  protected def checkStream(stream: String, kinesisConfig: KinesisConfig): Unit = {
+    val properties = kinesisProperties(kinesisConfig)
+    val http       = AWSGeneralUtil.createAsyncHttpClient(properties)
+    try {
+      val client = AWSClientUtil.createAwsAsyncClient[KinesisAsyncClient, KinesisAsyncClientBuilder](
+        properties,
+        http,
+        KinesisAsyncClient.builder(),
+        KinesisStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT,
+        KinesisStreamsConfigConstants.KINESIS_CLIENT_USER_AGENT_PREFIX
+      )
+      try {
+        val status = client
+          .describeStreamSummary(DescribeStreamSummaryRequest.builder().streamName(stream).build())
+          .get(2, MINUTES)
+          .streamDescriptionSummary()
+          .streamStatusAsString()
+        log.info(s"Kinesis stream $stream in ${kinesisConfig.region} is $status")
+      } catch {
+        case scala.util.control.NonFatal(err) =>
+          val cause = Option(err.getCause).getOrElse(err)
+          throw new IllegalStateException(
+            s"Cannot describe Kinesis stream $stream in ${kinesisConfig.region} with the job's credentials, so " +
+              s"the recovery did not start: $cause",
+            cause
+          )
+      } finally client.close()
+    } finally http.close()
+  }
+
+  private[this] def kinesisSink(stream: String, kinesisConfig: KinesisConfig): KinesisStreamsSink[Array[Byte]] = {
     val kinesisBuilder = KinesisStreamsSink
       .builder()
-      .setKinesisClientProperties(properties)
+      .setKinesisClientProperties(kinesisProperties(kinesisConfig))
       .setSerializationSchema(new BytesSerializationSchema())
       .setPartitionKeyGenerator(new Partitioner())
       .setStreamName(stream)
@@ -219,6 +273,33 @@ trait RecoveryJob {
   private[this] def accumulator(result: JobExecutionResult, name: String): Long =
     Option(result.getAccumulatorResult[java.lang.Long](name)).fold(0L)(_.longValue)
 
+  private[this] def intAccumulator(result: JobExecutionResult, name: String): Int =
+    Option(result.getAccumulatorResult[Integer](name)).fold(0)(_.intValue)
+
+  /** The newest completed checkpoint of a job: the highest `<directory>/<job id>/chk-<n>` holding a `_metadata` file.
+    * Higher ones may be unfinished. None if there is none or the directory cannot be read.
+    */
+  private[recovery] def lastCheckpoint(directory: String, jobId: String): Option[String] =
+    Either
+      .catchNonFatal {
+        val jobDir = new Path(directory, jobId)
+        val fs     = jobDir.getFileSystem
+        Option(fs.listStatus(jobDir))
+          .toList
+          .flatten
+          .map(_.getPath)
+          .flatMap(p => CheckpointDir.unapplySeq(p.getName).flatMap(_.headOption).map(n => (n.toLong, p)))
+          .filter { case (_, p) => fs.exists(new Path(p, "_metadata")) }
+          .sortBy(-_._1)
+          .headOption
+          .map(_._2.toString)
+      }
+      .leftMap(err => log.warn(s"Cannot look for checkpoints under $directory/$jobId", err))
+      .toOption
+      .flatten
+
+  private[this] val CheckpointDir = "chk-(\\d+)".r
+
   /** Reads every file under `input` once. FileSource records its position within a file in each checkpoint, so a
     * restored job resumes where the checkpoint was taken. The legacy readTextFile source did not let a checkpoint
     * complete until all input had been read.
@@ -238,15 +319,12 @@ trait RecoveryJob {
     output: String,
     name: String
   ) =
-    Either
-      .catchNonFatal {
-        val side: DataStream[RecoveryError] = recovering.getSideOutput[RecoveryError](sideTag)
-        val res: DataStream[String]         = side.map(_.badRow.selfDescribingData.asJson.noSpaces)
-        res.sinkTo(file(output)).name(name).uid(name)
-      }
-      .leftMap { err =>
-        log.warn(s"Unable to write side output ${sideTag}.")
-      }
+    recovering
+      .getSideOutput[RecoveryError](sideTag)
+      .map(_.badRow.selfDescribingData.asJson.noSpaces)
+      .sinkTo(file(output))
+      .name(name)
+      .uid(name)
 
   private[this] def file(filePath: String) =
     FileSink

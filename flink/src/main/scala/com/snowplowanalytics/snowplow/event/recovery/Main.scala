@@ -92,6 +92,27 @@ object Main
   private def optionWithAlias[A: Argument](name: String, alias: String, help: String): Opts[A] =
     Opts.option[A](name, help).orElse(Opts.option[A](alias, s"Same as --$name"))
 
+  // Both or neither: with only one of them the run would silently go without checkpoints, and could not be resumed
+  private[recovery] val checkpointing: Opts[Option[Checkpointing]] = (
+    Opts
+      .option[Long](
+        "checkpoint-interval",
+        help = "How often, in seconds, the job takes a checkpoint. Needs --checkpoint-dir"
+      )
+      .orNone,
+    Opts.option[String]("checkpoint-dir", help = "Where to store the checkpoints. Needs --checkpoint-interval").orNone
+  ).tupled.mapValidated {
+    case (Some(seconds), Some(dir)) =>
+      Validated.condNel(
+        seconds >= 1,
+        Some(Checkpointing(seconds.seconds, dir)),
+        s"--checkpoint-interval is in seconds and must be at least 1, got $seconds"
+      )
+    case (None, None)    => Validated.validNel(None)
+    case (Some(_), None) => Validated.invalidNel("--checkpoint-interval needs --checkpoint-dir")
+    case (None, Some(_)) => Validated.invalidNel("--checkpoint-dir needs --checkpoint-interval")
+  }
+
   override def main: Opts[IO[ExitCode]] = {
     val input = Opts.option[String](
       "input",
@@ -119,17 +140,7 @@ object Main
       )
       .orNone
 
-    val checkpointInterval = Opts
-      .option[Long](
-        "checkpoint-interval",
-        help = "How often, in seconds, the job takes a checkpoint. Needs --checkpoint-dir"
-      )
-      .orNone
-    val checkpointDir = Opts.option[String]("checkpoint-dir", help = "Where to store the checkpoints").orNone
-
     val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
-    val checkpointing =
-      (checkpointInterval, checkpointDir).mapN((_, _).mapN((seconds, dir) => Checkpointing(seconds.seconds, dir)))
 
     (
       input,

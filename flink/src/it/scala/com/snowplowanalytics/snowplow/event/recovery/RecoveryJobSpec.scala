@@ -157,5 +157,31 @@ class RecoveryJobSpec extends AnyWordSpec with TestContainerForAll with BeforeAn
         res should contain(fixed)
       }
     }
+
+    "refuse to start" should {
+      "when the Kinesis stream cannot be described, instead of retrying forever" in withContainers {
+        localstack: LocalStackContainer =>
+          val endpoint    = endpointConfiguration(localstack, Service.KINESIS)
+          val credentials = credentialsProvider(localstack).getCredentials
+          val errorsDir   = java.nio.file.Files.createTempDirectory("recovery-job-spec").toUri.toString
+
+          val err = the[IllegalStateException] thrownBy RecoveryJobTest.run(
+            StreamExecutionEnvironment.getExecutionEnvironment,
+            badRow,
+            Some("missing"),
+            s"$errorsDir/failed",
+            s"$errorsDir/unrecoverable",
+            cfg,
+            KinesisConfig(
+              region = endpoint.getSigningRegion(),
+              endpoint = Some(endpoint.getServiceEndpoint()),
+              credentials = Some(Credentials(credentials.getAWSAccessKeyId, credentials.getAWSSecretKey))
+            )
+          )
+
+          err.getMessage should include("Cannot describe Kinesis stream missing")
+          err.getMessage should include("ResourceNotFoundException")
+      }
+    }
   }
 }
