@@ -46,7 +46,7 @@ class DirectoryOutputSpec extends AnyWordSpec with BeforeAndAfter {
 
   /** The recoverable bad rows plus one that is not a bad row at all */
   object DryRunJob extends RecoveryJob {
-    override def load(env: StreamExecutionEnvironment, input: String): DataStream[String] =
+    override def load(env: StreamExecutionEnvironment, input: String, exclude: List[String]): DataStream[String] =
       env.fromCollection(pages.map(badRowFor) :+ "{}")
   }
 
@@ -78,6 +78,30 @@ class DirectoryOutputSpec extends AnyWordSpec with BeforeAndAfter {
 
       summary shouldBe RecoverySummary(recovered = EventCount.toLong, failed = 1L, unrecoverable = 0L)
       finishedFiles(workDir.resolve("failed")) should not be empty
+    }
+  }
+
+  "RecoveryJob reading its input" should {
+    "skip a previous run's failed output kept under the input, so a rerun does not recover it again" in {
+      val workDir = Files.createTempDirectory("directory-output-spec")
+      val input   = Files.createDirectories(workDir.resolve("input"))
+      Files.write(input.resolve("bad-rows.txt"), pages.take(5).map(badRowFor).asJava, StandardCharsets.UTF_8)
+      // Where a run without --failed writes failed rows: under the input
+      val previous = Files.createDirectories(input.resolve("unrecovered").resolve("2026-01-01--00"))
+      Files.write(previous.resolve("part-0"), pages.drop(5).take(3).map(badRowFor).asJava, StandardCharsets.UTF_8)
+
+      val summary = RecoveryJob.run(
+        StreamExecutionEnvironment.getExecutionEnvironment,
+        input.toUri.toString,
+        None,
+        Main.failedPathOrDefault(input.toUri.toString, None),
+        Main.unrecoverablePathOrDefault(input.toUri.toString, None, None),
+        cfg,
+        KinesisConfig(region = "eu-central-1"),
+        directoryOutput = Some(workDir.resolve("output").toUri.toString)
+      )
+
+      summary shouldBe RecoverySummary(recovered = 5L, failed = 0L, unrecoverable = 0L)
     }
   }
 

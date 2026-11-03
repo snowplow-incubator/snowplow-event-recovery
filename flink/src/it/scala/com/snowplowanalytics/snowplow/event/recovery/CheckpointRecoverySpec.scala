@@ -83,8 +83,8 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
     * graphs match.
     */
   object FailingJob extends RecoveryJob {
-    override def load(env: StreamExecutionEnvironment, input: String): DataStream[String] =
-      super.load(env, input).map(new FailAfter(FailAfter)).uid("fail-after")
+    override def load(env: StreamExecutionEnvironment, input: String, exclude: List[String]): DataStream[String] =
+      super.load(env, input, exclude).map(new FailAfter(FailAfter)).uid("fail-after")
   }
 
   "RecoveryJob with checkpointing" should {

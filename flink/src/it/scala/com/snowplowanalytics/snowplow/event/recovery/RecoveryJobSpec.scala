@@ -85,7 +85,7 @@ class RecoveryJobSpec extends AnyWordSpec with TestContainerForAll with BeforeAn
   }
 
   object RecoveryJobTest extends RecoveryJob {
-    override def load(env: StreamExecutionEnvironment, input: String) =
+    override def load(env: StreamExecutionEnvironment, input: String, exclude: List[String]) =
       env.fromElements(input, input, "{}")
   }
 

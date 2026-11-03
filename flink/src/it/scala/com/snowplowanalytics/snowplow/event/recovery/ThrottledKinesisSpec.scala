@@ -85,7 +85,7 @@ class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with Bef
   val pages: List[String] = (1 to EventCount).map(i => s"DemoPageTitle$i").toList
 
   object ThrottledRecoveryJob extends RecoveryJob {
-    override def load(env: StreamExecutionEnvironment, input: String): DataStream[String] =
+    override def load(env: StreamExecutionEnvironment, input: String, exclude: List[String]): DataStream[String] =
       env.fromCollection(pages.map(badRowFor))
   }
 

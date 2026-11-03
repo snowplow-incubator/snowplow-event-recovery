@@ -15,11 +15,13 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import java.util.Properties
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.duration._
 import org.slf4j.LoggerFactory
 import cats.syntax.either._
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{JobExecutionResult, JobID}
+import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.api.scala._
@@ -35,6 +37,12 @@ import org.apache.flink.connector.file.sink.FileSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig
 import org.apache.flink.connector.file.src.FileSource
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat
+import org.apache.flink.connector.file.src.enumerate.{
+  DefaultFileFilter,
+  FileEnumerator,
+  NonSplittingRecursiveEnumerator
+}
+import java.util.function.Predicate
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import io.circe.syntax._
 import com.snowplowanalytics.snowplow.badrows._
@@ -111,7 +119,11 @@ trait RecoveryJob {
     val unrecoverable = OutputTag[RecoveryError]("unrecoverable")
 
     // Stateful operators get fixed uids so a run can resume from another run's checkpoint
-    val recovering = load(env, input)
+    // The outputs may be under the input (the failed and unrecoverable defaults are), and the input is read
+    // recursively: without skipping them, a rerun would recover the previous run's output again.
+    val ownOutputs =
+      List(failedOutput, unrecoverableOutput) ++ directoryOutput ++ kinesisConfig.checkpointing.map(_.directory)
+    val recovering = load(env, input, ownOutputs)
       .map(execute(cfg)(_))
       .uid("recover")
       .process(new SplitByStatus(failed, unrecoverable))
@@ -157,18 +169,23 @@ trait RecoveryJob {
       }
     }
 
-    val job = env.executeAsync("event-recovery")
-    val result = Either.catchNonFatal(job.getJobExecutionResult.get()).valueOr { err =>
+    // execute(), not executeAsync(): only execute() honours -sae (cancel the job when the client stops).
+    // The listener captures the job id, to find the job's checkpoints if it fails.
+    val jobId = new AtomicReference[Option[JobID]](None)
+    env.registerJobListener(new JobIdListener(jobId))
+    val result = Either.catchNonFatal(env.execute("event-recovery")).valueOr { err =>
       val rerun = "a rerun on the same input sends those events again."
-      val resume = kinesisConfig.checkpointing match {
-        case None => s"Checkpointing was off, so $rerun"
-        case Some(ch) =>
-          lastCheckpoint(ch.directory, job.getJobID.toString) match {
+      val resume = (kinesisConfig.checkpointing, jobId.get) match {
+        case (None, _) => s"Checkpointing was off, so $rerun"
+        case (Some(ch), None) =>
+          s"The job was not submitted, so no checkpoint under ${ch.directory} belongs to it and $rerun"
+        case (Some(ch), Some(job)) =>
+          lastCheckpoint(ch.directory, job.toString) match {
             case Some(checkpoint) =>
               s"To resume from the last checkpoint, rerun on the same input with `flink run -s $checkpoint`. " +
                 "Events sent after that checkpoint are sent again, so the stream may hold some of them twice."
             case None =>
-              s"No checkpoint under ${ch.directory}/${job.getJobID} was completed, so $rerun"
+              s"No checkpoint under ${ch.directory}/$job was completed, so $rerun"
           }
       }
       log.error(s"Recovery failed. Recovered events written before the failure stay in $destinations. $resume", err)
@@ -300,14 +317,17 @@ trait RecoveryJob {
 
   private[this] val CheckpointDir = "chk-(\\d+)".r
 
-  /** Reads every file under `input` once. FileSource records its position within a file in each checkpoint, so a
-    * restored job resumes where the checkpoint was taken. The legacy readTextFile source did not let a checkpoint
-    * complete until all input had been read.
+  /** Reads every file under `input` once, except under the `exclude` paths. FileSource records its position within a
+    * file in each checkpoint, so a restored job resumes where the checkpoint was taken. The legacy readTextFile source
+    * did not let a checkpoint complete until all input had been read.
     */
-  def load(env: StreamExecutionEnvironment, input: String): DataStream[String] =
+  def load(env: StreamExecutionEnvironment, input: String, exclude: List[String]): DataStream[String] =
     env
       .fromSource(
-        FileSource.forRecordStreamFormat(new TextLineInputFormat("UTF-8"), new Path(input)).build(),
+        FileSource
+          .forRecordStreamFormat(new TextLineInputFormat("UTF-8"), new Path(input))
+          .setFileEnumerator(new ExcludingEnumerator(exclude))
+          .build(),
         WatermarkStrategy.noWatermarks[String](),
         "bad rows"
       )
@@ -343,6 +363,38 @@ final case class KinesisConfig(
   checkpointing: Option[Checkpointing] = None
 )
 final case class Credentials(accessKey: String, secretKey: String)
+
+/** Lists input files recursively like FileSource's default, skipping hidden files and anything under `exclude` */
+final class ExcludingEnumerator(exclude: List[String]) extends FileEnumerator.Provider {
+  override def create(): FileEnumerator = new NonSplittingRecursiveEnumerator(new ExcludingFilter(exclude))
+}
+
+final class ExcludingFilter(exclude: List[String]) extends Predicate[Path] with Serializable {
+  private val hidden   = new DefaultFileFilter()
+  private val prefixes = exclude.map(ExcludingFilter.normalise)
+
+  override def test(path: Path): Boolean = {
+    val p = ExcludingFilter.normalise(path.toString)
+    hidden.test(path) && !prefixes.exists(prefix => p == prefix || p.startsWith(prefix + "/"))
+  }
+}
+
+object ExcludingFilter {
+
+  /** Same form for `file:/a`, `file:///a/` and `/a`, and for s3, s3a and s3n */
+  private[recovery] def normalise(path: String): String = {
+    val uri    = new Path(path).toUri
+    val scheme = Option(uri.getScheme).map(_.replaceAll("^s3[an]$", "s3")).getOrElse("file")
+    s"$scheme://${Option(uri.getAuthority).getOrElse("")}${uri.getPath.stripSuffix("/")}"
+  }
+}
+
+/** Records the id of the submitted job */
+final class JobIdListener(jobId: AtomicReference[Option[JobID]]) extends JobListener {
+  override def onJobSubmitted(client: JobClient, err: Throwable): Unit =
+    Option(client).foreach(c => jobId.set(Some(c.getJobID)))
+  override def onJobExecuted(result: JobExecutionResult, err: Throwable): Unit = ()
+}
 final case class Checkpointing(
   interval: FiniteDuration,
   directory: String,
