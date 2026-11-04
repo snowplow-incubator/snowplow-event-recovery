@@ -65,8 +65,8 @@ class SplitByStatusSpec extends AnyWordSpec with ScalaCheckPropertyChecks with E
       config.setString(
         ConfigConstants.METRICS_REPORTER_PREFIX +
           "testReporter." +
-          ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-        classOf[TestMetricReporter].getName
+          ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+        classOf[TestMetricReporterFactory].getName
       )
       val tag1 = OutputTag[RecoveryError]("failed")
       val tag2 = OutputTag[RecoveryError]("unrecoverable")

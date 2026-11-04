@@ -16,8 +16,9 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import org.apache.flink.metrics._
-import org.apache.flink.metrics.reporter.MetricReporter
+import org.apache.flink.metrics.reporter.{MetricReporter, MetricReporterFactory}
 
+import java.util.Properties
 import scala.collection.mutable
 
 class TestMetricReporter extends MetricReporter {
@@ -36,6 +37,11 @@ class TestMetricReporter extends MetricReporter {
     }
 
   override def notifyOfRemovedMetric(metric: Metric, metricName: String, group: MetricGroup): Unit = {}
+}
+
+/** Flink 1.16+ only instantiates reporters through a factory (`metrics.reporter.<name>.factory.class`) */
+class TestMetricReporterFactory extends MetricReporterFactory {
+  override def createMetricReporter(properties: Properties): MetricReporter = new TestMetricReporter
 }
 
 object TestMetricReporter {

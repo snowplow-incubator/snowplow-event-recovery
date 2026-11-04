@@ -108,7 +108,6 @@ object BuildSettings {
       "Sonatype OSS Snapshots"
         .at("http://oss.sonatype.org/content/repositories/snapshots/")
         .withAllowInsecureProtocol(true),
-      "Twitter Maven Repo".at("http://maven.twttr.com/").withAllowInsecureProtocol(true),
       "Snowplow Analytics Maven repo".at("http://maven.snplow.com/releases/").withAllowInsecureProtocol(true),
       "Confluent Repository".at("https://packages.confluent.io/maven/"),
       Resolver.mavenLocal
@@ -191,6 +190,33 @@ object BuildSettings {
     cliProjectSettings ++ commonBuildSettings ++ assemblySettings(true) ++ executableSettings
 
   lazy val beamBuildSettings: Seq[sbt.Setting[_]] = beamProjectSettings ++ commonBuildSettings ++ dockerSettings
+
+  /** Copied from env.java.default-opts.all in Flink 1.20's flink-dist config.yaml. Java 8 rejects these flags. */
+  lazy val flinkJvmModuleOptions: Seq[String] =
+    if (sys.props("java.specification.version").startsWith("1.")) Nil
+    else
+      Seq(
+        "--add-exports=java.base/sun.net.util=ALL-UNNAMED",
+        "--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.net=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+        "--add-opens=java.base/java.text=ALL-UNNAMED",
+        "--add-opens=java.base/java.time=ALL-UNNAMED",
+        "--add-opens=java.base/java.util=ALL-UNNAMED",
+        "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+        "--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED"
+      )
 
   lazy val flinkBuildSettings: Seq[sbt.Setting[_]] = flinkProjectSettings ++ commonBuildSettings ++ assemblySettings(
     false
