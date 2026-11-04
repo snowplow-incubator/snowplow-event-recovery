@@ -14,18 +14,27 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import org.apache.flink.util.Collector
-import org.apache.flink.streaming.api.scala.OutputTag
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import domain._
+import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Counter
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.scala.OutputTag
+import org.apache.flink.util.Collector
 
+import domain._
+
+/** Sends recovered payloads on, and failed and unrecoverable bad rows to side outputs. Also marks each event's outcome
+  * on the `SplitByStatus.Counted` side output, for `RecoveryTotals` to count.
+  *
+  * The totals are not kept here: when one of this operator's subtasks finishes before the others (its input is done),
+  * Flink keeps no state for it in later checkpoints, so a restore from such a checkpoint would lose its counts.
+  */
 class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[RecoveryError])
     extends ProcessFunction[Either[RecoveryError, Array[Byte]], Array[Byte]] {
+  import SplitByStatus._
 
-  // we need this as described here:
-  //  https://nightlies.apache.org/flink/flink-docs-release-1.15/docs/ops/metrics
+  // Live metrics, reset when the job restarts. Flink assigns them in open(), see
+  //  https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/ops/metrics
   @transient private var recoveredCount: Counter     = _
   @transient private var failedCount: Counter        = _
   @transient private var unrecoverableCount: Counter = _
@@ -44,18 +53,25 @@ class SplitByStatus(failed: OutputTag[RecoveryError], unrecoverable: OutputTag[R
     value match {
       case Right(v) =>
         recoveredCount.inc()
+        ctx.output(Counted, RecoveredEvent)
         out.collect(v)
-      case v @ Left(RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
+      case Left(e @ RecoveryError(UnrecoverableBadRowType(_), _, _)) =>
         unrecoverableCount.inc()
-        ctx.output[RecoveryError](
-          unrecoverable,
-          v.left.get
-        )
-      case Left(v) =>
+        ctx.output(Counted, UnrecoverableEvent)
+        ctx.output[RecoveryError](unrecoverable, e)
+      case Left(e) =>
         failedCount.inc()
-        ctx.output[RecoveryError](
-          failed,
-          v
-        )
+        ctx.output(Counted, FailedEvent)
+        ctx.output[RecoveryError](failed, e)
     }
+}
+
+object SplitByStatus {
+
+  /** Each event's outcome, one of the three below */
+  val Counted: OutputTag[Int] = OutputTag[Int]("counted")
+
+  val RecoveredEvent     = 0
+  val FailedEvent        = 1
+  val UnrecoverableEvent = 2
 }

@@ -13,7 +13,7 @@
       "service": "EMR_DefaultRole"
     },
     "ec2": {
-      "amiVersion": "6.9.0",
+      "amiVersion": "7.13.0",
       "keyName": "{{ .keypair }}",
       "location": {
         "vpc": {
@@ -22,14 +22,14 @@
       },
       "instances": {
         "master": {
-          "type": "m4.large"
+          "type": "m5.xlarge"
         },
         "core": {
-          "type": "m4.large",
+          "type": "m5.xlarge",
           "count": 1
         },
         "task": {
-          "type": "m4.large",
+          "type": "m5.xlarge",
           "count": 0
         }
       }
@@ -47,31 +47,29 @@
     "configurations": [
       {
         "classification": "hadoop-env",
-        "properties": {},
         "configurations": [
           {
             "classification": "export",
             "properties": {
-              "JAVA_HOME": "/usr/lib/jvm/java-11-amazon-corretto.x86_64"
+              "JAVA_HOME": "/usr/lib/jvm/jre-11"
             }
           }
-        ]
+        ],
+        "properties": {}
       },
       {
         "classification": "flink-conf",
         "properties": {
+          "env.java.home": "/usr/lib/jvm/jre-11",
+          "containerized.master.env.JAVA_HOME": "/usr/lib/jvm/jre-11",
+          "containerized.taskmanager.env.JAVA_HOME": "/usr/lib/jvm/jre-11",
           "taskmanager.numberOfTaskSlots": "1",
+          "client.heartbeat.timeout": "3650d",
+          "classloader.check-leaked-classloader": "false",
           "jobmanager.web.address": "0.0.0.0",
           "rest.address": "0.0.0.0",
-          "jobmanager.heap.size": "1024m",
           "taskmanager.memory.process.size": "1728m",
           "web.timeout": "1000000",
-          "metrics.reporters": "stsd",
-          "metrics.reporter.stsd.port": "8125",
-          "metrics.reporter.stsd.host": "localhost",
-          "metrics.reporter.stsd.class": "org.apache.flink.metrics.statsd.StatsDReporter",
-          "metrics.reporter.stsd.factory.class": "org.apache.flink.metrics.statsd.StatsDReporterFactory",
-          "metrics.reporter.stsd.interval": "1 SECONDS",
           "metrics.scope.jm": "jobmanager",
           "metrics.scope.jm.job": "jobmanager.<job_id>",
           "metrics.scope.tm": "taskmanager.<tm_id>",
@@ -102,14 +100,7 @@
         }
       }
     ],
-    "bootstrapActionConfigs": [
-      {
-        "name": "Flink Streaming Hadoop FS",
-        "scriptBootstrapAction": {
-          "path": "s3://{{ .bucket }}/3-enrich/snowplow-event-recovery/snowplow-event-recovery-flink-{{ .version }}-bootstrap.sh"
-        }
-      }
-    ],
+    "bootstrapActionConfigs": [],
     "applications": [
       "Flink"
     ]

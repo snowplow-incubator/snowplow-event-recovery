@@ -62,8 +62,8 @@ object Dependencies {
     val monocle         = "2.1.0"
     val spark           = "3.2.1"
     val awsKinesisSpark = "0.0.12"
-    val flink           = "1.15.2"
-    val flinkKinesis    = "1.15.2"
+    val flink           = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
+    val flinkKinesis    = "5.1.0-1.20"
     val scio            = "0.13.6"
     val beam            = "2.52.0"
     val decline         = "1.4.0"
@@ -81,7 +81,8 @@ object Dependencies {
     val scalaCheckSchema    = "0.2.1"
     val scalaCheckShapeless = "1.3.0"
     val scalaCommonEnrich   = "3.2.1"
-    val testContainers      = "0.40.15"
+    val testContainers      = "0.43.6"
+    val testContainersJava  = "1.21.4" // Docker Engine 29 rejects the API version older testcontainers-java requests
     val catsRetry           = "2.1.0"
 
     //cli
@@ -125,7 +126,10 @@ object Dependencies {
     ("org.apache.flink" % "flink-s3-fs-hadoop" % V.flink % Provided) :+
     ("org.apache.flink" % "flink-connector-aws-kinesis-streams" % V.flinkKinesis)
       .exclude("com.google.protobuf", "protobuf-java") :+
-    ("org.apache.flink" % "flink-connector-files" % V.flink).exclude("com.google.protobuf", "protobuf-java") :+
+    // Part of the Flink distribution, as are flink-connector-base and the shaded libraries the AWS connectors pull in
+    // transitively; those are left out of the jar by the flink project's assemblyExcludedJars
+    ("org.apache.flink" % "flink-connector-files" % V.flink % Provided)
+      .exclude("com.google.protobuf", "protobuf-java") :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % IntegrationTest) :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % Test) :+
     ("org.apache.flink" % "flink-streaming-java" % V.flink % Test classifier Artifact.TestsClassifier)
@@ -154,6 +158,8 @@ object Dependencies {
   val mockito  = "org.scalatestplus" %% "mockito-4-2" % s"${V.scalatest}.0" % Test
   val testContainers = Seq("testcontainers-scala-scalatest", "testcontainers-scala-localstack").map(
     "com.dimafeng" %% _ % V.testContainers % Seq(Test, IntegrationTest).mkString(",")
+  ) ++ Seq("testcontainers", "localstack").map(
+    "org.testcontainers" % _ % V.testContainersJava % Seq(Test, IntegrationTest).mkString(",")
   )
   val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
 
