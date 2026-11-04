@@ -31,6 +31,8 @@ import cats.effect.{IO, Timer}
 import retry._
 import retry.syntax.all._
 
+import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
 import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest
 import com.amazonaws.services.cloudwatch.model.Metric
@@ -44,6 +46,15 @@ class CloudwatchSpec extends AnyWordSpec with TestContainerForAll {
     services = List(Service.CLOUDWATCH, Service.CLOUDWATCHLOGS)
   )
 
+  // testcontainers-scala 0.41+ dropped its AWS SDK v1 helpers; rebuild them from the Java container
+  private def endpointConfiguration(localstack: LocalStackContainer, service: Service): EndpointConfiguration =
+    new EndpointConfiguration(localstack.container.getEndpointOverride(service).toString, localstack.container.getRegion)
+
+  private def credentialsProvider(localstack: LocalStackContainer): AWSStaticCredentialsProvider =
+    new AWSStaticCredentialsProvider(
+      new BasicAWSCredentials(localstack.container.getAccessKey, localstack.container.getSecretKey)
+    )
+
   "Cloudwatch" should {
     "deliver metrics" in withContainers { case localstack: LocalStackContainer =>
       val namespace  = "event-recovery"
@@ -54,9 +65,9 @@ class CloudwatchSpec extends AnyWordSpec with TestContainerForAll {
       val client = AmazonCloudWatchClientBuilder
         .standard()
         .withEndpointConfiguration(
-          localstack.endpointConfiguration(Service.CLOUDWATCH)
+          endpointConfiguration(localstack, Service.CLOUDWATCH)
         )
-        .withCredentials(localstack.defaultCredentialsProvider)
+        .withCredentials(credentialsProvider(localstack))
         .build()
 
       val report = Cloudwatch
@@ -64,8 +75,8 @@ class CloudwatchSpec extends AnyWordSpec with TestContainerForAll {
           Some(Cloudwatch.Config(namespace, dimensions)),
           Some(
             Cloudwatch.AWSOverrides(
-              localstack.endpointConfiguration(Service.CLOUDWATCH),
-              localstack.defaultCredentialsProvider
+              endpointConfiguration(localstack, Service.CLOUDWATCH),
+              credentialsProvider(localstack)
             )
           )
         )
