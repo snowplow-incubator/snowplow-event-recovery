@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory
 import cats.syntax.either._
 import org.apache.flink.api.common.{JobExecutionResult, JobID}
 import org.apache.flink.core.execution.{JobClient, JobListener}
-import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
+import org.apache.flink.configuration.{Configuration, RestartStrategyOptions, StateRecoveryOptions}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.serialization.SerializationSchema
@@ -32,8 +32,9 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedC
 import org.apache.flink.connector.kinesis.sink.{KinesisStreamsConfigConstants, KinesisStreamsSink}
 import org.apache.flink.connector.aws.util.{AWSClientUtil, AWSGeneralUtil}
 import software.amazon.awssdk.services.kinesis.{KinesisAsyncClient, KinesisAsyncClientBuilder}
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest
 import org.apache.flink.connector.file.sink.FileSink
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig
 import org.apache.flink.connector.file.src.FileSource
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat
@@ -118,16 +119,29 @@ trait RecoveryJob {
     val failed        = OutputTag[RecoveryError]("failed")
     val unrecoverable = OutputTag[RecoveryError]("unrecoverable")
 
-    // Stateful operators get fixed uids so a run can resume from another run's checkpoint
     // The outputs may be under the input (the failed and unrecoverable defaults are), and the input is read
     // recursively: without skipping them, a rerun would recover the previous run's output again.
     val ownOutputs =
       List(failedOutput, unrecoverableOutput) ++ directoryOutput ++ kinesisConfig.checkpointing.map(_.directory)
+    // Stateful operators get fixed uids so a run can resume from another run's checkpoint
     val recovering = load(env, input, ownOutputs)
       .map(execute(cfg)(_))
       .uid("recover")
       .process(new SplitByStatus(failed, unrecoverable))
       .uid("split-by-status")
+
+    // Totals for the summary, with parallelism 1 (see RecoveryTotals). The edge into it joins every recovering subtask,
+    // so Flink restarts the whole job on a task failure rather than only the failed part.
+    recovering
+      .getSideOutput(SplitByStatus.Counted)
+      .process(new RecoveryTotals)
+      .setParallelism(1)
+      .name("recovery-totals")
+      .uid("recovery-totals")
+      .sinkTo(new DiscardingSink[Int])
+      .setParallelism(1)
+      .name("recovery-totals-sink")
+      .uid("recovery-totals-sink")
 
     output.foreach { stream =>
       recovering
@@ -156,15 +170,27 @@ trait RecoveryJob {
       checkpointing.setCheckpointStorage(ch.directory)
 
       // With checkpointing on, Flink restarts a failed job forever by default, so a permanent error such as a
-      // missing stream would never end the run. Cap it, unless the cluster's Flink configuration sets a strategy.
+      // missing stream would never end the run. Allow a number of failures within an interval instead, unless the
+      // cluster's Flink configuration sets a strategy. A rate rather than a total, so a long recovery survives
+      // occasional failures (a lost node) while a failure that repeats ends the run.
       if (!env.getJavaEnv.getConfiguration.getOptional(RestartStrategyOptions.RESTART_STRATEGY).isPresent) {
         val restarts = new Configuration()
-        restarts.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay")
-        restarts.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(ch.restartAttempts))
-        restarts.set(
-          RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
-          java.time.Duration.ofMillis(ch.restartDelay.toMillis)
-        )
+        if (ch.maxFailures < 1) restarts.set(RestartStrategyOptions.RESTART_STRATEGY, "none")
+        else {
+          restarts.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate")
+          restarts.set(
+            RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
+            Int.box(ch.maxFailures)
+          )
+          restarts.set(
+            RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
+            java.time.Duration.ofMillis(ch.failureInterval.toMillis)
+          )
+          restarts.set(
+            RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY,
+            java.time.Duration.ofMillis(ch.restartDelay.toMillis)
+          )
+        }
         env.getJavaEnv.configure(restarts)
       }
     }
@@ -185,7 +211,14 @@ trait RecoveryJob {
               s"To resume from the last checkpoint, rerun on the same input with `flink run -s $checkpoint`. " +
                 "Events sent after that checkpoint are sent again, so the stream may hold some of them twice."
             case None =>
-              s"No checkpoint under ${ch.directory}/$job was completed, so $rerun"
+              resumedFrom(env) match {
+                // A resumed run that failed before its first checkpoint: the checkpoint it resumed from still holds
+                case Some(previous) =>
+                  s"No checkpoint under ${ch.directory}/$job was completed. This run resumed from $previous: to " +
+                    s"resume again, rerun on the same input with `flink run -s $previous`."
+                case None =>
+                  s"No checkpoint under ${ch.directory}/$job was completed, so $rerun"
+              }
           }
       }
       log.error(s"Recovery failed. Recovered events written before the failure stay in $destinations. $resume", err)
@@ -193,11 +226,11 @@ trait RecoveryJob {
     }
 
     val summary = RecoverySummary(
-      recovered = accumulator(result, SplitByStatus.Recovered),
-      failed = accumulator(result, SplitByStatus.Failed),
-      unrecoverable = accumulator(result, SplitByStatus.Unrecoverable),
-      restarts = intAccumulator(result, SplitByStatus.Attempt),
-      resumed = intAccumulator(result, SplitByStatus.Resumed) > 0
+      recovered = accumulator(result, RecoveryTotals.Recovered),
+      failed = accumulator(result, RecoveryTotals.Failed),
+      unrecoverable = accumulator(result, RecoveryTotals.Unrecoverable),
+      restarts = intAccumulator(result, RecoveryTotals.Attempt),
+      resumed = intAccumulator(result, RecoveryTotals.Resumed) > 0
     )
     // execute() only returns once the sinks have written every record they were given: the Kinesis sink retries
     // throttled records until they land and fails the job on a non-retryable error. So every recovered event is in
@@ -248,9 +281,9 @@ trait RecoveryJob {
       )
       try {
         val status = client
-          .describeStreamSummary(DescribeStreamSummaryRequest.builder().streamName(stream).build())
+          .describeStream(DescribeStreamRequest.builder().streamName(stream).limit(1).build())
           .get(2, MINUTES)
-          .streamDescriptionSummary()
+          .streamDescription()
           .streamStatusAsString()
         log.info(s"Kinesis stream $stream in ${kinesisConfig.region} is $status")
       } catch {
@@ -289,6 +322,10 @@ trait RecoveryJob {
 
   private[this] def accumulator(result: JobExecutionResult, name: String): Long =
     Option(result.getAccumulatorResult[java.lang.Long](name)).fold(0L)(_.longValue)
+
+  /** The checkpoint this run was started from with `flink run -s`, if any */
+  private[this] def resumedFrom(env: StreamExecutionEnvironment): Option[String] =
+    Option(env.getJavaEnv.getConfiguration.get(StateRecoveryOptions.SAVEPOINT_PATH))
 
   private[this] def intAccumulator(result: JobExecutionResult, name: String): Int =
     Option(result.getAccumulatorResult[Integer](name)).fold(0)(_.intValue)
@@ -381,11 +418,14 @@ final class ExcludingFilter(exclude: List[String]) extends Predicate[Path] with 
 
 object ExcludingFilter {
 
-  /** Same form for `file:/a`, `file:///a/` and `/a`, and for s3, s3a and s3n */
+  /** Same form for `file:/a`, `file:///a/` and `/a`, and for s3, s3a and s3n. For hdfs the authority is dropped: a path
+    * given as `hdfs:///a` is listed as `hdfs://<namenode>:8020/a`.
+    */
   private[recovery] def normalise(path: String): String = {
-    val uri    = new Path(path).toUri
-    val scheme = Option(uri.getScheme).map(_.replaceAll("^s3[an]$", "s3")).getOrElse("file")
-    s"$scheme://${Option(uri.getAuthority).getOrElse("")}${uri.getPath.stripSuffix("/")}"
+    val uri       = new Path(path).toUri
+    val scheme    = Option(uri.getScheme).map(_.replaceAll("^s3[an]$", "s3")).getOrElse("file")
+    val authority = if (scheme == "hdfs") "" else Option(uri.getAuthority).getOrElse("")
+    s"$scheme://$authority${uri.getPath.stripSuffix("/")}"
   }
 }
 
@@ -395,10 +435,15 @@ final class JobIdListener(jobId: AtomicReference[Option[JobID]]) extends JobList
     Option(client).foreach(c => jobId.set(Some(c.getJobID)))
   override def onJobExecuted(result: JobExecutionResult, err: Throwable): Unit = ()
 }
+
+/** Checkpointing, and how many failures the job restarts after: at most `maxFailures` within `failureInterval`, each
+  * after `restartDelay`. With `maxFailures` 0 the first failure ends the run.
+  */
 final case class Checkpointing(
   interval: FiniteDuration,
   directory: String,
-  restartAttempts: Int = 3,
+  maxFailures: Int = 10,
+  failureInterval: FiniteDuration = 10.minutes,
   restartDelay: FiniteDuration = 10.seconds
 )
 

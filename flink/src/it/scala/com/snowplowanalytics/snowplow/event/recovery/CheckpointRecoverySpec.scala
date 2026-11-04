@@ -100,7 +100,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,
-          setup.kinesisConfig(restartAttempts = 3)
+          setup.kinesisConfig(maxFailures = 3)
         )
 
         val delivered = readAll(setup.kinesis, setup.streamName).map(_.toSeq)
@@ -125,7 +125,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,
-          setup.kinesisConfig(restartAttempts = 0)
+          setup.kinesisConfig(maxFailures = 0)
         )
         val deliveredByFirstRun = readAll(setup.kinesis, setup.streamName).size
         val checkpoint          = latestCheckpoint(setup.checkpointDir)
@@ -146,7 +146,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
           setup.failedDir,
           setup.unrecoverableDir,
           cfg,
-          setup.kinesisConfig(restartAttempts = 0)
+          setup.kinesisConfig(maxFailures = 0)
         )
 
         val delivered = readAll(setup.kinesis, setup.streamName).map(_.toSeq)
@@ -199,7 +199,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
     val unrecoverableDir: String = workDir.resolve("unrecoverable").toUri.toString
     val checkpointDir: JPath     = workDir.resolve("checkpoints")
 
-    def kinesisConfig(restartAttempts: Int): KinesisConfig =
+    def kinesisConfig(maxFailures: Int): KinesisConfig =
       KinesisConfig(
         region = endpoint.getSigningRegion,
         endpoint = Some(endpoint.getServiceEndpoint),
@@ -208,7 +208,7 @@ class CheckpointRecoverySpec extends AnyWordSpec with TestContainerForAll with B
           Checkpointing(
             interval = 200.millis,
             directory = checkpointDir.toUri.toString,
-            restartAttempts = restartAttempts,
+            maxFailures = maxFailures,
             restartDelay = 100.millis
           )
         )

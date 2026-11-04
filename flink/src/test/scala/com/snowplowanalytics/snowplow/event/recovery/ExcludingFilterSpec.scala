@@ -34,6 +34,12 @@ class ExcludingFilterSpec extends AnyWordSpec {
       filter.test(new Path("s3a://other/in/unrecovered/rows.gz")) shouldBe true
       filter.test(new Path("file:/tmp/in/rows.txt")) shouldBe true
     }
+    "skip hdfs files whether or not the namenode is given" in {
+      val hdfs = new ExcludingFilter(List("hdfs:///local/to-recover/unrecovered"))
+      hdfs.test(new Path("hdfs://ip-10-0-0-1.ec2.internal:8020/local/to-recover/unrecovered/part-0")) shouldBe false
+      hdfs.test(new Path("hdfs:///local/to-recover/unrecovered/part-0")) shouldBe false
+      hdfs.test(new Path("hdfs://ip-10-0-0-1.ec2.internal:8020/local/to-recover/rows.gz")) shouldBe true
+    }
     "skip hidden files like FileSource's default filter" in {
       filter.test(new Path("s3a://bucket/in/_SUCCESS")) shouldBe false
       filter.test(new Path("s3a://bucket/in/.part-0.inprogress")) shouldBe false
