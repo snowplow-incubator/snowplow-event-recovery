@@ -35,17 +35,24 @@ class CheckSpec extends AnyWordSpec with ScalaCheckPropertyChecks with EitherVal
       }
 
       "using filters" in {
-        import org.scalacheck.Shrink
+        import org.scalacheck.{Gen, Shrink}
         implicit val noShrinkS: Shrink[String] = Shrink.shrinkAny
 
-        forAll(gens.badRowAdapterFailuresA.arbitrary, gens.querystringGen(gens.validParamGen).suchThat(_.size >= 1)) {
-          (br, qs) =>
-            val params           = querystring.toNVP(qs)
-            val NVP(name, value) = params.head
-            val json             = br.lens(_.payload.querystring).set(params).asJson
-            check(Compare(value.getOrElse("").asJson))(path(s"payload.querystring.[?(@.name=~${name})].value"))(json)
-              .right
-              .value should equal(true)
+        // Alphanumeric and longer than any name querystringGen makes (7 chars), so the =~ regex matches only this one
+        val targetName = Gen.choose(8, 12).flatMap(Gen.listOfN(_, Gen.alphaNumChar)).map(_.mkString)
+
+        forAll(
+          gens.badRowAdapterFailuresA.arbitrary,
+          gens.querystringGen(gens.validParamGen).suchThat(_.size >= 1),
+          targetName,
+          gens.validParamGen
+        ) { (br, qs, name, value) =>
+          val params = querystring.toNVP(s"$name=$value&$qs")
+          params.head shouldBe NVP(name, Some(value))
+          val json = br.lens(_.payload.querystring).set(params).asJson
+          check(Compare(value.asJson))(path(s"payload.querystring.[?(@.name=~${name})].value"))(json)
+            .right
+            .value should equal(true)
         }
       }
 
