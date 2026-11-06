@@ -15,7 +15,6 @@
 
 import BuildSettings._
 
-// spark is not aggregated: it is unsupported and cannot be built, as hadoop-lzo is no longer downloadable
 lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink)
 
 lazy val core = project
@@ -109,35 +108,9 @@ lazy val flink = project
       ) ++ Dependencies.circe
       ++ Dependencies.testContainers
       ++ Dependencies.scalatestIT
-      :+ Dependencies.catsRetry
       :+ Dependencies.kinesis.excludeAll(
-          ExclusionRule(organization = "commons-logging", name = "commons-logging"),
-          ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
-        )
-      :+ Dependencies.cloudwatch.excludeAll(
           ExclusionRule(organization = "commons-logging", name = "commons-logging"),
           ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
         ),
     dependencyOverrides += Dependencies.jackson
   )
-
-lazy val spark =
-  project
-    .dependsOn(core % "compile->compile;test->test")
-    .configs(IntegrationTest)
-    .settings(Defaults.itSettings)
-    .settings(sparkBuildSettings)
-    .settings(
-      libraryDependencies ++= Seq(
-        Dependencies.awsKinesisSpark,
-        Dependencies.elephantBird,
-        Dependencies.hadoopLzo,
-        Dependencies.cloudwatch
-      ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
-        ++ Dependencies.spark
-        ++ Dependencies.decline
-        ++ Dependencies.testContainers
-        ++ Dependencies.scalatestIT
-        :+ Dependencies.catsRetry,
-      dependencyOverrides += Dependencies.jackson
-    )

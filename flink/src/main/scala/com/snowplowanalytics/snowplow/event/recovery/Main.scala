@@ -34,8 +34,8 @@ object Main
   /** Kinesis accepts at most this many records in one PutRecords call */
   val MaxKinesisBatchSize = 500
 
-  // The Spark and Beam jobs name these --failedOutput, --unrecoverableOutput and --batchSize. Both names are accepted
-  // so the same arguments work with every runner.
+  // The Beam job and the former Spark job name these --failedOutput, --unrecoverableOutput and --batchSize. Both
+  // names are accepted so existing command lines keep working.
   private[recovery] val failedOutput: Opts[Option[String]] = optionWithAlias[String](
     "failed",
     "failedOutput",
@@ -77,7 +77,7 @@ object Main
       )
     }
 
-  /** Same defaults as the Spark and Beam jobs. They sit under `input`, so a rerun on the same input reads them too. */
+  /** Same defaults as the Beam job. They sit under `input`, so a rerun on the same input reads them too. */
   private[recovery] def failedPathOrDefault(input: String, failed: Option[String]): String =
     failed.getOrElse(paths.failedPath(input))
 
@@ -88,7 +88,7 @@ object Main
   ): String =
     unrecoverable.orElse(failed.map(paths.unrecoverablePath)).getOrElse(paths.unrecoverablePath(input))
 
-  /** An option that can also be given under the name the Spark and Beam jobs use */
+  /** An option that can also be given under an older name */
   private def optionWithAlias[A: Argument](name: String, alias: String, help: String): Opts[A] =
     Opts.option[A](name, help).orElse(Opts.option[A](alias, s"Same as --$name"))
 

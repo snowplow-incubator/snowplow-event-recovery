@@ -26,15 +26,14 @@ Flows are sequences of Steps applied one by one.
 2. Encode config
 3. Choose runner and deploy:
 - Beam
-- Spark: unsupported and no longer built or released. It drops events when Kinesis throttles writes and counts events before writing them. Use Flink for recoveries into Kinesis.
 - Flink
 
 ## Flink job: arguments
 Recovered events go to a Kinesis stream (`--output`), to files (`--directory-output`, also accepted as `--directoryOutput`), or both; at least one is required. Files are useful for a dry run before sending events to Kinesis. Each recovered event is one line of JSON keyed by the collector payload's field names (`path`, `querystring`, `body`, `headers`, ...), in files named `part-<id>-<n>.json` under one directory per hour (`<directory>/<yyyy-MM-dd--HH>/`). A run that recovers no events writes no files there.
 
-The Flink job accepts the argument names of the Spark and Beam jobs as well as its own: `--failedOutput` for `--failed`, `--unrecoverableOutput` for `--unrecoverable` and `--batchSize` for `--batch-size`. `--batch-size` must be between 1 and 500, the most records Kinesis accepts in one PutRecords call.
+The Flink job also accepts older argument names, as used by the Beam job and the former Spark job: `--failedOutput` for `--failed`, `--unrecoverableOutput` for `--unrecoverable` and `--batchSize` for `--batch-size`. `--batch-size` must be between 1 and 500, the most records Kinesis accepts in one PutRecords call.
 
-Without `--failed`, failed bad rows go to `<input>/unrecovered`. Without `--unrecoverable`, unrecoverable ones go to `<failed>/unrecoverable` when `--failed` is given, and to `<input>/unrecoverable` otherwise, as with the Spark and Beam jobs. The job reads its input path including subdirectories, but skips its own outputs and checkpoint directory, so a rerun on the same input does not recover the previous run's failed rows again. Hidden files (names starting with `.` or `_`) are skipped too. Input paths are directories or files; globs such as `s3://bucket/path/*` are not expanded.
+Without `--failed`, failed bad rows go to `<input>/unrecovered`. Without `--unrecoverable`, unrecoverable ones go to `<failed>/unrecoverable` when `--failed` is given, and to `<input>/unrecoverable` otherwise, as with the Beam job. The job reads its input path including subdirectories, but skips its own outputs and checkpoint directory, so a rerun on the same input does not recover the previous run's failed rows again. Hidden files (names starting with `.` or `_`) are skipped too. Input paths are directories or files; globs such as `s3://bucket/path/*` are not expanded.
 
 ## Flink job: delivery and counts
 The Flink job retries records that Kinesis throttles until they are written, and never drops a record: a request either succeeds, is retried, or fails the job. So when the job finishes successfully, every recovered event is in the output stream and directory, whichever were given. The summary names only the destinations that were given.
@@ -60,7 +59,7 @@ Flink's metrics for the job (visible in the Flink web UI, or through a metrics r
 While the job runs, records written so far is `numRecordsOut` minus `numRecordsOutErrors` on `kinesis: Writer`. This relies on Kinesis reporting an accurate `FailedRecordCount` for PutRecords. It has not been verified against real Kinesis: the integration tests use LocalStack, which reports a `FailedRecordCount` of 1 for any throttled batch.
 
 ## Flink job: failures and checkpointing
-Without checkpointing, which is the supported setup, a run that fails is not restarted: the step fails, and a rerun on the same input starts over and sends again every event the failed run had written, as with the Spark job. Delivery to Kinesis is at-least-once in that sense; a run that succeeds sends each event once.
+Without checkpointing, which is the supported setup, a run that fails is not restarted: the step fails, and a rerun on the same input starts over and sends again every event the failed run had written. Delivery to Kinesis is at-least-once in that sense; a run that succeeds sends each event once.
 
 `--checkpoint-interval <seconds>` and `--checkpoint-dir <path>` turn on checkpointing (both are needed; the interval is in seconds), so a failed run can be resumed with `flink run -s <checkpoint>` and Flink restarts the job from its last checkpoint after a task failure (up to 10 failures within 10 minutes). This is not supported yet, for two reasons:
 
