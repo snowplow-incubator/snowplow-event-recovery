@@ -63,6 +63,9 @@ lazy val beam = project
   .settings(dynVerSettings)
   .settings(beamBuildSettings)
   .settings(
+    // The pipeline's serialization reflects into these, which Java 17+ refuses by default
+    Test / fork := true,
+    Test / javaOptions ++= Seq("java.util", "java.lang.invoke").map(p => s"--add-opens=java.base/$p=ALL-UNNAMED"),
     libraryDependencies ++= Seq(
       Dependencies.scio,
       Dependencies.scioGCP,

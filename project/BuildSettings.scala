@@ -27,7 +27,7 @@ object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
     maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
-    scalaVersion := "2.12.16",
+    scalaVersion := "2.12.20",
     licenses += ("SLULA-1.1", url("https://docs.snowplow.io/limited-use-license-1.1"))
   )
 
@@ -77,14 +77,16 @@ object BuildSettings {
       "-Ywarn-nullary-unit",
       "-Ywarn-numeric-widen",
       "-Ywarn-unused",
-      "-Ywarn-value-discard"
+      "-Ywarn-value-discard",
+      // Built on JDK 21. The Beam image runs on Java 8 and the Flink job on Java 11.
+      "-release",
+      "8"
     ),
     javacOptions := Seq(
-      "-source",
-      "1.8",
-      "-target",
-      "1.8",
-      "-Xlint"
+      "--release",
+      "8",
+      "-Xlint",
+      "-Xlint:-options"
     )
   )
 

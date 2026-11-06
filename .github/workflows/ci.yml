@@ -9,20 +9,13 @@ jobs:
   test:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Everything, on Java 11, which the Flink job runs with on EMR.
-          - java: "11"
-            tests: "test flink/IntegrationTest/test"
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
       - name: Label PR
-        if: github.event_name == 'pull_request' && matrix.java == '11'
+        if: github.event_name == 'pull_request'
         uses: TimonVS/pr-labeler-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,7 +23,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ matrix.java }}
+          java-version: "21"
           # Coursier, Ivy and sbt caches, keyed on the build definition
           cache: sbt
       - name: Setup sbt
@@ -39,13 +32,12 @@ jobs:
         # core generates CollectorPayload with the thrift compiler
         run: sudo apt-get update && sudo apt-get install -y thrift-compiler
       - name: Push changes
-        if: matrix.java == '11'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "[REBASE] Run formatter/linter"
       - name: Test
         # The integration tests start LocalStack with Docker, which the runner provides
-        run: sbt ${{ matrix.tests }}
+        run: sbt test flink/IntegrationTest/test
 
   # Runs the released jar with `flink run` on Flink 1.20 and Java 11. The tests above run on sbt's classpath with a
   # newer Scala than the one Flink ships, so they cannot catch a jar that fails on the cluster.
@@ -55,12 +47,11 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-      # The release builds on Java 8
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "8"
+          java-version: "21"
           cache: sbt
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
