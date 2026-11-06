@@ -17,11 +17,9 @@ import java.util.concurrent.TimeUnit
 
 import shapeless._
 import cats.Id
-import cats.data.EitherT
 import cats.effect.Clock
 import io.circe.Json
 import io.circe.syntax._
-import io.circe.literal._
 import org.scalacheck.{Arbitrary, Gen}
 import com.fortysevendeg.scalacheck.datetime.joda.ArbitraryJoda._
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
@@ -29,10 +27,6 @@ import org.scalacheck.ScalacheckShapeless._
 
 import badrows._
 import CollectorPayload.thrift.model1.CollectorPayload
-import iglu.core.{SchemaKey, SchemaVer}
-import iglu.client.resolver.registries.Registry
-import iglu.client.resolver.Resolver
-import iglu.schemaddl.scalacheck.{IgluSchemas, JsonGenSchema}
 
 import config.conditions._
 import config._
@@ -63,12 +57,28 @@ object gens {
     s"""{"schema":"iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4","data":[{"e":"ue","p":"web","tv":"js","ue_px":"$encoded"}]}"""
   }
 
-  val jsonGen: EitherT[Id, String, Gen[Json]] = for {
-    r <- EitherT.right(Resolver.init[Id](0, None, Registry.IgluCentral))
-    schemaKey = SchemaKey("com.snowplowanalytics.snowplow", "client_session", "jsonschema", SchemaVer.Full(1, 0, 1))
-    schemaJson   <- EitherT.fromEither[Id](IgluSchemas.lookup[Id](r, schemaKey))
-    schemaObject <- EitherT.fromEither[Id](IgluSchemas.parseSchema(schemaJson))
-  } yield JsonGenSchema.json(schemaObject)
+  /** Data of a client_session 1-0-1 entity */
+  val clientSessionGen: Gen[Json] = {
+    val uuid                 = Gen.uuid.map(_.toString)
+    val nullableUuid         = Gen.option(uuid).map(_.asJson)
+    val optionalNullableUuid = Gen.option(nullableUuid)
+    for {
+      userId            <- Gen.oneOf(uuid, Gen.listOfN(16, Gen.hexChar).map(_.mkString.toLowerCase))
+      sessionId         <- uuid
+      sessionIndex      <- Gen.choose(0, Int.MaxValue)
+      previousSessionId <- nullableUuid
+      storageMechanism  <- Gen.oneOf("SQLITE", "COOKIE_1", "COOKIE_3", "LOCAL_STORAGE", "FLASH_LSO")
+      firstEventId      <- optionalNullableUuid
+    } yield Json
+      .obj(
+        "userId"            -> userId.asJson,
+        "sessionId"         -> sessionId.asJson,
+        "sessionIndex"      -> sessionIndex.asJson,
+        "previousSessionId" -> previousSessionId,
+        "storageMechanism"  -> storageMechanism.asJson
+      )
+      .mapObject(o => firstEventId.fold(o)(o.add("firstEventId", _)))
+  }
 
   implicit val collectorPayloadArb: Arbitrary[CollectorPayload] = Arbitrary {
     for {
@@ -76,7 +86,7 @@ object gens {
       path = "/com.snowplowanalytics.snowplow/v1"
       post <- Gen.oneOf(true, false)
       contentType = "application/json; charset=UTF-8"
-      json <- jsonGen.value.getOrElse(Gen.const(json"""{}"""))
+      json <- clientSessionGen
     } yield {
       val collectorPayload = new CollectorPayload()
       collectorPayload.timestamp = ts
