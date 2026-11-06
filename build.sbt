@@ -36,7 +36,6 @@ lazy val core = project
       Dependencies.scalaCheck,
       Dependencies.scalaCheckShapeless,
       Dependencies.scalaCheckToolbox,
-      Dependencies.scalaCheckSchema,
       Dependencies.scalaCommonEnrich,
       Dependencies.httpClient4 % Test,
       Dependencies.slf4jLog4j

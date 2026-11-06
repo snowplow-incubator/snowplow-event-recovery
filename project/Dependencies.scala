@@ -69,7 +69,6 @@ object Dependencies {
     val scalaCheckMinor     = "1.15"
     val scalaCheck          = s"$scalaCheckMinor.4"
     val scalaCheckToolBox   = "0.6.0"
-    val scalaCheckSchema    = "0.2.1"
     val scalaCheckShapeless = "1.3.0"
     val scalaCommonEnrich   = "3.2.1"
     val testContainers      = "0.43.6"
@@ -142,7 +141,6 @@ object Dependencies {
   ) :+
     ("org.scalatestplus" %% "scalacheck-1-15" % s"${V.scalatest}.0" % IntegrationTest)
   val scalaCheck       = "org.scalacheck"        %% "scalacheck"        % V.scalaCheck       % Test
-  val scalaCheckSchema = "com.snowplowanalytics" %% "scalacheck-schema" % V.scalaCheckSchema % Test
   val scalaCheckShapeless =
     "com.github.alexarchambault" %% s"scalacheck-shapeless_${V.scalaCheckMinor}" % V.scalaCheckShapeless % Test
   val scalaCheckToolbox = "com.47deg" %% "scalacheck-toolbox-datetime" % V.scalaCheckToolBox % Test
