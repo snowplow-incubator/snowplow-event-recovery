@@ -172,7 +172,10 @@ object BuildSettings {
   )
 
   lazy val commonBuildSettings: Seq[sbt.Setting[_]] =
-    compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings
+    compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings ++ Seq(
+      // snowplow-common-enrich 3.x depends on it. core generates the same class from its own Thrift IDL.
+      excludeDependencies += ExclusionRule("com.snowplowanalytics", "collector-payload-1")
+    )
 
   lazy val coreBuildSettings: Seq[sbt.Setting[_]] =
     coreProjectSettings ++ commonBuildSettings ++ publishSettings ++ assemblySettings(false)

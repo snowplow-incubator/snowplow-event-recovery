@@ -23,6 +23,9 @@ jobs:
           java-version: "8"
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+      - name: Install Thrift
+        # core generates CollectorPayload with the thrift compiler
+        run: sudo apt-get update && sudo apt-get install -y thrift-compiler
       - name: Build core
         run: |
           sbt core/assembly

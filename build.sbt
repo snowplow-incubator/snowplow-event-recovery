@@ -11,15 +11,20 @@
 
 import BuildSettings._
 
+// Read by sbt-thrift-plugin's task, which sbt's lint does not see
+Global / excludeLintKeys += thriftJavaOptions
+
 lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink)
 
 lazy val core = project
   .settings(coreBuildSettings)
+  // Needs the thrift compiler on the PATH. Suppressed: javax.annotation.Generated is not in the JDK after Java 8.
+  .settings(com.intenthq.sbt.ThriftPlugin.Thrift / thriftJavaOptions := Seq("generated_annotations=suppress"))
   .configs(IntegrationTest)
   .settings(Defaults.itSettings)
   .settings(
     libraryDependencies ++= (Seq(
-      Dependencies.thriftSchema.excludeAll(ExclusionRule(organization = "commons-logging")),
+      Dependencies.thrift,
       Dependencies
         .badRows
         .excludeAll(ExclusionRule(organization = "com.snowplowanalytics", name = "iglu-scala-client-data_2.12")),
@@ -33,6 +38,7 @@ lazy val core = project
       Dependencies.scalaCheckToolbox,
       Dependencies.scalaCheckSchema,
       Dependencies.scalaCommonEnrich,
+      Dependencies.httpClient4 % Test,
       Dependencies.slf4jLog4j
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest

@@ -15,7 +15,6 @@ object SecurityOverrides {
   object V {
     val commonsCodec          = "1.13"
     val guava                 = "32.0.0-jre"
-    val libthrift             = "0.16.0"
     val json                  = "20231013"
     val snakeyaml             = "2.0"
     val snappy                = "1.1.10.4"
@@ -27,7 +26,6 @@ object SecurityOverrides {
   val dependencies = Seq(
     "com.google.guava"                 % "guava"                   % V.guava,
     "commons-codec"                    % "commons-codec"           % V.commonsCodec,
-    "org.apache.thrift"                % "libthrift"               % V.libthrift,
     "org.json"                         % "json"                    % V.json,
     "org.yaml"                         % "snakeyaml"               % V.snakeyaml,
     "org.xerial.snappy"                % "snappy-java"             % V.snappy,
@@ -42,9 +40,10 @@ object Dependencies {
 
   object V {
     // Java
-    val thriftSchema    = "0.0.0"
+    val thrift          = "0.25.0" // at least the version of the thrift compiler that generates CollectorPayload
     val slf4j           = "1.7.36"
     val jacksonDatabind = "2.12.7.1"
+    val httpClient4     = "4.5.14"
     val aws             = "1.12.576"
 
     // Scala third-party
@@ -82,10 +81,19 @@ object Dependencies {
   }
 
   // Java
-  val thriftSchema = "com.snowplowanalytics"      % "collector-payload-1"     % V.thriftSchema
+  // Only TSerializer and TDeserializer are used.
+  // Not excluded build-wide: YAUAA, in snowplow-common-enrich, needs httpclient5.
+  val thrift = ("org.apache.thrift" % "libthrift" % V.thrift).excludeAll(
+    ExclusionRule("org.apache.httpcomponents.client5"),
+    ExclusionRule("org.apache.httpcomponents.core5"),
+    ExclusionRule("jakarta.servlet"),
+    ExclusionRule("jakarta.annotation")
+  )
   val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"            % V.slf4j
   val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"           % V.slf4j
   val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"        % V.jacksonDatabind
+  // snowplow-common-enrich 3.x needs it at runtime but does not depend on it
+  val httpClient4  = "org.apache.httpcomponents"  % "httpclient"              % V.httpClient4
   val kinesis      = "com.amazonaws"              % "aws-java-sdk-kinesis"    % V.aws
 
   // Scala third-party
@@ -151,6 +159,7 @@ object Dependencies {
   val cliDeps = Seq(
     "com.lihaoyi"            %% "mainargs"               % V.mainargs,
     "com.lihaoyi"            %% "os-lib"                 % V.osLib,
-    ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich).exclude("com.maxmind.geoip2", "geoip2")
+    ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich).exclude("com.maxmind.geoip2", "geoip2"),
+    httpClient4
   )
 }

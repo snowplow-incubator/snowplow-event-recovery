@@ -35,6 +35,9 @@ jobs:
           cache: sbt
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+      - name: Install Thrift
+        # core generates CollectorPayload with the thrift compiler
+        run: sudo apt-get update && sudo apt-get install -y thrift-compiler
       - name: Push changes
         if: matrix.java == '11'
         uses: stefanzweifel/git-auto-commit-action@v5
@@ -61,6 +64,9 @@ jobs:
           cache: sbt
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+      - name: Install Thrift
+        # core generates CollectorPayload with the thrift compiler
+        run: sudo apt-get update && sudo apt-get install -y thrift-compiler
       - name: Build the Flink jar
         run: sbt flink/assembly
       - name: Run it on Flink
