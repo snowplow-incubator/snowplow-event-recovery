@@ -58,6 +58,8 @@ Whenever necessary, it's good practice to add the corresponding unit tests to wh
 
 Then you can run `sbt test` to check they are working properly.
 
+The build generates Java classes from the Thrift definitions in `core/src/main/thrift`, so it needs the `thrift` compiler on the `PATH` (`brew install thrift`, `apt install thrift-compiler`, or the nix shell). Its version must not be newer than the `libthrift` version in `project/Dependencies.scala`.
+
 ### Feedback cycle
 
 Reviews should happen fairly quickly during weekdays. If you feel your pull request has been forgotten, please ping one

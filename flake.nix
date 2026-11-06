@@ -42,6 +42,7 @@
                 jre
                 metals
                 sbt
+                pkgs.thrift
                 pkgs.entr
                 pkgs.awscli
                 pkgs.snyk
