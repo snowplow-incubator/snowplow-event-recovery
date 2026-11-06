@@ -47,27 +47,23 @@ object Dependencies {
   object V {
     // Java
     val thriftSchema    = "0.0.0"
-    val elephantBird    = "4.17"
     val slf4j           = "1.7.36"
-    val hadoopLzo       = "0.4.20"
     val jacksonDatabind = "2.12.7.1"
     val aws             = "1.12.576"
 
     // Scala third-party
-    val atto            = "0.9.5"
-    val catsCore        = "2.8.0"
-    val catsEffect      = "2.5.5"
-    val circeOptics     = "0.14.1"
-    val circe           = "0.14.2"
-    val monocle         = "2.1.0"
-    val spark           = "3.2.1"
-    val awsKinesisSpark = "0.0.12"
-    val flink           = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
-    val flinkKinesis    = "5.1.0-1.20"
-    val scio            = "0.13.6"
-    val beam            = "2.52.0"
-    val decline         = "1.4.0"
-    val declineEffect   = "1.4.0"
+    val atto          = "0.9.5"
+    val catsCore      = "2.8.0"
+    val catsEffect    = "2.5.5"
+    val circeOptics   = "0.14.1"
+    val circe         = "0.14.2"
+    val monocle       = "2.1.0"
+    val flink         = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
+    val flinkKinesis  = "5.1.0-1.20"
+    val scio          = "0.13.6"
+    val beam          = "2.52.0"
+    val decline       = "1.4.0"
+    val declineEffect = "1.4.0"
 
     // Scala first-party
     val badRows    = "2.2.0"
@@ -83,7 +79,6 @@ object Dependencies {
     val scalaCommonEnrich   = "3.2.1"
     val testContainers      = "0.43.6"
     val testContainersJava  = "1.21.4" // Docker Engine 29 rejects the API version older testcontainers-java requests
-    val catsRetry           = "2.1.0"
 
     //cli
     val mainargs = "0.7.0"
@@ -95,9 +90,6 @@ object Dependencies {
   val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"            % V.slf4j
   val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"           % V.slf4j
   val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"        % V.jacksonDatabind
-  val elephantBird = "com.twitter.elephantbird"   % "elephant-bird-core"      % V.elephantBird
-  val hadoopLzo    = "com.hadoop.gplcompression"  % "hadoop-lzo"              % V.hadoopLzo
-  val cloudwatch   = "com.amazonaws"              % "aws-java-sdk-cloudwatch" % V.aws
   val kinesis      = "com.amazonaws"              % "aws-java-sdk-kinesis"    % V.aws
 
   // Scala third-party
@@ -133,8 +125,6 @@ object Dependencies {
     ("org.apache.flink" % "flink-test-utils" % V.flink % IntegrationTest) :+
     ("org.apache.flink" % "flink-test-utils" % V.flink % Test) :+
     ("org.apache.flink" % "flink-streaming-java" % V.flink % Test classifier Artifact.TestsClassifier)
-  val spark           = Seq("spark-core", "spark-sql").map("org.apache.spark" %% _ % V.spark % Provided)
-  val awsKinesisSpark = "jp.co.bizreach" %% "aws-kinesis-spark" % V.awsKinesisSpark
 
   // Scala first-party
   val badRows    = "com.snowplowanalytics" %% "snowplow-badrows"  % V.badRows
@@ -161,7 +151,6 @@ object Dependencies {
   ) ++ Seq("testcontainers", "localstack").map(
     "org.testcontainers" % _ % V.testContainersJava % Seq(Test, IntegrationTest).mkString(",")
   )
-  val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry % IntegrationTest
 
   val cliDeps = Seq(
     "com.lihaoyi"            %% "mainargs"               % V.mainargs,

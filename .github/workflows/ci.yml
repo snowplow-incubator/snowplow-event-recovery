@@ -14,7 +14,6 @@ jobs:
       matrix:
         include:
           # Everything, on Java 11, which the Flink job runs with on EMR.
-          # The spark module is not built: it is unsupported and hadoop-lzo can no longer be downloaded.
           - java: "11"
             tests: "test flink/IntegrationTest/test"
     steps:

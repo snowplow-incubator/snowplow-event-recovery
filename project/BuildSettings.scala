@@ -52,10 +52,6 @@ object BuildSettings {
     name := "snowplow-event-recovery-flink",
     description := "Apache Flink recovery job"
   )
-  lazy val sparkProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
-    name := "snowplow-event-recovery-spark",
-    description := "Apache Spark recovery job"
-  )
   lazy val cliProjectSettings: Seq[sbt.Setting[_]] = commonProjectSettings ++ Seq(
     name := "snowplow-event-recovery",
     description := "Snowplow Event recovery CLI"
@@ -155,7 +151,6 @@ object BuildSettings {
         case x if x.endsWith("ProjectSettings$.class")                         => MergeStrategy.first
         case PathList("scala", "annotation", "nowarn.class" | "nowarn$.class") => MergeStrategy.first
         case PathList("org", "slf4j", "impl", _)                               => MergeStrategy.first
-        case PathList("org", "apache", "spark", "unused", tail @ _*)           => MergeStrategy.first
         case "build.properties"                                                => MergeStrategy.first
         case PathList("META-INF", "io.netty.versions.properties")              => MergeStrategy.discard
         case x =>
@@ -221,8 +216,4 @@ object BuildSettings {
   lazy val flinkBuildSettings: Seq[sbt.Setting[_]] = flinkProjectSettings ++ commonBuildSettings ++ assemblySettings(
     false
   ) ++ dockerSettings
-
-  lazy val sparkBuildSettings: Seq[sbt.Setting[_]] = sparkProjectSettings ++ commonBuildSettings ++ assemblySettings(
-    true
-  ) ++ Seq(IntegrationTest / fork := true)
 }

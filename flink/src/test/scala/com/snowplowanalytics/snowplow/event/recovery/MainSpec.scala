@@ -25,7 +25,7 @@ class MainSpec extends AnyWordSpec with EitherValues {
   private def parse[A](opts: Opts[A], args: String*) = Command("test", "test")(opts).parse(args)
 
   "--failed" should {
-    "be accepted under the Spark and Beam name --failedOutput" in {
+    "be accepted under the older name --failedOutput" in {
       parse(Main.failedOutput, "--failed", "s3://bucket/failed").value shouldBe Some("s3://bucket/failed")
       parse(Main.failedOutput, "--failedOutput", "s3://bucket/failed").value shouldBe Some("s3://bucket/failed")
       parse(Main.failedOutput).value shouldBe None
@@ -33,14 +33,14 @@ class MainSpec extends AnyWordSpec with EitherValues {
   }
 
   "--unrecoverable" should {
-    "be accepted under the Spark and Beam name --unrecoverableOutput" in {
+    "be accepted under the older name --unrecoverableOutput" in {
       parse(Main.unrecoverableOutput, "--unrecoverableOutput", "s3://bucket/u").value shouldBe Some("s3://bucket/u")
       parse(Main.unrecoverableOutput, "--unrecoverable", "s3://bucket/u").value shouldBe Some("s3://bucket/u")
     }
   }
 
   "--batch-size" should {
-    "be accepted under the Spark name --batchSize" in {
+    "be accepted under the older name --batchSize" in {
       parse(Main.batchSize, "--batchSize", "150").value shouldBe Some(150)
       parse(Main.batchSize, "--batch-size", "500").value shouldBe Some(500)
     }
@@ -70,7 +70,7 @@ class MainSpec extends AnyWordSpec with EitherValues {
   }
 
   "Output paths" should {
-    "default like the Spark and Beam jobs" in {
+    "default like the Beam job" in {
       Main.failedPathOrDefault("s3://bucket/in/", None) shouldBe "s3://bucket/in/unrecovered"
       Main.unrecoverablePathOrDefault("s3://bucket/in/", None, None) shouldBe "s3://bucket/in/unrecoverable"
       Main.unrecoverablePathOrDefault(

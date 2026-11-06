@@ -43,11 +43,11 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.test.util.MiniClusterWithClientResource
 
-/** A recovery into a stream that throttles writes must deliver every event. The Spark job lost events here.
+/** A recovery into a stream that throttles writes must deliver every event. The former Spark job lost events here.
   *
   * LocalStack's KINESIS_ERROR_PROBABILITY makes a PutRecords call fail every record in it with
-  * ProvisionedThroughputExceededException while still answering 200, the partial-failure shape the Spark sink
-  * dropped. Throttled records are not written, so the stream must end up with exactly one copy of each event.
+  * ProvisionedThroughputExceededException while still answering 200, the partial-failure shape the former Spark
+  * job's sink dropped. Throttled records are not written, so the stream must end up with exactly one copy of each event.
   */
 class ThrottledKinesisSpec extends AnyWordSpec with TestContainerForAll with BeforeAndAfter {
   import Fixtures._
