@@ -27,7 +27,7 @@ object BuildSettings {
   lazy val commonProjectSettings: Seq[sbt.Setting[_]] = Seq(
     organization := "com.snowplowanalytics",
     maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
-    scalaVersion := "2.12.20",
+    scalaVersion := "2.12.21",
     licenses += ("SLULA-1.1", url("https://docs.snowplow.io/limited-use-license-1.1"))
   )
 
@@ -78,15 +78,14 @@ object BuildSettings {
       "-Ywarn-numeric-widen",
       "-Ywarn-unused",
       "-Ywarn-value-discard",
-      // Built on JDK 21. The Beam image runs on Java 8 and the Flink job on Java 11.
+      // Built on JDK 21. The Beam image and the Flink job on EMR run on Java 11.
       "-release",
-      "8"
+      "11"
     ),
     javacOptions := Seq(
       "--release",
-      "8",
-      "-Xlint",
-      "-Xlint:-options"
+      "11",
+      "-Xlint"
     )
   )
 
@@ -96,15 +95,7 @@ object BuildSettings {
 
   lazy val resolverSettings: Seq[sbt.Setting[_]] = Seq[Setting[_]](
     resolvers ++= Seq(
-      "Sonatype OSS Releases"
-        .at("http://oss.sonatype.org/content/repositories/releases/")
-        .withAllowInsecureProtocol(true),
-      "Sonatype OSS Snapshots"
-        .at("http://oss.sonatype.org/content/repositories/snapshots/")
-        .withAllowInsecureProtocol(true),
-      "Snowplow Analytics Maven repo".at("http://maven.snplow.com/releases/").withAllowInsecureProtocol(true),
-      "Confluent Repository".at("https://packages.confluent.io/maven/"),
-      Resolver.mavenLocal
+      "Confluent Repository".at("https://packages.confluent.io/maven/")
     )
   )
 
@@ -132,7 +123,7 @@ object BuildSettings {
 
   lazy val dockerSettings: Seq[sbt.Setting[_]] = Seq(
     dockerUsername := Some("snowplow"),
-    dockerBaseImage := "eclipse-temurin:8-jre-focal",
+    dockerBaseImage := "eclipse-temurin:11-jre-noble",
     Docker / maintainer := "Snowplow Analytics Ltd. <support@snowplowanalytics.com>",
     Docker / daemonUser := "snowplow"
   )
@@ -142,6 +133,8 @@ object BuildSettings {
       assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
       assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = includeScala),
       assembly / assemblyMergeStrategy := {
+        // How slf4j 2 finds its logging backend
+        case "META-INF/services/org.slf4j.spi.SLF4JServiceProvider" => MergeStrategy.first
         case x if x.startsWith("META-INF")                                     => MergeStrategy.discard
         case x if x.endsWith(".html")                                          => MergeStrategy.discard
         case x if x.endsWith("package-info.class")                             => MergeStrategy.discard
@@ -151,6 +144,8 @@ object BuildSettings {
         case PathList("org", "slf4j", "impl", _)                               => MergeStrategy.first
         case "build.properties"                                                => MergeStrategy.first
         case PathList("META-INF", "io.netty.versions.properties")              => MergeStrategy.discard
+        // In both httpclient 4 and 5, which read the same format
+        case "mozilla/public-suffix-list.txt" => MergeStrategy.first
         case x =>
           val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
@@ -175,8 +170,7 @@ object BuildSettings {
 
   lazy val commonBuildSettings: Seq[sbt.Setting[_]] =
     compilerSettings ++ helperSettings ++ resolverSettings ++ publishSettings ++ dynVerSettings ++ Seq(
-      // snowplow-common-enrich 3.x depends on it. core generates the same class from its own Thrift IDL.
-      excludeDependencies += ExclusionRule("com.snowplowanalytics", "collector-payload-1")
+      dependencyOverrides ++= Dependencies.jacksonOverrides
     )
 
   lazy val coreBuildSettings: Seq[sbt.Setting[_]] =

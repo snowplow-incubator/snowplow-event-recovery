@@ -92,7 +92,7 @@ class TransformSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Eithe
     val filters = Table(
       ("example", "isAnInstance"),
       ("[?(@.price=~10)]", true),
-      ("[?(@.schema=~iglu:de.heyjobs/job_search_result_context/jsonschema/1-0-3)]", true),
+      ("[?(@.schema=~iglu:com.example/job_search_result_context/jsonschema/1-0-3)]", true),
       // unsupported operators
       ("[?(@.price > 10)]", false),
       // unsupported filter all

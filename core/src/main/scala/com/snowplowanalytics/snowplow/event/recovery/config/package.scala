@@ -14,15 +14,16 @@ package com.snowplowanalytics.snowplow.event.recovery
 import io.circe.Json
 import io.circe.parser.{parse => parseJson}
 
-import cats.effect.Clock
-import cats._
+import scala.concurrent.duration._
+
+import cats.{Applicative, Id}
 import cats.data._
+import cats.effect.Clock
 import cats.syntax.either._
 import cats.syntax.show._
 import com.snowplowanalytics.iglu.core.SelfDescribingData
-import com.snowplowanalytics.iglu.client.resolver.{InitListCache, InitSchemaCache}
-import com.snowplowanalytics.iglu.client.resolver.registries.RegistryLookup
 import com.snowplowanalytics.iglu.client.Client
+import com.snowplowanalytics.iglu.client.resolver.registries.JavaNetRegistryLookup.idLookupInstance
 import com.snowplowanalytics.iglu.core.circe.implicits._
 import com.snowplowanalytics.snowplow.badrows.BadRow
 import json._
@@ -45,24 +46,27 @@ package object config {
   def load(cfg: String): Either[String, config.Config] =
     parseJson(cfg).flatMap(_.as[config.Conf]).map(_.data).leftMap(_.show)
 
-  /** Validate that a configuration conforms to its schema.
+  /** Validate that a configuration conforms to its schema. Fetches the schema with blocking HTTP calls.
     * @param configuration
     *   in json form
     * @return
     *   a failure if the json didn't validate against its schema or a success
     */
-  def validateSchema[F[_]: Monad: InitSchemaCache: InitListCache: Clock: RegistryLookup](
-    config: String,
-    resolverConfig: String
-  ): EitherT[F, String, Unit] = {
-    val parse: String => EitherT[F, String, Json] = str => EitherT.fromEither(parseJson(str).leftMap(_.show))
-    for {
+  def validateSchema(config: String, resolverConfig: String): Either[String, Unit] = {
+    val parse: String => EitherT[Id, String, Json] = str => EitherT.fromEither(parseJson(str).leftMap(_.show))
+    (for {
       resolver <- parse(resolverConfig)
       recovery <- parse(config)
-      c        <- Client.parseDefault[F](resolver).leftMap(_.show)
-      i        <- EitherT.fromEither[F](recovery.as[SelfDescribingData[Json]]).leftMap(_.show)
+      c        <- Client.parseDefault[Id](resolver).leftMap(_.show)
+      i        <- EitherT.fromEither[Id](recovery.as[SelfDescribingData[Json]]).leftMap(_.show)
       _        <- c.check(i).leftMap(_.show)
-    } yield ()
+    } yield ()).value
+  }
+
+  implicit private val idClock: Clock[Id] = new Clock[Id] {
+    def applicative: Applicative[Id] = Applicative[Id]
+    def monotonic: FiniteDuration    = System.nanoTime().nanos
+    def realTime: FiniteDuration     = System.currentTimeMillis().millis
   }
 
 }

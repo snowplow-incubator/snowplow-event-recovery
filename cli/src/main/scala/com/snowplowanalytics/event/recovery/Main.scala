@@ -11,29 +11,17 @@
 package com.snowplowanalytics.snowplow.event.recovery
 
 import scala.Console.{BOLD, GREEN, RED, RESET}
-import cats._
-import cats.effect.Clock
+import cats.data.EitherT
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import com.snowplowanalytics.iglu.client.Client
 import com.snowplowanalytics.snowplow.badrows.BadRow
-import com.snowplowanalytics.snowplow.badrows.Processor
-import com.snowplowanalytics.snowplow.enrich.common.EtlPipeline
-import com.snowplowanalytics.snowplow.enrich.common.adapters.AdapterRegistry
-import com.snowplowanalytics.snowplow.enrich.common.enrichments.EnrichmentRegistry
-import com.snowplowanalytics.snowplow.enrich.common.loaders.CollectorPayload
-import com.snowplowanalytics.snowplow.enrich.common.loaders.ThriftLoader
 import com.snowplowanalytics.snowplow.enrich.common.outputs.EnrichedEvent
-import com.snowplowanalytics.snowplow.enrich.common.utils.BlockerF
-import io.circe.Json
 import io.circe.parser._
 import mainargs.ParserForMethods
 import mainargs.arg
-import org.joda.time.DateTime
-
-import java.util.concurrent.TimeUnit
 
 import config._
-import data._
 
 object Main {
 // disable downstream library logging
@@ -47,13 +35,11 @@ object Main {
     resolver: Option[String] = None
   ) = {
     val cfg         = os.read(os.Path(config))
-    val resolverCfg = resolver.getOrElse(data.resolverConfig)
-    validateSchema[Id](cfg, resolverCfg)
-      .value
-      .bimap(
-        err => Console.println(s"${RESET}${RED}ERROR! Invalid config\n\n$err${RESET}"),
-        _ => println(s"${RESET}${GREEN}OK! Config valid${RESET}")
-      )
+    val resolverCfg = resolver.map(r => os.read(os.Path(r))).getOrElse(data.resolverConfig)
+    validateSchema(cfg, resolverCfg).bimap(
+      err => Console.println(s"${RESET}${RED}ERROR! Invalid config\n\n$err${RESET}"),
+      _ => println(s"${RESET}${GREEN}OK! Config valid${RESET}")
+    )
   }
 
   @mainargs.main
@@ -68,9 +54,24 @@ object Main {
     resolver: Option[String] = None,
     @arg(short = 'o', doc = "Abslute path for recovery output directory")
     output: Option[String] = None,
-    @arg(short = 'e', doc = "Absolute path to enrichments config directory")
+    @arg(
+      short = 'e',
+      doc = "Absolute path to enrichments config directory. Only enrichments that need no external resources."
+    )
     enrichments: Option[String] = None
-  ) = {
+  ): Unit =
+    if (Runtime.version.feature < 21)
+      println(s"${RESET}${RED}${BOLD}ERROR!${RESET}${RED} run needs Java 21 or newer${RESET}")
+    else recover(input, glob, config, resolver, output, enrichments)
+
+  private[this] def recover(
+    input: String,
+    glob: String,
+    config: String,
+    resolver: Option[String],
+    output: Option[String],
+    enrichments: Option[String]
+  ): Unit = {
     val cfg = os.read(os.Path(config))
     val inputLines =
       os.walk(os.Path(input))
@@ -80,86 +81,68 @@ object Main {
         .toList
 
     (for {
-      resolverCfg <- Right(resolver.map(r => os.read(os.Path(r))).getOrElse(data.resolverConfig))
-      _           <- Right(println(s"Resolver configured..."))
-      client      <- Client.parseDefault[Id](parse(resolverCfg).right.get).leftMap(_.toString).value
-      registry <- configureEnrichments(enrichments, client).leftMap(err =>
-        new IllegalArgumentException(s"Invalid enrichment setup: $err")
+      resolverJson <- EitherT.fromEither[IO](
+        parse(resolver.map(r => os.read(os.Path(r))).getOrElse(data.resolverConfig)).leftMap(_.show)
       )
-      _ <- Right(println("Enrichments configured..."))
-      c <- load(cfg).leftMap(err => new IllegalArgumentException(s"Invalid recovery configuration: $err"))
-      _ <- Right(println("Config loaded..."))
-      enriched = inputLines
-        .map { e =>
-          println("Enriching event...")
-          e
+      enrichmentsJson <- EitherT.fromEither[IO](parse(enrichmentsConfig(enrichments)).leftMap(_.show))
+      pipeline <- EitherT(Enrich.pipeline(resolverJson, enrichmentsJson)).leftMap(err =>
+        s"Invalid resolver or enrichment setup: $err"
+      )
+      _ <- lift(IO.println("Resolver and enrichments configured..."))
+      c <- EitherT.fromEither[IO](load(cfg)).leftMap(err => s"Invalid recovery configuration: $err")
+      _ <- lift(IO.println("Config loaded..."))
+      enriched <- lift(
+        inputLines.flatTraverse { line =>
+          val payload = execute(c)(line).leftMap(_.badRow).flatMap(Enrich.toCollectorPayload)
+          IO.println("Enriching event...") >>
+            Enrich
+              .enrich(pipeline)(payload)
+              .flatTap(_.traverse_ {
+                case Right(e) => IO.println(s"Enriched event ${e.event_id}")
+                case Left(_)  => IO.unit
+              })
         }
-        .map(execute(c))
-        .map(_.leftMap(_.badRow))
-        .map(_.flatMap(ThriftLoader.toCollectorPayload(_, Processor("recovery-cli", "0.0.0")).toEither.leftMap(_.head)))
-        .flatMap(e => enrich(new AdapterRegistry(), registry, client, e))
-    } yield {
-      println("Sinking events...")
-      sink(output, enriched)
-      summary(inputLines, enriched)
-    }).bimap(
-      err => println(s"${RESET}${RED}${BOLD}ERROR!${RESET}${RED} Failed to run recovery $err${RESET}"),
-      _ => println(s"${RESET}${BOLD}${GREEN}OK!${RESET}${GREEN} Successfully ran recovery.${RESET}")
-    )
+      )
+      _ <- lift(IO.println("Sinking events..."))
+      _ <- lift(IO.blocking(sink(output, enriched)))
+    } yield summary(inputLines, enriched))
+      .value
+      .unsafeRunSync()
+      .bimap(
+        err => println(s"${RESET}${RED}${BOLD}ERROR!${RESET}${RED} Failed to run recovery $err${RESET}"),
+        _ => println(s"${RESET}${BOLD}${GREEN}OK!${RESET}${GREEN} Successfully ran recovery.${RESET}")
+      )
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 
-  private[this] def configureEnrichments(path: Option[String], client: Client[Id, Json]) = {
-    val enrichmentsConfigString = path
-      .map(e =>
-        os.walk(os.Path(e))
-          .filter(os.isFile(_, followLinks = false))
-          .filter(_.ext == "json")
-          .map(os.read)
-          .mkString(",\n")
-      )
-      .map(data.enrichmentsConfig)
-      .getOrElse(data.enrichmentsConfig(""))
+  private[this] def lift[A](io: IO[A]): EitherT[IO, String, A] = EitherT.liftF(io)
 
-    parse(enrichmentsConfigString)
-      .flatMap(e => EnrichmentRegistry.parse[Id](e, client, true).toEither)
-      .flatMap(er => EnrichmentRegistry.build[Id](er, BlockerF.noop[Id]).value)
-  }
-
-  private[this] def enrich(
-    adapterRegistry: AdapterRegistry,
-    enrichmentRegistry: EnrichmentRegistry[Id],
-    client: Client[Id, Json],
-    event: Either[BadRow, Option[CollectorPayload]]
-  ) = EtlPipeline
-    .processEvents[Id](
-      adapterRegistry,
-      enrichmentRegistry,
-      client,
-      Processor("recovery-cli", "0.0.0"),
-      new DateTime(1500000000L),
-      event.toValidatedNel,
-      EtlPipeline.FeatureFlags(acceptInvalid = true, legacyEnrichmentOrder = true),
-      ()
+  private[this] def enrichmentsConfig(path: Option[String]): String =
+    data.enrichmentsConfig(
+      path
+        .map(e =>
+          os.walk(os.Path(e))
+            .filter(os.isFile(_, followLinks = false))
+            .filter(_.ext == "json")
+            .map(os.read)
+            .mkString(",\n")
+        )
+        .getOrElse("")
     )
-    .map(_.toEither)
-    .map { e =>
-      println(s"""Enriching event ${e.map(_.event_id).getOrElse("")}""")
-      e
-    }
 
   private[this] def sink(outputDir: Option[String], events: List[Either[BadRow, EnrichedEvent]]) = outputDir.foreach {
     o =>
-      val good = events.filter(_.isRight).map(_.right.get).map(EnrichedEvent.toPartiallyEnrichedEvent)
-      val bad  = events.filter(_.isLeft).map(_.left.get).map(_.asInstanceOf[BadRow].compact)
+      val good = events.collect { case Right(e) => EnrichedEvent.toPartiallyEnrichedEvent(e) }
+      val bad  = events.collect { case Left(b) => b.compact }
       os.write.over(os.Path(o) / "good.txt", good.mkString("\n"))
       os.write.over(os.Path(o) / "bad.txt", bad.mkString("\n"))
   }
 
   private[this] def summary(inputLines: Iterable[String], events: List[Either[BadRow, EnrichedEvent]]) =
     println(
-      s"${RESET}${BOLD}Total Lines:${RESET} ${inputLines.size}, ${BOLD}Recovered:${RESET} ${GREEN}${events.filter(_.isRight).size}${RESET}"
+      s"${RESET}${BOLD}Total Lines:${RESET} ${inputLines.size}, ${BOLD}Recovered:${RESET} ${GREEN}${events
+        .count(_.isRight)}${RESET}"
     )
 }
 
@@ -169,12 +152,4 @@ object data {
 
   val enrichmentsConfig = (data: String) =>
     s"""{"schema": "iglu:com.snowplowanalytics.snowplow/enrichments/jsonschema/1-0-0", "data": [$data]}"""
-
-  implicit val idClock: Clock[Id] = new Clock[Id] {
-    final def realTime(unit: TimeUnit): Id[Long] =
-      unit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-
-    final def monotonic(unit: TimeUnit): Id[Long] =
-      unit.convert(System.nanoTime(), TimeUnit.NANOSECONDS)
-  }
 }

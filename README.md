@@ -30,6 +30,8 @@ Flows are sequences of Steps applied one by one.
 - Beam
 - Flink
 
+The Beam and Flink jobs run on Java 11, as does the Beam Docker image. The `snowplow-event-recovery` command line tool, for testing a configuration locally, needs Java 21.
+
 ## Flink job: arguments
 Recovered events go to a Kinesis stream (`--output`), to files (`--directory-output`, also accepted as `--directoryOutput`), or both; at least one is required. Files are useful for a dry run before sending events to Kinesis. Each recovered event is one line of JSON keyed by the collector payload's field names (`path`, `querystring`, `body`, `headers`, ...), in files named `part-<id>-<n>.json` under one directory per hour (`<directory>/<yyyy-MM-dd--HH>/`). A run that recovers no events writes no files there.
 

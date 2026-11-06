@@ -10,13 +10,10 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
-import cats.Id
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.option._
-import cats.effect.Clock
 import com.spotify.scio.ContextAndArgs
 import com.spotify.scio.coders.Coder
 import com.snowplowanalytics.snowplow.badrows.BadRow
@@ -61,7 +58,7 @@ object Main {
         )
       decoded  <- base64.decode(config).leftMap(_.message)
       resolver <- resolverConfig
-      _        <- validateSchema[Id](decoded, resolver).value
+      _        <- validateSchema(decoded, resolver)
       cfg      <- load(decoded)
     } yield cfg).toValidatedNel
     (input, output, failedOutput, unrecoverableOutput, config).tupled match {
@@ -73,12 +70,5 @@ object Main {
         System.err.println(l.toList.mkString("\n"))
         System.exit(1)
     }
-  }
-
-  implicit private[this] val catsClockIdInstance: Clock[Id] = new Clock[Id] {
-    override def realTime(unit: TimeUnit): Id[Long] =
-      unit.convert(System.nanoTime(), NANOSECONDS)
-    override def monotonic(unit: TimeUnit): Id[Long] =
-      unit.convert(System.currentTimeMillis(), MILLISECONDS)
   }
 }

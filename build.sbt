@@ -14,7 +14,7 @@ import BuildSettings._
 // Read by sbt-thrift-plugin's task, which sbt's lint does not see
 Global / excludeLintKeys += thriftJavaOptions
 
-lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink)
+lazy val root = project.in(file(".")).settings(commonProjectSettings).aggregate(core, beam, flink, cli)
 
 lazy val core = project
   .settings(coreBuildSettings)
@@ -25,9 +25,7 @@ lazy val core = project
   .settings(
     libraryDependencies ++= (Seq(
       Dependencies.thrift,
-      Dependencies
-        .badRows
-        .excludeAll(ExclusionRule(organization = "com.snowplowanalytics", name = "iglu-scala-client-data_2.12")),
+      Dependencies.badRows,
       Dependencies.igluClient,
       Dependencies.atto,
       Dependencies.catsCore,
@@ -37,8 +35,7 @@ lazy val core = project
       Dependencies.scalaCheckShapeless,
       Dependencies.scalaCheckToolbox,
       Dependencies.scalaCommonEnrich,
-      Dependencies.httpClient4 % Test,
-      Dependencies.slf4jLog4j
+      Dependencies.slf4jReload4j
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest
       ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
@@ -52,9 +49,8 @@ lazy val cli = project
   .settings(cliBuildSettings)
   .settings(
     libraryDependencies ++= Dependencies.cliDeps,
-    excludeDependencies ++= Seq(
-      ExclusionRule("com.snowplowanalytics", "iglu-scala-client-data_2.12")
-    )
+    // jcl-over-slf4j provides the same classes
+    excludeDependencies += ExclusionRule("commons-logging", "commons-logging")
   )
 
 lazy val beam = project
@@ -115,6 +111,5 @@ lazy val flink = project
       :+ Dependencies.kinesis.excludeAll(
           ExclusionRule(organization = "commons-logging", name = "commons-logging"),
           ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
-        ),
-    dependencyOverrides += Dependencies.jackson
+        )
   )
