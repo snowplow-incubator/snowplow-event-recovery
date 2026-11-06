@@ -14,13 +14,11 @@ jobs:
         with:
           # sbt-dynver derives the version from the tag
           fetch-depth: 0
-      # Built on Java 8, as before: the Beam image runs on a Java 8 JRE, and classes compiled on a newer JDK can call
-      # methods Java 8 lacks. The Flink jar built here runs on Java 11 on EMR.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "8"
+          java-version: "21"
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Install Thrift
