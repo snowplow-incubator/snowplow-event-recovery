@@ -10,8 +10,7 @@
  */
 package com.snowplowanalytics.snowplow.event.recovery
 
-import scala.concurrent.duration.{DurationLong, MILLISECONDS, NANOSECONDS, TimeUnit}
-import cats.Id
+import scala.concurrent.duration.DurationLong
 import cats.data.Validated
 import cats.effect._
 import cats.implicits._
@@ -136,7 +135,7 @@ object Main
       )
       .orNone
 
-    val validatedConfig = (resolver, config).mapN((r, c) => validateSchema[Id](c, r).map(_ => c).value.flatMap(load(_)))
+    val validatedConfig = (resolver, config).mapN((r, c) => validateSchema(c, r).flatMap(_ => load(c)))
 
     (
       input,
@@ -165,12 +164,5 @@ object Main
           .leftMap(new RuntimeException(_))
       )
     }
-  }
-
-  implicit val catsClockIdInstance: Clock[Id] = new Clock[Id] {
-    override def realTime(unit: TimeUnit): Id[Long] =
-      unit.convert(System.nanoTime(), NANOSECONDS)
-    override def monotonic(unit: TimeUnit): Id[Long] =
-      unit.convert(System.currentTimeMillis(), MILLISECONDS)
   }
 }

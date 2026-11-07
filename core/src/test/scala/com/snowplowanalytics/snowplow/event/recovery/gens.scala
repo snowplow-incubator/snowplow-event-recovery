@@ -13,11 +13,8 @@ package snowplow
 package event.recovery
 
 import java.util.{Base64, UUID}
-import java.util.concurrent.TimeUnit
 
 import shapeless._
-import cats.Id
-import cats.effect.Clock
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.{Arbitrary, Gen}
@@ -33,14 +30,6 @@ import config._
 import domain._
 
 object gens {
-  implicit val idClock: Clock[Id] = new Clock[Id] {
-    final def realTime(unit: TimeUnit): Id[Long] =
-      unit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-
-    final def monotonic(unit: TimeUnit): Id[Long] =
-      unit.convert(System.nanoTime(), TimeUnit.NANOSECONDS)
-  }
-
   val qs = (json: Json) => {
     val str = json.toString
     val unstruct =

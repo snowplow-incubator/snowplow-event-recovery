@@ -41,28 +41,28 @@ object Dependencies {
   object V {
     // Java
     val thrift          = "0.25.0" // at least the version of the thrift compiler that generates CollectorPayload
-    val slf4j           = "1.7.36"
-    val jacksonDatabind = "2.12.7.1"
-    val httpClient4     = "4.5.14"
+    val slf4j           = "2.0.17"
+    val jackson         = "2.21.8"
+    val jacksonAnnot    = "2.21"
     val aws             = "1.12.576"
 
     // Scala third-party
     val atto          = "0.9.5"
-    val catsCore      = "2.8.0"
-    val catsEffect    = "2.5.5"
+    val catsCore      = "2.13.0"
+    val catsEffect    = "3.7.0"
     val circeOptics   = "0.14.1"
-    val circe         = "0.14.2"
+    val circe         = "0.14.15"
+    val circeExtras   = "0.14.4"
     val monocle       = "2.1.0"
     val flink         = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
     val flinkKinesis  = "5.1.0-1.20"
     val scio          = "0.13.6"
     val beam          = "2.52.0"
-    val decline       = "1.4.0"
-    val declineEffect = "1.4.0"
+    val decline       = "2.4.1"
 
     // Scala first-party
-    val badRows    = "2.2.0"
-    val igluClient = "1.1.1"
+    val badRows    = "2.3.0"
+    val igluClient = "4.3.1"
 
     // Testing
     val scalatest           = "3.2.11"
@@ -70,13 +70,14 @@ object Dependencies {
     val scalaCheck          = s"$scalaCheckMinor.4"
     val scalaCheckToolBox   = "0.6.0"
     val scalaCheckShapeless = "1.3.0"
-    val scalaCommonEnrich   = "3.2.1"
+    val scalaCommonEnrich   = "6.13.1"
     val testContainers      = "0.43.6"
     val testContainersJava  = "1.21.4" // Docker Engine 29 rejects the API version older testcontainers-java requests
 
     //cli
-    val mainargs = "0.7.0"
-    val osLib    = "0.10.0"
+    val mainargs       = "0.7.0"
+    val osLib          = "0.10.0"
+    val typesafeConfig = "1.4.10"
   }
 
   // Java
@@ -89,11 +90,21 @@ object Dependencies {
     ExclusionRule("jakarta.annotation")
   )
   val slf4jSimple  = "org.slf4j"                  % "slf4j-simple"            % V.slf4j
-  val slf4jLog4j   = "org.slf4j"                  % "slf4j-log4j12"           % V.slf4j
-  val jackson      = "com.fasterxml.jackson.core" % "jackson-databind"        % V.jacksonDatabind
-  // snowplow-common-enrich 3.x needs it at runtime but does not depend on it
-  val httpClient4  = "org.apache.httpcomponents"  % "httpclient"              % V.httpClient4
+  val slf4jReload4j = "org.slf4j"                 % "slf4j-reload4j"          % V.slf4j
   val kinesis      = "com.amazonaws"              % "aws-java-sdk-kinesis"    % V.aws
+
+  // Jackson modules work only with others of the same minor version
+  val jacksonOverrides = Seq(
+    "com.fasterxml.jackson.core"       % "jackson-annotations"     % V.jacksonAnnot,
+    "com.fasterxml.jackson.core"       % "jackson-core"            % V.jackson,
+    "com.fasterxml.jackson.core"       % "jackson-databind"        % V.jackson,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % V.jackson,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % V.jackson,
+    "com.fasterxml.jackson.datatype"   % "jackson-datatype-jdk8"   % V.jackson,
+    "com.fasterxml.jackson.datatype"   % "jackson-datatype-joda"   % V.jackson,
+    "com.fasterxml.jackson.datatype"   % "jackson-datatype-jsr310" % V.jackson,
+    "com.fasterxml.jackson.module"    %% "jackson-module-scala"    % V.jackson
+  )
 
   // Scala third-party
   val atto       = "org.tpolecat"  %% "atto-core"   % V.atto
@@ -102,19 +113,17 @@ object Dependencies {
   val circe = Seq(
     "circe-core",
     "circe-generic",
-    "circe-generic-extras",
     "circe-parser",
     "circe-shapes",
     "circe-literal"
-  ).map("io.circe" %% _ % V.circe) :+ ("io.circe" %% "circe-optics" % V.circeOptics)
+  ).map("io.circe" %% _ % V.circe) :+
+    ("io.circe" %% "circe-generic-extras" % V.circeExtras) :+
+    ("io.circe" %% "circe-optics" % V.circeOptics)
   val monocle = "com.github.julien-truffaut" %% "monocle-macro"                           % V.monocle
   val scio    = "com.spotify"                %% "scio-core"                               % V.scio
   val scioGCP = "com.spotify"                %% "scio-google-cloud-platform"              % V.scio
   val beam    = "org.apache.beam"             % "beam-runners-google-cloud-dataflow-java" % V.beam
-  val decline =
-    Seq(("decline", V.decline), ("decline-effect", V.declineEffect)).map { case (pkg, version) =>
-      "com.monovore" %% pkg % version
-    }
+  val decline = Seq("decline", "decline-effect").map("com.monovore" %% _ % V.decline)
   val flink = Seq("flink-scala", "flink-streaming-scala").map(
     "org.apache.flink" %% _ % V.flink % Provided
   ) :+
@@ -158,6 +167,6 @@ object Dependencies {
     "com.lihaoyi"            %% "mainargs"               % V.mainargs,
     "com.lihaoyi"            %% "os-lib"                 % V.osLib,
     ("com.snowplowanalytics" %% "snowplow-common-enrich" % V.scalaCommonEnrich).exclude("com.maxmind.geoip2", "geoip2"),
-    httpClient4
+    "com.typesafe"            % "config"                 % V.typesafeConfig
   )
 }

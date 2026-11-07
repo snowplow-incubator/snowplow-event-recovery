@@ -62,3 +62,26 @@ jobs:
         run: sbt flink/assembly
       - name: Run it on Flink
         run: flink/src/smoke/run.sh flink/target/scala-2.12/snowplow-event-recovery-flink-*.jar
+
+  # Starts the Beam Docker image on its own JVM and validates a configuration, fetching its schema from Iglu Central
+  beam-image:
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: sbt
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+      - name: Install Thrift
+        # core generates CollectorPayload with the thrift compiler
+        run: sudo apt-get update && sudo apt-get install -y thrift-compiler
+      - name: Build the Beam image
+        run: sbt beam/docker:publishLocal
+      - name: Run it
+        run: beam/src/smoke/run.sh "$(docker images --format '{{.Repository}}:{{.Tag}}' snowplow/snowplow-event-recovery-beam | head -1)"
