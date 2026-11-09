@@ -15,6 +15,7 @@ import com.spotify.scio.{ScioContext, ScioMetrics}
 import com.spotify.scio.coders.Coder
 import com.spotify.scio.values.SCollection
 import com.spotify.scio.pubsub._
+import com.spotify.scio.pubsub.coders._
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage
 import com.snowplowanalytics.snowplow.badrows._

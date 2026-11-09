@@ -66,7 +66,7 @@ class RecoveryJobSpec extends PipelineSpec {
     JobTest[Main.type]
       .args(
         "--inputDirectory=in",
-        "--outputTopic=out",
+        "--outputTopic=projects/test-project/topics/out",
         "--failedOutput=failed",
         "--unrecoverableOutput=unrecoverable",
         s"--config=$recoveryScenarios",
