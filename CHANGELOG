@@ -1,3 +1,16 @@
+Version 0.8.0 (2026-11-09)
+--------------------------
+Bump dependencies for 0.8.0 release (#155)
+Upgrade to cats-effect 3 and snowplow-common-enrich 6.13.1 (#154)
+Build on JDK 21, keeping Java 8 bytecode (#153)
+Replace scalacheck-schema with a hand-written client_session generator (#152)
+Generate CollectorPayload from Thrift IDL instead of collector-payload-1 (#150)
+Fix flaky CheckSpec filter test (#151)
+Update license to SLULA 1.1 (#148)
+Remove the unsupported Spark job (#149)
+Make the Flink job the supported recovery path (#147)
+chore(ci): remove Snyk workflow (#146)
+
 Version 0.7.2 (2024-06-26)
 --------------------------
 Do not decode iglu json webhook ue_pr paramter on coerce (close #144)
