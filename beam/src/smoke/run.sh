@@ -14,8 +14,9 @@ VALID=$(printf '%s' '{"schema":"iglu:com.snowplowanalytics.snowplow/recoveries/j
 INVALID=$(printf '%s' '{"schema":"iglu:com.snowplowanalytics.snowplow/recoveries/jsonschema/4-0-0","data":{"iglu:com.snowplowanalytics.snowplow.badrows/enrichment_failures/jsonschema/1-0-*":[{"name":"default","conditions":[],"steps":[{"op":"Nope"}]}]}}' | b64)
 
 run() { # $1 = base64 configuration. Prints what the job reports, apart from the missing input and output.
+  # Scio logs AvroClassTrust at INFO on every start.
   docker run --rm "$IMAGE" --resolver="$RESOLVER" --config="$1" 2>&1 |
-    grep -v -e "is mandatory" -e "^SLF4J" -e "^WARNING" || true
+    grep -v -e "is mandatory" -e "^SLF4J" -e "^WARNING" -e "INFO com.spotify.scio.util.AvroClassTrust" || true
 }
 
 echo "== logging"

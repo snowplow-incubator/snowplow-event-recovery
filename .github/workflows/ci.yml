@@ -63,7 +63,8 @@ jobs:
       - name: Run it on Flink
         run: flink/src/smoke/run.sh flink/target/scala-2.12/snowplow-event-recovery-flink-*.jar
 
-  # Starts the Beam Docker image on its own JVM and validates a configuration, fetching its schema from Iglu Central
+  # Starts the Beam Docker image on its own JVM and validates a configuration, fetching its schema from Iglu Central,
+  # then runs the whole pipeline in it with the DirectRunner, writing to the Pub/Sub emulator
   beam-image:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     runs-on: ubuntu-latest
@@ -85,3 +86,5 @@ jobs:
         run: sbt beam/docker:publishLocal
       - name: Run it
         run: beam/src/smoke/run.sh "$(docker images --format '{{.Repository}}:{{.Tag}}' snowplow/snowplow-event-recovery-beam | head -1)"
+      - name: Run the pipeline in it
+        run: beam/src/smoke/pipeline.sh "$(docker images --format '{{.Repository}}:{{.Tag}}' snowplow/snowplow-event-recovery-beam | head -1)"

@@ -38,7 +38,7 @@ lazy val core = project
       Dependencies.slf4jReload4j
     ) ++ Dependencies.circe
       ++ Dependencies.scalatest
-      ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging"))))
+      ++ SecurityOverrides.coreDependencies)
   )
   .enablePlugins(BuildInfoPlugin)
 
@@ -48,7 +48,8 @@ lazy val cli = project
   .settings(dynVerSettings)
   .settings(cliBuildSettings)
   .settings(
-    libraryDependencies ++= Dependencies.cliDeps,
+    libraryDependencies ++= Dependencies.cliDeps ++ SecurityOverrides.cliDependencies,
+    dependencyOverrides ++= SecurityOverrides.cliOverrides,
     // jcl-over-slf4j provides the same classes
     excludeDependencies += ExclusionRule("commons-logging", "commons-logging")
   )
@@ -68,7 +69,9 @@ lazy val beam = project
       Dependencies.beam,
       Dependencies.scioTest,
       Dependencies.slf4jSimple
-    ) ++ SecurityOverrides.dependencies.map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
+    ),
+    dependencyOverrides ++= SecurityOverrides.beamOverrides,
+    excludeDependencies ++= SecurityOverrides.beamExclusions
   )
 
 lazy val flink = project
@@ -108,8 +111,9 @@ lazy val flink = project
       ) ++ Dependencies.circe
       ++ Dependencies.testContainers
       ++ Dependencies.scalatestIT
-      :+ Dependencies.kinesis.excludeAll(
+      :+ (Dependencies.kinesis % IntegrationTest).excludeAll(
           ExclusionRule(organization = "commons-logging", name = "commons-logging"),
           ExclusionRule(organization = "org.springframework", name = "spring-jcl"),
-        )
+        ),
+    dependencyOverrides ++= SecurityOverrides.flinkOverrides
   )

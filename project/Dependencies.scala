@@ -13,26 +13,139 @@ import sbt._
 
 object SecurityOverrides {
   object V {
-    val commonsCodec          = "1.13"
-    val guava                 = "32.0.0-jre"
-    val json                  = "20231013"
-    val snakeyaml             = "2.0"
-    val snappy                = "1.1.10.4"
-    val avro                  = "1.11.3"
-    val commonsCompress       = "1.26.0"
-    val reload4j              = "1.2.25"
+    val commonsCodec    = "1.13"
+    val commonsCompress = "1.26.0"
+    val reload4j        = "1.2.25"
+    val guava           = "33.8.0-jre"
+    val snappy          = "1.1.10.12"
+    val netty41         = "4.1.140.Final"
+    val nettyTcnative   = "2.0.85.Final" // the version netty-bom declares for V.netty41
+    val netty42         = "4.2.20.Final"
+    val bouncycastle    = "1.86"
+    val zstdJni         = "1.5.7-26"
+    val openTelemetry   = "1.68.0"
+    val http4s          = "0.23.38"
+    val httpClient5     = "5.6.5"
+    val mariadb         = "3.5.11"
+    val postgresql      = "42.7.14"
   }
 
-  val dependencies = Seq(
-    "com.google.guava"                 % "guava"                   % V.guava,
-    "commons-codec"                    % "commons-codec"           % V.commonsCodec,
-    "org.json"                         % "json"                    % V.json,
-    "org.yaml"                         % "snakeyaml"               % V.snakeyaml,
-    "org.xerial.snappy"                % "snappy-java"             % V.snappy,
-    "org.apache.avro"                  % "avro"                    % V.avro,
-    "org.apache.commons"               % "commons-compress"        % V.commonsCompress,
-    "ch.qos.reload4j"                  % "reload4j"                % V.reload4j 
+  // libraryDependencies of core: each has an older version on the classpath of core and of every project that
+  // depends on core
+  val coreDependencies = Seq(
+    "org.apache.commons" % "commons-compress" % V.commonsCompress,
+    "ch.qos.reload4j"    % "reload4j"         % V.reload4j
   )
+
+  val cliDependencies = Seq(
+    "commons-codec" % "commons-codec" % V.commonsCodec
+  )
+
+  // The rest are for dependencyOverrides, which only raise the version of an artifact already on a project's
+  // classpath. A module listed here that a project does not use is not added to it.
+  // Netty modules work only with others of the same version, as do OpenTelemetry's and http4s's.
+
+  private val netty41 = Seq(
+    "netty-buffer",
+    "netty-codec",
+    "netty-codec-http",
+    "netty-codec-http2",
+    "netty-codec-socks",
+    "netty-common",
+    "netty-handler",
+    "netty-handler-proxy",
+    "netty-resolver",
+    "netty-transport",
+    "netty-transport-classes-epoll",
+    "netty-transport-native-unix-common"
+  ).map("io.netty" % _ % V.netty41) ++ Seq(
+    "netty-tcnative-boringssl-static",
+    "netty-tcnative-classes"
+  ).map("io.netty" % _ % V.nettyTcnative)
+
+  // netty-all, which brings every 4.2 module
+  private val netty42 = Seq(
+    "netty-all",
+    "netty-buffer",
+    "netty-codec",
+    "netty-codec-base",
+    "netty-codec-classes-quic",
+    "netty-codec-compression",
+    "netty-codec-dns",
+    "netty-codec-haproxy",
+    "netty-codec-http",
+    "netty-codec-http2",
+    "netty-codec-http3",
+    "netty-codec-marshalling",
+    "netty-codec-memcache",
+    "netty-codec-mqtt",
+    "netty-codec-native-quic",
+    "netty-codec-protobuf",
+    "netty-codec-redis",
+    "netty-codec-smtp",
+    "netty-codec-socks",
+    "netty-codec-stomp",
+    "netty-codec-xml",
+    "netty-common",
+    "netty-handler",
+    "netty-handler-proxy",
+    "netty-handler-ssl-ocsp",
+    "netty-resolver",
+    "netty-resolver-dns",
+    "netty-resolver-dns-classes-macos",
+    "netty-resolver-dns-native-macos",
+    "netty-transport",
+    "netty-transport-classes-epoll",
+    "netty-transport-classes-io_uring",
+    "netty-transport-classes-kqueue",
+    "netty-transport-native-epoll",
+    "netty-transport-native-io_uring",
+    "netty-transport-native-kqueue",
+    "netty-transport-native-unix-common",
+    "netty-transport-rxtx",
+    "netty-transport-sctp",
+    "netty-transport-udt"
+  ).map("io.netty" % _ % V.netty42)
+
+  val beamOverrides = Seq(
+    "com.google.guava"  % "guava"          % V.guava,
+    "org.xerial.snappy" % "snappy-java"    % V.snappy,
+    "org.bouncycastle"  % "bcprov-jdk18on" % V.bouncycastle,
+    "com.github.luben"  % "zstd-jni"       % V.zstdJni
+  ) ++ Seq(
+    "opentelemetry-api",
+    "opentelemetry-common",
+    "opentelemetry-context",
+    "opentelemetry-sdk",
+    "opentelemetry-sdk-common",
+    "opentelemetry-sdk-extension-autoconfigure-spi",
+    "opentelemetry-sdk-logs",
+    "opentelemetry-sdk-metrics",
+    "opentelemetry-sdk-trace"
+  ).map("io.opentelemetry" % _ % V.openTelemetry) ++ netty41
+
+  // Only Beam's ProtoByteUtils, for protobuf schemas from a schema registry, uses these. The job never calls it.
+  val beamExclusions = Seq(
+    ExclusionRule("io.apicurio"),
+    ExclusionRule("com.squareup.wire"),
+    ExclusionRule("com.charleskorn.kaml")
+  )
+
+  // Netty comes with the AWS SDK's netty-nio-client, in flink-connector-aws
+  val flinkOverrides = netty41
+
+  // All from snowplow-common-enrich
+  val cliOverrides = Seq(
+    "com.google.guava"                 % "guava"                % V.guava,
+    "org.apache.httpcomponents.client5" % "httpclient5"          % V.httpClient5,
+    "org.mariadb.jdbc"                 % "mariadb-java-client"  % V.mariadb,
+    "org.postgresql"                   % "postgresql"           % V.postgresql
+  ) ++ Seq(
+    "http4s-client",
+    "http4s-core",
+    "http4s-ember-client",
+    "http4s-ember-core"
+  ).map("org.http4s" %% _ % V.http4s) ++ netty42
 
 }
 
@@ -49,15 +162,15 @@ object Dependencies {
     // Scala third-party
     val atto          = "0.9.5"
     val catsCore      = "2.13.0"
-    val catsEffect    = "3.7.0"
+    val catsEffect    = "3.7.1"
     val circeOptics   = "0.14.1"
-    val circe         = "0.14.15"
+    val circe         = "0.14.17"
     val circeExtras   = "0.14.4"
     val monocle       = "2.1.0"
     val flink         = "1.20.0" // match the Flink shipped by EMR 7.6+ (1.20.0-amzn-*)
     val flinkKinesis  = "5.1.0-1.20"
-    val scio          = "0.13.6"
-    val beam          = "2.52.0"
+    val scio          = "0.16.1"
+    val beam          = "2.77.0"
     val decline       = "2.4.1"
 
     // Scala first-party
